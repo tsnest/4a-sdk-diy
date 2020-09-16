@@ -1,0 +1,147 @@
+'actions/console command' = begin
+	clsid : stringz = 'actions/console command';
+
+	sizex : u32 = 150;
+	sizey : u32 = 70;
+	
+	in_names : stringz = 'activate';
+	out_names : stringz = '';
+	
+	properties = begin
+		cmd : stringz = '';
+	end;
+end;
+
+'actions/engine/3d_text' = begin
+	clsid : stringz = 'actions/engine/3d_text';
+
+	sizex : u32 = 150;
+	sizey : u32 = 85;
+	
+	in_names : stringz = 'activate,deactivate';
+	out_names : stringz = 'entity,finished';
+	
+	properties = begin
+		offset : vec3f = [0, 0, 0];
+		rotation : fp32 = 0;
+		key : choose;
+		key : stringz = '$new_game';
+		size : fp32 = 90;
+		h_alignment : u8 = 2;
+		v_alignment : u8 = 2;
+		color : 'color, vec4f' = [0.6156862974, 0.2745098174, 0.01960784383, 1];
+		bone : bone_str;
+		bone : stringz = 'loc_text';
+		font : choose;
+		font : stringz = 'main_menu_lcd';
+		flags0 : bool8 = 6; { geometry_check, forward_render, forward_post_render, opaque_render, selflit_render, velocity_render, glow, dynamic }
+	end;
+end;
+
+'actions/engine/signal' = begin
+	clsid : stringz = 'actions/engine/signal';
+	
+	sizex : u32 = 150;
+	sizey : u32 = 85;
+	
+	in_names : stringz = 'activate';
+	out_names : stringz = '';
+	
+	properties = begin
+		signal : choose;
+		signal : stringz = 'single_tunnel_start';
+		mode : u8 = 0;
+	end;
+end;
+
+'actions/play color cube' = begin
+	clsid : stringz = 'actions/play color cube';
+	
+	sizex : u32 = 150;
+	sizey : u32 = 85;
+	
+	in_names : stringz = 'activate,deactivate';
+	out_names : stringz = 'entity,finished';
+	
+	properties = begin
+		color_cube : choose;
+		color_cube : stringz = 'default';
+		blend_time : u32 = 500;
+		reset : bool = False;
+	end;
+end;
+
+'entities/entity self' = begin
+	clsid : stringz = 'entities/entity self';
+	
+	sizex : u32 = 150;
+	sizey : u32 = 70;
+	
+	in_names : stringz = 'entity';
+	out_names : stringz = '';
+end;
+
+'logic/counter' = begin
+	clsid : stringz = 'logic/counter';
+	
+	sizex : u32 = 150;
+	sizey : u32 = 100;
+	
+	in_names : stringz = 'touch,inc,dec,reset';
+	out_names : stringz = 'propagate';
+	
+	properties = begin
+		value : s32 = 7;
+		current_value : s32 = -2147483647;
+	end;
+end;
+
+'triggers/engine/signal' = begin
+	clsid : stringz = 'triggers/engine/signal';
+	
+	sizex : u32 = 150;
+	sizey : u32 = 85;
+	
+	in_names : stringz = 'enable,disable';
+	out_names : stringz = 'out';
+	
+	properties = begin
+		active : bool = True;
+		signal : choose;
+		signal : stringz = '';
+	end;
+end;
+
+'triggers/startgame' = begin
+	clsid : stringz = 'triggers/startgame';
+	
+	in_names : stringz = 'enable,disable';
+	out_names : stringz = 'out';
+	
+	properties = begin
+		active : bool = True;
+		flags : bool8 = 0;
+	end;
+end;
+
+'triggers/use' = begin
+	clsid : stringz = 'triggers/use';
+	
+	in_names : stringz = 'enable,disable';
+	out_names : stringz = 'on_use,unk2,entity';
+	
+	properties = begin
+		active : bool = False;
+		player : bool = True;
+		usage_distance : fp32 = 2;
+		use_action : choose;
+		use_action : stringz = 'filter_take';
+		use_offset : vec2f = [0, -0.1000000015];
+		blink_distance : fp32 = 10;
+		flags8 : bool8 = 3;
+		user_team : u8 = 0;
+		in_reloading : bool = False;
+		mp_classes : u8_array = [];
+	end;
+end;
+

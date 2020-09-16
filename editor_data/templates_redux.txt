@@ -1,0 +1,52 @@
+car_trash_0033 = begin
+	class : stringz = 'STATICPROP';
+	static_data_key : stringz = '_G.config.entity.static';
+	att_bone_id : locator_str;
+	att_bone_id : stringz = '';
+	id : u16 = 57401;
+	parent_id : u16 = 65535;
+	att_offset : 'pose, matrix_43T' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+	name : name;
+	name : stringz = 'car_trash_0033';
+	oflags : bool8 = 138;
+	sflags : bool8 = 0;
+	'' : 'pose, matrix' = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+	visual : ref_model;
+	visual : stringz = 'static\outdoor\turniket_a';
+	dao_val : u16 = 44;
+	render_aux_val : vec4f = [0.0009765634313, 0.0009765634313, 0.0009765634313, 1.401298464E-45];
+	vss_ver_6 : array;
+	vss_ver_6 = begin
+		count : u32 = 0;
+	end;
+	vs_active : bool = True;
+	spatial_sector : u16 = 65535;
+	flags : bool8 = 1;
+	collision_group : u8 = 4;
+end;
+outdoor_props_0010 = begin
+	class : stringz = 'STATICPROP';
+	static_data_key : stringz = '_G.config.entity.static';
+	att_bone_id : locator_str;
+	att_bone_id : stringz = '';
+	id : u16 = 56959;
+	parent_id : u16 = 65535;
+	att_offset : 'pose, matrix_43T' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+	name : name;
+	name : stringz = 'outdoor_props_0010';
+	oflags : bool8 = 130;
+	sflags : bool8 = 0;
+	'' : 'pose, matrix' = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+	visual : ref_model;
+	visual : stringz = 'static\outdoor\collector_2@snow';
+	dao_val : u16 = 71;
+	render_aux_val : vec4f = [0.5351567864, 0.0009765634313, 0.0009765634313, 1.401298464E-45];
+	vss_ver_6 : array;
+	vss_ver_6 = begin
+		count : u32 = 0;
+	end;
+	vs_active : bool = True;
+	spatial_sector : u16 = 65535;
+	flags : bool8 = 1;
+	collision_group : u8 = 4;
+end;

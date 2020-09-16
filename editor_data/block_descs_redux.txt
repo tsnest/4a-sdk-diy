@@ -1,0 +1,13 @@
+'actions/console command' = begin
+	clsid : stringz = 'actions/console command';
+
+	sizex : u32 = 150;
+	sizey : u32 = 70;
+	
+	in_names : stringz = 'activate';
+	out_names : stringz = '';
+	
+	properties = begin
+		cmd : stringz = '';
+	end;
+end;
