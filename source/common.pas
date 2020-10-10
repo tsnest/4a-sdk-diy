@@ -230,7 +230,7 @@ type
 procedure DrawFlag(clr : TFlagColor);
 
 implementation
-uses sysutils, GLExt, fgl, chunkedFile, Texture, PhysX, cform_utils, Iup, Windows, skeleton, Engine;
+uses sysutils, GLExt, fgl, chunkedFile, Texture, PhysX, cform_utils, Iup, skeleton, Engine;
 
 type
 	TResTextureMap 	= TFPGMap<String,TResTexture>;
@@ -1917,30 +1917,7 @@ var
 // must be called after MakeCurrent
 procedure InitializeRender;
 begin
-	glActiveTexture := wglGetProcAddress('glActiveTexture');
-	glCompressedTexImage2D := wglGetProcAddress('glCompressedTexImage2D');
-
-	glVertexAttrib4nubARB := wglGetProcAddress('glVertexAttrib4nubARB');
-	glVertexAttrib4nubvARB := wglGetProcAddress('glVertexAttrib4nubvARB');
-	glVertexAttrib4fARB := wglGetProcAddress('glVertexAttrib4fARB');
-	glVertexAttrib4fvARB := wglGetProcAddress('glVertexAttrib4fvARB');
-	glGenProgramsARB := wglGetProcAddress('glGenProgramsARB');
-	glDeleteProgramsARB := wglGetProcAddress('glDeleteProgramsARB');
-	glBindProgramARB := wglGetProcAddress('glBindProgramARB');
-	glProgramStringARB := wglGetProcAddress('glProgramStringARB');
-	glVertexAttribPointerARB := wglGetProcAddress('glVertexAttribPointerARB');
-	glEnableVertexAttribArrayARB := wglGetProcAddress('glEnableVertexAttribArrayARB');
-	glDisableVertexAttribArrayARB := wglGetProcAddress('glDisableVertexAttribArrayARB');
-	glProgramEnvParameter4fARB := wglGetProcAddress('glProgramEnvParameter4fARB');
-	glProgramEnvParameter4fvARB := wglGetProcAddress('glProgramEnvParameter4fvARB');
-	glProgramLocalParameter4fARB := wglGetProcAddress('glProgramLocalParameter4fARB');
-	glProgramLocalParameter4fvARB := wglGetProcAddress('glProgramLocalParameter4fvARB');
-
-	glGenBuffers := wglGetProcAddress('glGenBuffers');
-	glDeleteBuffers := wglGetProcAddress('glDeleteBuffers');
-	glBindBuffer := wglGetProcAddress('glBindBuffer');
-	glBufferData := wglGetProcAddress('glBufferData');
-	glBufferSubData := wglGetProcAddress('glBufferSubData');
+	InitializeGLExtensions;
 
 	glGenProgramsARB(16, @prog);
 	ReloadGLPrograms;
