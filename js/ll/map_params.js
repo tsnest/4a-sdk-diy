@@ -1,39 +1,51 @@
-// script for decompiling konfigs which have name same as level in content\maps folder, e.g. l00_intro.bin, l04_riga.bin
+/*
+ * Script for decomple last light load screen like l08_swamp
+ */
 
-reader.ReadU8('mp_mode')
-reader.ReadString('map_name')
-reader.ReadString('name')
-reader.ReadHintStr('caption', 'choose')
-reader.ReadU8('max_players')
-reader.ReadU8('opt_players')
+// HEADER INFO
+reader.ReadU8('mp_mode');
+reader.ReadString('mp_name');
+reader.ReadString('name');
+reader.ReadHintStr('caption', 'chose');
+reader.ReadU8('max_players');
+reader.ReadU8('opt_players');
 reader.ReadBool('press_any_key')
 
+// MUSIC DATA
 reader.ReadU32('fade_time')
 reader.ReadHintStr('music', 'sound')
 reader.ReadU32('music_falloff')
 reader.ReadFP32('music_volume')
+
+// NARRATIVE DATA
 reader.ReadHintStr('voice', 'sound')
 reader.ReadU32('voice_delay')
 reader.ReadU32('voice_falloff')
 reader.ReadFP32('voice_volume')
-reader.ReadHintStr('text', 'choose')
-reader.ReadHintStr('title', 'choose')
+
+// TEXT DATA
+reader.ReadHintStr('text', 'chose')
+reader.ReadHintStr('title', 'chose')
 reader.ReadU32('text_delay')
-reader.ReadVec4('text_rect')
-reader.ReadFP32('title_indent')
+reader.ReadVec4('text_color', 'color, vec4')
+reader.ReadFP32('text_indient')
+
+// TEXTURE DATA
 reader.ReadHintStr('progress_map', 'texture, str_shared')
 reader.ReadU32('progress_duration')
+
+// LABELS DATA
 var labels = reader.ReadArray('labels')
-for(var i = 0; labels.More(); i++)
-{
-	var l = labels.ReadSection(RecStr('rec_', i, 4), false)
-	l.ReadFP32('font_size')
-	l.ReadU32('line_spacing')
-	l.ReadVec4('color', 'color, vec4f')
-	l.ReadHintStr('text', 'choose')
-	l.ReadVec4('rect')
-	l.ReadBool('fade_in')
+for (var i = 0; i < labels.More(); i++) {
+    var rect = labels.ReadSection(RecStr("_rec", i, 4), false)
+    rect.ReadFP32('font_size')
+    rect.ReadU32('line_spacing')
+    rect.ReadVec4('color', 'color, vec4')
+    rect.ReadHintStr('text', 'chose')
+    rect.ReadVec4('rect')
+    rect.ReadBool('fade_in')
 }
 
+// TEXT DATA
 reader.ReadStrArray16('textures')
 reader.ReadHintStr('picture', 'texture, str_shared')

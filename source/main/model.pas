@@ -303,7 +303,7 @@ begin
 	cf.Free;
 end;
 
-procedure FromModelToLevel(start, count : Integer; destdir : String);
+procedure FromModelToLevel(start, count : Integer; destdir : String; params : TLevelFlags);
 var
 	l : T4ALevel;
 	m : T4AModelHierrarhy;
@@ -325,7 +325,14 @@ begin
 
 	CreateSector(l);
 
-	GenerateCform(l, destdir + '\level.nxcform_pc');
+	If lfLastLight in params then
+		l.visuals[l.sectors[0]].version := 21;
+
+	If lfLastLight in params then
+		GenerateCform(l, destdir + '\level.nxcform_xbox', True)
+	else
+		GenerateCform(l, destdir + '\level.nxcform_pc');
+
 	ScaleAO(l);
 
 	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
@@ -661,7 +668,7 @@ begin
 		end else
 		if ParamStr(I) = '-model2level' then
 		begin
-			FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount));
+			FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount), flags);
 		end else
 		if ParamStr(I) = '-level2level' then
 		begin

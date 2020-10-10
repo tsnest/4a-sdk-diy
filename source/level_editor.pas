@@ -28,6 +28,8 @@ var
 var
 	level_path : String;
 
+	lineWidth : Longint = 1;
+
 	cam_fov : Single = 70.0;
 	position : TVec3;
 	direction : TVec3;
@@ -44,6 +46,7 @@ var
 	
 var
 	mouse_x, mouse_y : Longint;
+	wheel_up, wheel_down : Boolean;
 	
 	rclick_x, rclick_y : Longint;
 	lclick_x, lclick_y : Longint;
@@ -247,17 +250,17 @@ procedure CreateManipulator(const matrix : TMatrix);
 begin
 	if m_mode = mmMove then
 	begin
-		m_t := TMoveManipulator.Create(Scene.ph_scene, m_move_axis = maWorld);
+		m_t := TMoveManipulator.Create(Scene.ph_scene, m_move_axis = maWorld, lineWidth);
 		m_t.Matrix := matrix;
 	end;
 	if m_mode = mmRotate then
 	begin
-		m_t := TRotateManipulator.Create(Scene.ph_scene, (m_rotate_axis = maWorld) or (m_rotate_axis = maGroup));
+		m_t := TRotateManipulator.Create(Scene.ph_scene, (m_rotate_axis = maWorld) or (m_rotate_axis = maGroup), lineWidth);
 		m_t.Matrix := matrix;
 	end;
 	if m_mode = mmScale then
 	begin
-		m_t := TScaleManipulator.Create(Scene.ph_scene, m_uniform_scale);
+		m_t := TScaleManipulator.Create(Scene.ph_scene, m_uniform_scale, lineWidth);
 		m_t.Matrix := matrix;
 	end;
 end;
@@ -673,6 +676,7 @@ begin
 	glEnable(GL_FRAGMENT_PROGRAM_ARB);
 	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SCREEN_IMAGE]);
 	
+	glLineWidth(1);
 	glBegin(GL_QUADS);
 	
 	glTexCoord2f(0.0, 1.0);
@@ -692,6 +696,7 @@ begin
 	// selection rect
 	if (mouse_x <> lclick_x) and (mouse_y <> lclick_y) and selection_rect then
 	begin
+		glLineWidth(1);
 		glBegin(GL_LINE_LOOP);
 		glVertex3f(lclick_x / viewport[2], lclick_y / viewport[3], 0);
 		glVertex3f(mouse_x / viewport[2], lclick_y / viewport[3], 0);
@@ -732,6 +737,7 @@ begin
 	pos := IntToStr(x) + ', ' + IntToStr(y);
 
 	mousexy := IupGetDialogChild(ih, 'MOUSEXY');
+
 	IupSetStrAttribute(mousexy, 'TITLE', PAnsiChar(pos));
 
 	if status[4] = '3' then
@@ -2109,6 +2115,53 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+function set_width(ih: Ihandle; state: Longint) : Longint; cdecl;
+var
+	value: PAnsiChar;
+begin
+	lineWidth := IupGetInt(
+		IupGetDialogChild(ih, 'Linerange'),
+		'VALUE'
+	);
+
+	ReloadGLPrograms;
+	Redisplay;
+
+	Result := IUP_DEFAULT;
+end;
+
+function menu_settings_custom_manipulator(ih : Ihandle) : Longint; cdecl;
+var
+	dlg_i : Ihandle;
+	box: Ihandle;
+	lineRange: Ihandle;
+	btn: Ihandle;
+begin
+
+	lineRange := IupSetAttributes(
+		IupVal('HORIZONTAL'),
+		'NAME="Linerange", RASTERSIZE=164x32, MIN=1, MAX=24, MARGIN=8x8'
+	);
+
+	btn := IupSetAttributes(
+		Button('Set width', @set_width),
+		'NAME="setwidth", SIZE=78x14, FONTSIZE=10, MARGIN=8x8, PADDING=0x0'
+	);
+
+	box := 	IupVbox(
+				IupFlatLabel('Line width'),
+				lineRange,
+				btn,
+				nil
+			);
+
+	dlg_i := IupDialog(box);
+
+	IupShow(IupSetAttributes(dlg_i, 'TITLE="Settings Editor", SIZE=128x64'));
+	
+	Result := IUP_DEFAULT;
+end;
+
 function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
 var
 	arr : TEntityArray;
@@ -2349,7 +2402,7 @@ var
 	menu : Ihandle;
 	menu_save_part : Ihandle;
 	
-	sm_file, sm_edit, sm_show, sm_level, sm_render : Ihandle;
+	sm_file, sm_edit, sm_show, sm_level, sm_render, sm_settings : Ihandle;
 
 	dlg : Ihandle;
 begin
@@ -2594,12 +2647,20 @@ begin
 		)
 	);
 
+	sm_settings := IupSubmenu('Settings',
+		IupMenu(
+			iup.MenuItem('Customize manipulator', @menu_settings_custom_manipulator),
+			nil
+		)
+	);
+
 	menu := IupMenu(
 		sm_file,
 		sm_edit,
 		sm_show,
 		sm_level,
 		sm_render,
+		sm_settings,
 		nil
 	);
 

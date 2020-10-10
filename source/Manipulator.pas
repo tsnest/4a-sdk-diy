@@ -11,11 +11,11 @@ type
 		phactor : TPHActor;
 		shapes : array[1..3] of TPHShape;
 		offset : TVec3;
-		start_x, start_y : Longint;
+		start_x, start_y, lineWidth : Longint;
 		active : TPHShape;
 		world : Boolean;
 
-		constructor Create(scene : TPHScene; isworld : Boolean);
+		constructor Create(scene : TPHScene; isworld : Boolean; line_width : Longint);
 		destructor Destroy; override;
 
 		procedure Draw; virtual;
@@ -66,7 +66,7 @@ type
 		uniform : Boolean;
 		scale : Single;
 	
-		constructor Create(scene : TPHScene; isuniform : Boolean);
+		constructor Create(scene : TPHScene; isuniform : Boolean; line_width : LongInt);
 	
 		procedure Draw; override;
 		
@@ -79,7 +79,7 @@ type
 implementation
 uses common, GL, PHGroups;
 
-constructor TManipulator.Create(scene : TPHScene; isworld : Boolean);
+constructor TManipulator.Create(scene : TPHScene; isworld : Boolean; line_width : Longint);
 var
 	d, o : TVec3;
 	desc : array[1..3] of Pointer;
@@ -88,6 +88,7 @@ begin
 
 	phscene := scene;
 	world := isworld;
+	lineWidth := line_width;
 
 	Identity(FMatrix);
 	Identity(FDiff);
@@ -131,6 +132,8 @@ var
 	c : TVec3;
 	d : TVec3;
 begin
+	glLineWidth(lineWidth);
+
 	glBegin(GL_LINES);
 
 	c.x := FMatrix[4,1]; c.y := FMatrix[4,2]; c.z := FMatrix[4,3];
@@ -425,10 +428,11 @@ begin
 	angle := (diff_x*dty + diff_y*dtx)
 end;
 
-constructor TScaleManipulator.Create(scene : TPHScene; isuniform : Boolean);
+constructor TScaleManipulator.Create(scene : TPHScene; isuniform : Boolean; line_width : Longint);
 begin
-	Inherited Create(scene, False);
+	Inherited Create(scene, False, line_width);
 	uniform := isuniform;
+	lineWidth := line_width;
 end;
 
 procedure TScaleManipulator.Draw;
@@ -439,7 +443,7 @@ begin
 	begin
 		glEnable(GL_LINE_STIPPLE);
 		glLineStipple(1, $F0F0);
-
+		
 		glBegin(GL_LINES);
 
 		if uniform or (active = shapes[1]) then

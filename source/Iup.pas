@@ -57,6 +57,7 @@ procedure IupDestroy(ih : Ihandle); cdecl; external 'iup.dll';
 
 function  IupPopup(ih : Ihandle; x, y : Longint) : Longint; cdecl; external 'iup.dll';
 function  IupShowXY(ih : Ihandle; x, y : Longint) : Longint; cdecl; external 'iup.dll';
+function  IupShow(ih : Ihandle) : Longint; cdecl; external 'iup.dll';
 
 function  IupSetAttributes(ih : Ihandle; attributes : PAnsiChar) : Ihandle; cdecl; external 'iup.dll';
 function  IupGetAttributes(ih : Ihandle) : PAnsiChar; cdecl; external 'iup.dll';
