@@ -1829,7 +1829,10 @@ end;
 
 function TTextKonfig.Copy : TTextKonfig;
 begin
-	Result := TTextKonfig.Create(TSection(root.Copy));
+  if self = nil then
+    Result := nil
+  else
+	 Result := TTextKonfig.Create(TSection(root.Copy));
 end;
 
 function TTextKonfig.Load(const str: String) : Boolean;

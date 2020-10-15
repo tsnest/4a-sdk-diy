@@ -16,6 +16,7 @@ type
 
 type
 	TScene = class
+	  level_dir : String;
 		level : T4ALevel;
 		level2 : T4ALevel2;
 		maler : ILevelMaler;
@@ -52,6 +53,10 @@ type
 		
 		procedure LevelLoad(const dir : String);
 		procedure LevelUnload;
+		procedure LevelReload;
+		
+		procedure LoadEntities(k_level, k_level_add : TTextKonfig; progress : Boolean = False);
+		procedure UnloadEntities;
 		
 		procedure RenderPrepare;
 		procedure RenderOpaque;
@@ -107,14 +112,8 @@ end;
 
 procedure TScene.LevelLoad(const dir : String);
 var
-	I : Longint;
-	ep : TSection;
-
-	ent : TSection;
-	ent_valid : Boolean;
-	
-	entity_count : Longint;
-	dlg : Ihandle;
+	ep : TSection;	
+	k_level, k_level_add : TTextKonfig;
 begin
 	if not FileExists(dir + '\level.bin') then
 	begin
@@ -122,33 +121,25 @@ begin
 		PAnsiChar('There is no level.bin file in ''' + dir + '''!'));
 		Exit;
 	end;
+	
+	level_dir := dir;
 
 	// load level.bin
-
-	konf := LoadLevelBin(dir + '\level.bin');
+	k_level := LoadLevelBin(dir + '\level.bin');
 	
-	ep := konf.root.GetSect('entities_params', False);
+	ep := k_level.root.GetSect('entities_params', False);
 	if (ep <> nil) and (ep.GetInt('version', 0, 'u16') >= ENTITY_VER_ARKTIKA1) then
-	begin
-		// >= Arktika.1
-		texturesCompressed := True;
-	end else
-	begin
+		texturesCompressed := True // >= Arktika.1
+	else
 		texturesCompressed := False;
-	end;
-	
-	konf_entities := konf.root.GetSect('entities');
 	
 	// load level.add.bin
-	
 	if FileExists(dir + '\level.add.bin') then
-	begin
-		konf_add := LoadLevelBin(dir + '\level.add.bin');
-		konf_add_entities := konf_add.root.GetSect('entities');
-	end;
+		k_level_add := LoadLevelBin(dir + '\level.add.bin')
+	else
+	  k_level_add := nil;
 
 	// load superstatic geometry
-
 	if FileExists(dir + '\level') and 
 		(FileExists(dir + '\level.geom_pc') or FileExists(dir + '\level.geom_xbox'))then
 	begin
@@ -166,7 +157,6 @@ begin
 	end;
 	
 	// load decals
-	
 	if FileExists(dir + '\level.decals') then
 	begin
 		decals := LoadLevelEGeoms(dir + '\level.decals');
@@ -175,7 +165,6 @@ begin
 	end;
 	
 	// load egeoms
-	
 	if FileExists(dir + '\level.egeoms') then
 	begin
 		egeoms := LoadLevelEGeoms(dir + '\level.egeoms');
@@ -197,14 +186,95 @@ begin
 	end;
 
 	// load entities
+  LoadEntities(k_level, k_level_add, True);
+	
+	// load level.environemt
+	env_zones := TList.Create;
+	
+	if FileExists(dir + '\level.environment') then
+		LoadEnvironment(dir + '\level.environment');
+end;
+
+procedure TScene.LevelUnload;
+var
+	I : Integer;
+begin
+  level_dir := '';
+  
+	FreeAndNil(maler);
+	FreeAndNil(level);
+	FreeAndNil(level2);
+	
+	FreeAndNil(decals_maler);
+	FreeAndNil(decals);
+	
+	FreeAndNil(egeoms_maler);
+	FreeAndNil(egeoms);
+
+  UnloadEntities;
+	
+	if Assigned(env_zones) then
+	begin
+		for I := 0 to env_zones.Count - 1 do
+			TEnvZone(env_zones[I]).Free;
+		FreeAndNil(env_zones);
+	end;
+
+	UnloadLevelCform;
+	PHDestroyScene(ph_scene);
+	ph_scene := nil;
+end;
+
+procedure TScene.LevelReload;
+var
+  k_level, k_level_add : TTextKonfig;
+begin
+  if level_dir <> '' then
+  begin
+    // load level.bin
+  	k_level := LoadLevelBin(level_dir + '\level.bin');
+  	
+  	// load level.add.bin
+  	if FileExists(level_dir + '\level.add.bin') then
+  		k_level_add := LoadLevelBin(level_dir + '\level.add.bin')
+  	else
+  	  k_level_add := nil;
+  		
+  	UnloadEntities;
+  	LoadEntities(k_level, k_level_add);
+	end;
+end;
+
+procedure TScene.LoadEntities(k_level, k_level_add : TTextKonfig; progress : Boolean);
+var
+	I : Longint;
+
+	ent : TSection;
+	ent_valid : Boolean;
+	
+	entity_count : Longint;
+	dlg : Ihandle;
+begin
+  konf := k_level;
+  konf_entities := konf.root.GetSect('entities');
+  
+  if Assigned(k_level_add) then
+  begin
+    konf_add := k_level_add;
+    konf_add_entities := konf_add.root.GetSect('entities');
+  end;
+  
 	entity_count := konf_entities.ParamCount;
 	if konf_add_entities <> nil then
 		entity_count := entity_count + konf_add_entities.ParamCount;
 	
-	dlg := IupProgressDlg;
-	IupSetStrAttribute(dlg, 'TITLE', 'Loading entities');
-	IupSetInt(dlg, 'TOTALCOUNT', entity_count);
-	IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
+	if progress then
+	begin
+  	dlg := IupProgressDlg;
+  	IupSetStrAttribute(dlg, 'TITLE', 'Loading entities');
+  	IupSetInt(dlg, 'TOTALCOUNT', entity_count);
+  	IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
+  end;
 
 	entities := TList.Create;
 
@@ -222,8 +292,9 @@ begin
 
 			if ent_valid then
 				entities.Add(TEntity.Create(ph_scene, ent));
-				
-			IupSetAttribute(dlg, 'INC', nil);
+			
+			if progress then	
+			  IupSetAttribute(dlg, 'INC', nil);
 		end;
 	end;
 
@@ -244,37 +315,22 @@ begin
 				if ent_valid then
 					entities.Add(TEntity.Create(ph_scene, ent));
 					
-				IupSetAttribute(dlg, 'INC', nil);
+  			if progress then	
+  			  IupSetAttribute(dlg, 'INC', nil);
 			end;
 		end;
 	end;
 	
-	IupDestroy(dlg);
+	if progress then
+	 IupDestroy(dlg);
 	
-	UpdateAttaches;
-	
-	// load level.environemt
-	
-	env_zones := TList.Create;
-	
-	if FileExists(dir + '\level.environment') then
-		LoadEnvironment(dir + '\level.environment');
+	UpdateAttaches;  
 end;
 
-procedure TScene.LevelUnload;
+procedure TScene.UnloadEntities;
 var
 	I : Integer;
 begin
-	FreeAndNil(maler);
-	FreeAndNil(level);
-	FreeAndNil(level2);
-	
-	FreeAndNil(decals_maler);
-	FreeAndNil(decals);
-	
-	FreeAndNil(egeoms_maler);
-	FreeAndNil(egeoms);
-
 	if Assigned(entities) then
 	begin
 		for I := 0 to entities.Count - 1 do
@@ -287,17 +343,6 @@ begin
 	
 	FreeAndNil(konf_add);
 	konf_add_entities := nil;
-	
-	if Assigned(env_zones) then
-	begin
-		for I := 0 to env_zones.Count - 1 do
-			TEnvZone(env_zones[I]).Free;
-		FreeAndNil(env_zones);
-	end;
-
-	UnloadLevelCform;
-	PHDestroyScene(ph_scene);
-	ph_scene := nil;
 end;
 
 function EntitySortCb(p1, p2 : Pointer) : Integer;

@@ -467,6 +467,8 @@ begin
 	FreeAndNil(model);
 	mtlsets := nil;
 	skeleton := nil;	
+	
+	ClearResources;
 end;
 
 procedure SetModelVersion(m : T4AModel; ver : Byte);

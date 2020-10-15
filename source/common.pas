@@ -79,6 +79,8 @@ procedure FreeTexture(r : TResTexture);
 function GetModel(const name : String) : TResModel;
 procedure FreeModel(r : TResModel);
 
+procedure ClearResources;
+
 type
 	TMaterial = class
 		texture, shader : String;
@@ -389,11 +391,9 @@ begin
 	if r <> nil then
 	begin
 		Dec(r.refcnt);
-		if r.refcnt = 0 then
-		begin
-			textures.Remove(r.name);
-			r.Free;
-		end;
+		
+		if r.refcnt < 0 then
+		  raise Exception.Create('FreeTexture: dangling pointer to [' + r.name + ']');
 	end;
 end;
 
@@ -566,12 +566,36 @@ begin
 	if r <> nil then
 	begin
 		Dec(r.refcnt);
-		if r.refcnt = 0 then
-		begin
-			models.Remove(r.name);
-			r.Free;
-		end;
+		
+		if r.refcnt < 0 then
+		  raise Exception.Create('FreeModel: dangling pointer to [' + r.name + ']');
 	end;
+end;
+
+procedure ClearResources;
+var 
+  I : Longint;
+  list : TList;
+begin
+  list := TList.Create;
+  
+  for I := 0 to models.Count-1 do
+    if models.Data[I].refcnt < 1 then
+      list.Add(models.Data[I]);
+      
+  for I := 0 to list.Count-1 do
+    TResModel(list[I]).Free;
+    
+  list.Clear;
+  
+  for I := 0 to textures.Count-1 do
+    if textures.Data[I].refcnt < 1 then
+      list.Add(textures.Data[I]);
+      
+  for I := 0 to list.Count-1 do
+    TResTexture(list[I]).Free;
+    
+  list.Free;  
 end;
 
 constructor TMaterial.Create(const texture_name : String; const shader_name : String; const model_name : String);

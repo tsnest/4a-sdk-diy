@@ -230,6 +230,16 @@ function  iup_issys(_s : PAnsiChar) : Boolean;
 function  iup_isbutton4(_s : PAnsiChar) : Boolean;
 function  iup_isbutton5(_s : PAnsiChar) : Boolean;
 
+{******************************************************}
+{* Modifiers use last 4 bits. Since IUP 3.9           *}
+{* These modifiers definitions are specific to IUP    *}
+{******************************************************}
+
+function  iup_isShiftXkey(_c : Longint) : Boolean;
+function  iup_isCtrlXkey(_c : Longint) : Boolean;
+function  iup_isAltXkey(_c : Longint) : Boolean;
+function  iup_isSysXkey(_c : Longint) : Boolean;
+
 // my extensions. Will be called as iup.MenuItem()
 function Button(const title : String; callback : Icallback) : Ihandle;
 function MenuItem(const title : String; callback : Icallback; state : Boolean = False) : Ihandle;
@@ -263,6 +273,15 @@ function iup_isbutton4(_s : PAnsiChar) : Boolean;
 begin Result := _s[8] = '4'; end;
 function iup_isbutton5(_s : PAnsiChar) : Boolean;
 begin Result := _s[9] = '5'; end;
+
+function  iup_isShiftXkey(_c : Longint) : Boolean;
+begin Result := (_c and $10000000) <> 0 end;
+function  iup_isCtrlXkey(_c : Longint) : Boolean;
+begin Result := (_c and $20000000) <> 0 end;
+function  iup_isAltXkey(_c : Longint) : Boolean;
+begin Result := (_c and $40000000) <> 0 end;
+function  iup_isSysXkey(_c : Longint) : Boolean;
+begin Result := (_c and $80000000) <> 0 end;
 
 function Button(const title : String; callback : Icallback) : Ihandle;
 var

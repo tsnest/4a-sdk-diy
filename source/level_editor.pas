@@ -6,7 +6,7 @@ uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
 	common, Engine, Texture,
 	Manipulator,
 	fouramdl, skeleton,
-	uScene, uEntity, uEnvZone, uWeather,
+	uScene, uEntity, uEnvZone, uWeather, uLevelUndo,
 	{$IFDEF HAZ_LEVELEXPORT} uLevelExport, uXRayExport, {$ENDIF}
 	uChoose, properties, script_editor, uTemplates, uAttach;
 	
@@ -452,6 +452,9 @@ var
 begin
 	DestroyManipulator;
 	Scene.LevelUnload;
+	
+	ClearResources;
+	UndoClearHistory;
 
 	LevelPath := dir; // in Engine.pas, for resource loading
 	level_path := dir;
@@ -1171,7 +1174,7 @@ begin
 			if (m_t <> nil) and m_t.IsActive then
 			begin
 				m_t.Deactivate;
-				
+				UndoSave;
 				
 				case edit_mode of
 					
@@ -1216,15 +1219,18 @@ begin
 					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
 					
 					if (e <> nil) and not e.selected then
+					begin
+						UndoSave;
 						AttachShapesTo(e);
+					end;
 				end else
 				if iup_iscontrol(status) and ((GetASyncKeyState(VK_X) and $8000) <> 0) then
 				begin // remove shape
 					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-					if (e <> nil) and e.selected then
+					if (e <> nil) and e.selected and (PHGetGroup(shape) = PH_GROUP_SHAPE) then
 					begin
-						if PHGetGroup(shape) = PH_GROUP_SHAPE then 
-							RemoveShape(e, TSection(PHGetShapeUserdata(shape)));
+					  UndoSave;
+						RemoveShape(e, TSection(PHGetShapeUserdata(shape)));
 					end;
 				end else
 				if iup_iscontrol(status) and iup_isshift(status) then 
@@ -1232,12 +1238,18 @@ begin
 					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
 					
 					if (e <> nil) and not e.selected then
+					begin
+						UndoSave;					
 						AttachSelectionTo(e);
+					end;
 				end else 
 				if iup_iscontrol(status) then 
 				begin // create entity
 					if RaycastPoint(p, dir, RAYCAST_DIST, hit_pos, hit_nrm, shape) then
+					begin
+					  UndoSave;					
 						CreateEntity(hit_pos, hit_nrm);
+					end;
 				end else
 					RaySelect(status, p, dir, RAYCAST_DIST);
 						
@@ -1266,9 +1278,25 @@ begin
 
 	if ic = $FFFF then // DELETE
 	begin
+		UndoSave;
 		DeleteSelection;
+		
 		IupRedraw(ih, 0);
 		Exit;
+	end;
+	
+	if iup_isCtrlXkey(ic) and (Chr(ic) in ['T', 't']) then // Undo Ctrl+T
+	begin
+	 DoUndo;
+	 UpdateSelection;
+	 Redisplay;
+	end;
+	
+	if iup_isCtrlXkey(ic) and (Chr(ic) in ['Y', 'y']) then // Redo Ctrl+Y
+	begin
+	 DoRedo;
+	 UpdateSelection;
+	 Redisplay;
 	end;
 
 	sinx := Sin(anglex * (PI/180));
@@ -1310,7 +1338,7 @@ begin
 		end;
 	end;
 
-	if (GetAsyncKeyState(VK_SHIFT) and $8000) <> 0 then
+	if (GetASyncKeyState(VK_SHIFT) and $8000) <> 0 then
 	begin
 		m.x := m.x * 5;
 		m.y := m.y * 5;
@@ -1530,6 +1558,7 @@ begin
 		StrPCopy(@name[0], selected[0].Name);
 		if IupGetParam('Rename entity', nil, nil, 'Name: %s'#10, @name) = 1 then
 		begin
+		  UndoSave;
 			selected[0].Name := PAnsiChar(@name);
 			UpdateSelection;
 		end;
@@ -1543,6 +1572,7 @@ function btn_delete_entity_cb(ih : Ihandle) : Longint; cdecl;
 var
 	selected : TList;
 begin
+  UndoSave;
 	DeleteSelection;
 	Redisplay;
 	Result := IUP_DEFAULT;
@@ -1557,6 +1587,8 @@ begin
 
 	if Length(selected) = 1 then
 	begin
+	  UndoSave;
+	  
 		s := selected[0].data.GetParam('vss_ver_6', 'section');
 		if s = nil then
 			s := selected[0].data.GetParam('vss_ver_7', 'section');
@@ -1746,7 +1778,10 @@ begin
 			else
 				Result := 0;
 		end;
-	end;
+	end;  
+	
+	if Result <> 0 then
+	 	UndoSave;
 end;
 
 function tabs_changepos_cb(ih : Ihandle; new_pos, old_pos : Longint) : Longint; cdecl;
@@ -1788,6 +1823,18 @@ begin
 	end;
 
 	IupDestroy(dlg);
+	Result := IUP_DEFAULT;
+end;
+
+function menu_file_reopen_cb(ih : Ihandle) : Longint; cdecl;
+var
+	dlg : Ihandle;
+	fn : String;
+begin
+	Scene.LevelReload;
+	UndoClearHistory;
+	
+	Redisplay;
 	Result := IUP_DEFAULT;
 end;
 
@@ -1936,6 +1983,22 @@ end;
 function menu_file_exit_cb(ih : Ihandle) : Longint; cdecl;
 begin
 	Result := IUP_CLOSE;
+end;
+
+function menu_edit_undo_cb(ih : Ihandle) : Longint; cdecl;
+begin
+  DoUndo;
+  UpdateSelection;
+  Redisplay;
+	Result := IUP_DEFAULT;
+end;
+
+function menu_edit_redo_cb(ih : Ihandle) : Longint; cdecl;
+begin
+  DoRedo;
+  UpdateSelection;
+  Redisplay;
+	Result := IUP_DEFAULT;
 end;
 
 function menu_edit_copy_cb(ih : Ihandle) : Longint; cdecl;
@@ -2584,6 +2647,7 @@ begin
 	sm_file := IupSubmenu('File',
 		IupMenu(
 			iup.MenuItem('Open...', @menu_file_open_cb), 
+			iup.MenuItem('Reopen', @menu_file_reopen_cb),
 			iup.MenuItem('Save', @menu_file_save_cb), 
 			menu_save_part,
 			IupSeparator,
@@ -2599,6 +2663,8 @@ begin
 		
 	sm_edit := IupSubmenu('Edit',
 		IupMenu(
+		  iup.MenuItem('Undo'#9'Ctrl+T', @menu_edit_undo_cb),
+		  iup.MenuItem('Redo'#9'Ctrl+Y', @menu_edit_redo_cb),
 			iup.MenuItem('Copy', @menu_edit_copy_cb), 
 			iup.MenuItem('Paste', @menu_edit_paste_cb), 
 			IupSeparator,
