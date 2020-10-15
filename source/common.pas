@@ -584,7 +584,10 @@ begin
       list.Add(models.Data[I]);
       
   for I := 0 to list.Count-1 do
+  begin
+    models.Remove(TResModel(list[I]).name);
     TResModel(list[I]).Free;
+  end;
     
   list.Clear;
   
@@ -593,7 +596,10 @@ begin
       list.Add(textures.Data[I]);
       
   for I := 0 to list.Count-1 do
+  begin
+    textures.Remove(TResTexture(list[i]).name);
     TResTexture(list[I]).Free;
+  end;
     
   list.Free;  
 end;
