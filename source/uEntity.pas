@@ -75,6 +75,9 @@ type
 	end;
 	
 	TEntityArray = array of TEntity;
+	
+	// utils
+	function GetCenter(arr : TEntityArray) : TVec3; overload;
 
 implementation
 uses GL, GLU, GLExt, PHGroups, sysutils, classes;
@@ -738,6 +741,28 @@ begin
 	end;
 end;
 
-end.
+function GetCenter(arr : TEntityArray) : TVec3; overload;
+var
+	c : TVec3;
+	bb : TAABB;
+	I : Longint;
+begin
+	if Length(arr) > 0 then
+	begin
+		bb := arr[0].bbox;
+	
+		for I := 1 to Length(arr) - 1 do
+			AABBMerge(bb, arr[I].bbox);
+		
+		AABBCenter(c, bb);
+	end else
+	begin
+		c.x := 0;
+		c.y := 0;
+		c.z := 0;
+	end;
+		
+	GetCenter := c;
+end;
 
 end.

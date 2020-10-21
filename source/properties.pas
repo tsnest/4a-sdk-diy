@@ -1,17 +1,19 @@
 unit properties;
 
 interface
-uses Iup, Konfig;
+uses classes, Iup, Konfig;
 
 function EditBool8(v : TIntegerValue; const names : String) : Boolean;
 function EditEnum(v : TIntegerValue; const names : String; caption : String = '') : Boolean;
-function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String = '') : Boolean;
+function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String = '') : Boolean; overload;
+function EditChoose(v : TStringValue; allow_none : Boolean; names : TStringList; caption : String = '') : Boolean; overload;
+function EditChooseArray(v : TStringValue; items : TStringList; caption : String = '') : Boolean;
 
 procedure SetupProperties(tree : Ihandle; data : TSection);
 
 implementation
 uses 
-	sysutils, classes,
+	sysutils,
 	uScene, uEntity, vmath, common, 
 	matrix_editor,
 	uChoose, uChooseTexture, uChooseColoranim;
@@ -121,7 +123,6 @@ function EditEnum(v : TIntegerValue; const names : String; caption : String) : B
 var
 	sl : TStringList;
 	ret : Longint;
-	I : Longint;
 begin
 	sl := TStringList.Create;
 	sl.CommaText := names;
@@ -140,22 +141,19 @@ begin
 	sl.Free;
 end;
 
-function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String) : Boolean;
+function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String) : Boolean; overload;
 var
 	sl : TStringList;
-	pointers : array of PAnsiChar;
 	ret : Longint;
 	I : Longint;
 	op : Longint;
 begin
 	sl := TStringList.Create;
 	sl.CommaText := names;
-
-	op := 1;
-
 	if allow_none then
 		sl.Add('<none>');
-		
+	
+	op := 1;	
 	for I := 0 to sl.Count-1 do
 	begin
 		if sl[I] = v.str then
@@ -178,6 +176,77 @@ begin
 		EditChoose := False;
 
 	sl.Free;
+end;
+
+function EditChoose(v : TStringValue; allow_none : Boolean; names : TStringList; caption : String) : Boolean; overload;
+var
+	sl : TStringList;
+	ret : Longint;
+	I : Longint;
+	op : Longint;
+begin
+	sl := TStringList.Create;	
+	sl.AddStrings(names);
+	if allow_none then
+		sl.Add('<none>');
+		
+	op := 1;
+	for I := 0 to sl.Count-1 do
+	begin
+		if sl[I] = v.str then
+			op := I+1;
+	end;
+
+	if caption = '' then
+		caption := v.name;
+
+	ret := iup.ListDialog(caption, sl, op, 15, 15);
+	if ret <> -1 then
+	begin
+		if allow_none and (ret = sl.Count) then
+			v.str := ''
+		else
+			v.str := sl[ret];
+			
+		EditChoose := True;
+	end else
+		EditChoose := False;
+
+	sl.Free;
+end;
+
+function EditChooseArray(v : TStringValue; items : TStringList; caption : String) : Boolean;
+var
+	ret : Longint;
+	I : Longint;
+	marks : String;
+begin
+	SetLength(marks, items.Count);
+	for I := 0 to items.Count-1 do
+	begin
+		if Pos(items[I], v.str) > 0 then
+			marks[I+1] := '+'
+		else
+			marks[I+1] := '-';
+	end;
+
+	if caption = '' then
+		caption := v.name;
+
+	ret := iup.ListDialogMulti(caption, items, 1, 15, 15, marks);
+	if ret <> -1 then
+	begin
+		v.str := '';
+		for I := 0 to items.Count-1 do
+			if marks[I+1] = '+' then
+			begin
+				if Length(v.str) > 0 then v.str := v.str + ',';
+				v.str := v.str + items[I];
+			end;
+			
+		EditChooseArray := True;
+	end else
+		EditChooseArray := False;
 end;
 
 function EditStrArray(sect : TSection; hint : TSimpleValue; size_type : String) : Boolean;

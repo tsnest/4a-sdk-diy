@@ -246,10 +246,10 @@ function MenuItem(const title : String; callback : Icallback; state : Boolean = 
 function Toggle(const title : String; callback : Icallback; state : Boolean = False) : Ihandle; 
 
 function ListDialog(const title : String; list : array of String; op, max_lin, max_col : Longint) : Longint; overload;
-function ListDialogMulti(const title : String; list : array of String; op, max_lin, max_col : Longint; var marks : String) : Longint; overload;
+function ListDialogMulti(const title : String; list : array of String; op, max_lin, max_col : Longint; var marks_str : String) : Longint; overload;
 
 function ListDialog(const title : String; list : TStringList; op, max_lin, max_col : Longint) : Longint; overload;
-function ListDialogMulti(const title : String; list : TStringList; op, max_lin, max_col : Longint; var marks : String) : Longint; overload;
+function ListDialogMulti(const title : String; list : TStringList; op, max_lin, max_col : Longint; var marks_str : String) : Longint; overload;
 
 implementation
 
@@ -324,18 +324,35 @@ begin
 	Result := IupListDialog(1, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, nil);
 end;
 
-function ListDialogMulti(const title : String; list : array of String; op, max_lin, max_col : Longint; var marks : String) : Longint;
+function ListDialogMulti(const title : String; list : array of String; op, max_lin, max_col : Longint; var marks_str : String) : Longint;
 var
 	I : Longint;
 	pointers : array of PAnsiChar;
+	marks : array of Longint;
 begin
+	SetLength(marks_str, Length(list));
+
 	SetLength(pointers, Length(list));
+	SetLength(marks, Length(marks_str));
+	
 	for I := 0 to Length(list) - 1 do
+	begin
 		pointers[I] := PAnsiChar(list[I]);
+		if marks_str[I+1] = '+' then
+			marks[I] := 1
+		else
+			marks[I] := 0;
+	end;
 		
-	SetLength(marks, Length(pointers));
-		
-	Result := IupListDialog(2, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, @marks[1]);
+	Result := IupListDialog(2, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, @marks[0]);
+	
+	for I := 0 to Length(list) - 1 do
+	begin
+		if marks[I] <> 0 then
+			marks_str[I+1] := '+'
+		else
+			marks_str[I+1] := '-';
+	end;	
 end;
 
 function ListDialog(const title : String; list : TStringList; op, max_lin, max_col : Longint) : Longint;
@@ -350,18 +367,35 @@ begin
 	Result := IupListDialog(1, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, nil);
 end;
 
-function ListDialogMulti(const title : String; list : TStringList; op, max_lin, max_col : Longint; var marks : String) : Longint;
+function ListDialogMulti(const title : String; list : TStringList; op, max_lin, max_col : Longint; var marks_str : String) : Longint;
 var
 	I : Longint;
 	pointers : array of PAnsiChar;
+	marks : array of Longint;
 begin
+	SetLength(marks_str, list.Count);
+
 	SetLength(pointers, list.Count);
+	SetLength(marks, Length(marks_str));
+	
 	for I := 0 to list.Count - 1 do
+	begin
 		pointers[I] := PAnsiChar(list[I]);
+		if marks_str[I+1] = '+' then
+			marks[I] := 1
+		else
+			marks[I] := 0;
+	end;
 		
-	SetLength(marks, Length(pointers));
-		
-	Result := IupListDialog(2, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, @marks[1]);
+	Result := IupListDialog(2, PAnsiChar(title), Length(pointers), PPAnsiChar(pointers), op, max_lin, max_col, @marks[0]);
+	
+	for I := 0 to list.Count - 1 do
+	begin
+		if marks[I] <> 0 then
+			marks_str[I+1] := '+'
+		else
+			marks_str[I+1] := '-';
+	end;	
 end;
 
 end.

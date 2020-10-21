@@ -1,12 +1,15 @@
 unit uWeather;
 
 interface
+uses classes;
 
 procedure Initialize;
 procedure Finalize;
 
 procedure Update;
 procedure SetWeather(const weather : String);
+
+function GetWeathersList : TStringList;
 
 procedure RenderSky;
 
@@ -19,14 +22,16 @@ var
 	// current weather description
 	current : TSection;
 	
-	t_sky : TResTexture;
-	c_sky : TVec4;
+	t_sky      : TResTexture;
+	c_sky      : TVec4;
 	
-	c_sun : TVec4;
-	d_sun : TVec3;
+	c_sun      : TVec4;
+	d_sun      : TVec3;
 	
-	c_ambient : TVec4;
-	c_hemi : TVec4;
+	c_ambient  : TVec4;
+	c_hemi     : TVec4;
+	//c_fog      : TVec4;
+	//fog_params : TVec4;
 
 procedure Initialize;
 var
@@ -143,6 +148,25 @@ begin
 	except
 		on E: Exception do
 			WriteLn('Cannot set weather (', E.ClassName, ': ', E.Message, ')');
+	end;
+end;
+
+function GetWeathersList : TStringList;
+var
+	sect_descs : TSection;
+	I : Longint;
+begin
+	Result := TStringList.Create;
+	
+	if Engine.version = eVerRedux then
+	begin
+		// TODO
+	end else
+	begin
+		sect_descs := k_env.root.GetSect('descriptions');
+		for I := 0 to sect_descs.ParamCount-1 do
+			if sect_descs.GetParam(I) is TSection then
+				Result.Add(sect_descs.GetParam(I).name);
 	end;
 end;
 

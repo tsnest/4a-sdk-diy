@@ -9,12 +9,13 @@ procedure UndoClearHistory;
 procedure UndoSave;
 
 implementation
-uses Konfig, uScene;
+uses classes, Konfig, uScene;
 
 type 
   TUndoRec = record
     konf : TTextKonfig;
     konf_add : TTextKonfig;
+    konf_env : TTextKonfig;
   end;
   
 var
@@ -33,6 +34,7 @@ begin
   begin
     undo_buffer[I].konf.Free;
     undo_buffer[I].konf_add.Free;
+    undo_buffer[I].konf_env.Free;
   end;
   
   next := 0;
@@ -44,6 +46,7 @@ begin
   begin
     undo_buffer[0].konf.Free;
     undo_buffer[0].konf_add.Free;
+    undo_buffer[0].konf_env.Free;
     
     Move(undo_buffer[1], undo_buffer[0], (Length(undo_buffer)-1)*Sizeof(TUndoRec) );
     Dec(next);
@@ -51,6 +54,7 @@ begin
   
   undo_buffer[next].konf := Scene.konf.Copy;
   undo_buffer[next].konf_add := Scene.konf_add.Copy;
+  undo_buffer[next].konf_env := Scene.SaveEnvironment;
     
   Inc(next);
   
@@ -61,6 +65,10 @@ procedure UndoPop;
 begin
   Scene.UnloadEntities;
   Scene.LoadEntities(undo_buffer[next-1].konf.Copy, undo_buffer[next-1].konf_add.Copy);
+  
+  Scene.UnloadEnvironment;
+  Scene.env_zones := TList.Create;
+  Scene.LoadEnvironment(undo_buffer[next-1].konf_env);
   
   Dec(next);
   
@@ -75,6 +83,7 @@ begin
   begin
     redo_buffer[I].konf.Free;
     redo_buffer[I].konf_add.Free;
+    redo_buffer[I].konf_env.Free;
   end;
   
   redo_next := 0;
@@ -86,6 +95,7 @@ begin
   begin
     redo_buffer[0].konf.Free;
     redo_buffer[0].konf_add.Free;
+    redo_buffer[0].konf_env.Free;
     
     Move(redo_buffer[1], redo_buffer[0], (Length(redo_buffer)-1)*Sizeof(TUndoRec) );
     Dec(next);
@@ -93,6 +103,7 @@ begin
   
   redo_buffer[redo_next].konf := Scene.konf.Copy;
   redo_buffer[redo_next].konf_add := Scene.konf_add.Copy;
+  redo_buffer[redo_next].konf_env := Scene.SaveEnvironment;
     
   Inc(redo_next);
   
@@ -103,6 +114,10 @@ procedure RedoPop;
 begin
   Scene.UnloadEntities;
   Scene.LoadEntities(redo_buffer[redo_next-1].konf.Copy, redo_buffer[redo_next-1].konf_add.Copy);
+  
+  Scene.UnloadEnvironment;
+  Scene.env_zones := TList.Create;
+  Scene.LoadEnvironment(redo_buffer[redo_next-1].konf_env);
   
   Dec(redo_next);
   

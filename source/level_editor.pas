@@ -6,12 +6,14 @@ uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
 	common, Engine, Texture,
 	Manipulator,
 	fouramdl, skeleton,
-	uScene, uEntity, uEnvZone, uWeather, uLevelUndo,
+	uWeather, uEditorUtils,
+	uTabWeather, uTabEntity, uTabEnvZone,
+	uScene, uEntity, uEnvZone, uLevelUndo, uImages,
 	{$IFDEF HAZ_LEVELEXPORT} uLevelExport, uXRayExport, {$ENDIF}
-	uChoose, properties, script_editor, uTemplates, uAttach;
+	uChoose, properties, uTemplates, uAttach;
 	
 type
-	TEditMode = (emEntity, emEnvZone);
+	TEditMode = (emEntity, emEnvZone, emWeather);
 var
 	edit_mode : TEditMode = emEntity;
 
@@ -41,7 +43,6 @@ var
 	rt_color, rt_distort : GLuint;
 	
 var
-	clipboard : TSection = nil;
 	context_menu : Ihandle;
 	
 var
@@ -52,199 +53,6 @@ var
 	lclick_x, lclick_y : Longint;
 	
 	selection_rect : Boolean = False;
-	
-procedure Redisplay;
-var
-	gl : Ihandle;
-begin
-	gl := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
-	IupRedraw(gl, 0);
-end;
-
-function GetCenter(arr : TEntityArray) : TVec3; overload;
-var
-	c : TVec3;
-	bb : TAABB;
-	I : Longint;
-begin
-	if Length(arr) > 0 then
-	begin
-		bb := arr[0].bbox;
-	
-		for I := 1 to Length(arr) - 1 do
-			AABBMerge(bb, arr[I].bbox);
-		
-		AABBCenter(c, bb);
-	end else
-	begin
-		c.x := 0;
-		c.y := 0;
-		c.z := 0;
-	end;
-		
-	GetCenter := c;
-end;
-
-function GetCenter(arr : TEnvZoneArray) : TVec3; overload;
-var
-	c : TVec3;
-	bb, bb2 : TAABB;
-	I : Longint;
-begin
-	if Length(arr) > 0 then
-	begin
-		arr[0].GetBBox(bb);
-	
-		for I := 1 to Length(arr) - 1 do
-		begin
-			arr[I].GetBBox(bb2);
-			AABBMerge(bb, bb2);
-		end;
-		
-		AABBCenter(c, bb);
-	end else
-	begin
-		c.x := 0;
-		c.y := 0;
-		c.z := 0;
-	end;
-		
-	GetCenter := c;
-end;
-
-procedure WriteMatrix(const matrix : TMatrix);
-begin
-	WriteLn(matrix[1,1], matrix[1,2], matrix[1,3], matrix[1,4]);		 
-	WriteLn(matrix[2,1], matrix[2,2], matrix[2,3], matrix[2,4]);
-	WriteLn(matrix[3,1], matrix[3,2], matrix[3,3], matrix[3,4]);
-	WriteLn(matrix[4,1], matrix[4,2], matrix[4,3], matrix[4,4]);
-end;
-
-procedure WriteVec3(const v : TVec3);
-begin
-	WriteLn('x = ', v.x, ' y = ', v.y, ' z = ', v.z);
-end;
-
-procedure ProxyFromSelection(e : TEntity);
-var
-	param_entities, ent : TSection;
-	victim : TEntity;
-	selected : TEntityArray;
-	I : Integer;
-begin
-	param_entities := e.data.GetSect('entities');
-	param_entities.Clear;
-	
-	selected := Scene.GetSelected;
-	param_entities.AddInt('count', Length(selected), 'u32');
-	for I := 0 to Length(selected) - 1 do
-	begin
-		victim := selected[I];
-		ent := param_entities.AddSect(victim.Name);
-		ent.AddInt('entity', victim.ID, 'entity_link, uobject_link');
-	end;
-end;
-
-var
-	select_created : Boolean;
-	
-procedure DeselectAll; forward;
-procedure UpdateSelection; forward;
-
-procedure CreateEntity(const hit_pos, hit_nrm : TVec3);
-var
-	dlg : Ihandle;
-	t_template : Ihandle;
-	l_transform : Ihandle;
-
-	node_id : Longint;
-	template : TSection; 
-	transform : Integer;
-	
-	matrix : TMatrix;
-
-	v1,v2,v3 : TVec3;
-	d, l : Single;
-	
-	I : Longint;
-	e : TEntityArray;
-begin
-	dlg := IupGetHandle('MAINDIALOG');
-	t_template := IupGetDialogChild(dlg, 'TREE_TEMPLATES');
-	l_transform := IupGetDialogChild(dlg, 'LIST_TRANSFORM');
-						
-	node_id := IupGetInt(t_template, 'VALUE');
-	if node_id < 0 then
-		Exit;
-		
-	template := TSection(IupGetAttribute(t_template, PAnsiChar('USERDATA'+IntToStr(node_id))));
-	transform := IupGetInt(l_transform, 'VALUE');
-						
-	// verify if it's template, not folder
-	if (template.GetParam('id', 'u16') = nil) and not (template.GetBool('is_group', False)) then
-		Exit;
-
-	v3 := hit_nrm;
-	d := v3.x*0 + v3.y*1 + v3.z*0;
-	v2.x := 0-(v3.x*d);
-	v2.y := 1-(v3.y*d);
-	v2.z := 0-(v3.z*d);
-	l := v2.x*v2.x + v2.y*v2.y + v2.z*v2.z;
-	if l < 0.001 then
-	begin
-		//WriteLn('UP = 1, 0, 0');
-		d := v3.x*1 + v3.y*0 + v3.z*0;
-		v2.x := 1-(v3.x*d);
-		v2.y := 0-(v3.y*d);
-		v2.z := 0-(v3.z*d);
-		l := v2.x*v2.x + v2.y*v2.y + v2.z*v2.z;
-	end;
-	l := Sqrt(l);
-	v2.x := v2.x / l;
-	v2.y := v2.y / l;
-	v2.z := v2.z / l;
-	Cross(v1, v2, v3);
-
-	case transform of
-		1: begin // Y = World UP
-			matrix[1,1] := 1; matrix[1,2] := 0; matrix[1,3] := 0; matrix[1,4] := 0;
-			matrix[2,1] := 0; matrix[2,2] := 1; matrix[2,3] := 0; matrix[2,4] := 0;
-			matrix[3,1] := 0; matrix[3,2] := 0; matrix[3,3] := 1; matrix[3,4] := 0;
-			matrix[4,1] := hit_pos.x; matrix[4,2] := hit_pos.y; matrix[4,3] := hit_pos.z; matrix[4,4] := 1;
-		end;
-		2: begin // Y = Normal
-			matrix[1,1] := v1.x; matrix[1,2] := v1.y; matrix[1,3] := v1.z; matrix[1,4] := 0;
-			matrix[2,1] := v3.x; matrix[2,2] := v3.y; matrix[2,3] := v3.z; matrix[2,4] := 0;
-			matrix[3,1] := -v2.x; matrix[3,2] := -v2.y; matrix[3,3] := -v2.z; matrix[3,4] := 0;
-			matrix[4,1] := hit_pos.x; matrix[4,2] := hit_pos.y; matrix[4,3] := hit_pos.z; matrix[4,4] := 1;
-		end;
-		3: begin // Z = Normal
-			matrix[1,1] := v1.x; matrix[1,2] := v1.y; matrix[1,3] := v1.z; matrix[1,4] := 0;
-			matrix[2,1] := v2.x; matrix[2,2] := v2.y; matrix[2,3] := v2.z; matrix[2,4] := 0;
-			matrix[3,1] := v3.x; matrix[3,2] := v3.y; matrix[3,3] := v3.z; matrix[3,4] := 0;
-			matrix[4,1] := hit_pos.x; matrix[4,2] := hit_pos.y; matrix[4,3] := hit_pos.z; matrix[4,4] := 1;
-		end;
-		4: begin // Z = -Normal
-			matrix[1,1] := -v1.x; matrix[1,2] := -v1.y; matrix[1,3] := -v1.z; matrix[1,4] := 0;
-			matrix[2,1] := v2.x; matrix[2,2] := v2.y; matrix[2,3] := v2.z; matrix[2,4] := 0;
-			matrix[3,1] := -v3.x; matrix[3,2] := -v3.y; matrix[3,3] := -v3.z; matrix[3,4] := 0;
-			matrix[4,1] := hit_pos.x; matrix[4,2] := hit_pos.y; matrix[4,3] := hit_pos.z; matrix[4,4] := 1;
-		end;
-	end;
-	
-	e := CreateEntities(template, matrix);
-	
-	if (Length(e) = 1) and (e[0].classname = 'PROXY') then
-		ProxyFromSelection(e[0]);
-		
-	if select_created then
-	begin
-		DeselectAll;
-		for I := 0 to Length(e)-1 do
-			e[I].selected := True;
-		UpdateSelection;
-	end;
-end;
 
 procedure CreateManipulator(const matrix : TMatrix);
 begin
@@ -303,15 +111,9 @@ begin
 			
 			if Length(z) > 0 then
 			begin
-				if Length(z) = 1 then
-				begin
-					CreateManipulator(z[0].Matrix);
-				end else
-				begin
-					c := GetCenter(z);
-					Translate(m, c);
-					CreateManipulator(m);
-				end;
+				c := GetCenter(z);
+				Translate(m, c);
+				CreateManipulator(m);
 			end;
 		end;
 		
@@ -320,81 +122,44 @@ end;
 
 procedure UpdateSelection;
 var
-	e : TEntityArray;
-	z : TEnvZoneArray;
-	dlg, frame, t, sel_c : Ihandle;
-	
+	sel_c : Ihandle;
 	count : Longint;
 begin
 	UpdateManipulator;
 	
 	count := 0;
-	dlg := IupGetHandle('MAINDIALOG');
 	
 	case edit_mode of
 		emEntity: begin
-			frame := IupGetDialogChild(dlg, 'FRAME_ENTITY');
-			t := IupGetDialogChild(dlg, 'TREE_PROPS');
-			
-			e := Scene.GetSelected;
-			count := Length(e);
-			
-			if count = 1 then
-			begin
-				IupSetAttribute(frame, 'VISIBLE', 'YES');
-				SetupProperties(t, e[0].data);
-			end
-			else
-				IupSetAttribute(frame, 'VISIBLE', 'NO');
+			count := Length(Scene.GetSelected);
+			uTabEntity.UpdateTab;
 		end;
 		
 		emEnvZone: begin
-			t := IupGetDialogChild(dlg, 'TREE_PROPS_ENV');
-			
-			z := Scene.GetSelectedEZ;
-			count := Length(z);
-			
-			if count = 1 then
-				SetupProperties(t, z[0].data);
+			count := Length(Scene.GetSelectedEZ);			
+			uTabEnvZone.UpdateTab;
 		end;
 	end;
 	
 	// update selection count
-	sel_c := IupGetDialogChild(dlg, 'LABEL_SEL');
+	sel_c := IupGetDialogChild(MainDialog, 'LABEL_SEL');
 	IupSetStrAttribute(sel_c, 'TITLE', PAnsiChar('Sel: ' + IntToStr(count)));
 end;
 
 procedure DeselectAll;
-var
-	selected : TEntityArray;
-	z : TEnvZoneArray;
-	I : Longint;
 begin
 	case edit_mode of
-		emEntity: begin
-			selected := Scene.GetSelected;
-			for I := 0 to Length(selected) - 1 do
-				selected[I].selected := False;
-		end;
-		
-		emEnvZone: begin
-			z := Scene.GetSelectedEZ;
-			for I := 0 to Length(z) - 1 do
-				z[I].Selected := False;
-		end;
+		emEntity: uTabEntity.DeselectAll;
+		emEnvZone: uTabEnvZone.DeselectAll;
 	end;
 end;
 
 procedure DeleteSelection;
-var
-	selected : TEntityArray;
-	I : Integer;
 begin
-	selected := Scene.GetSelected;
-	for I := 0 to Length(selected) - 1 do
-		Scene.RemoveEntity(selected[I]);
-	
-	UpdateSelection;
+	case edit_mode of
+		emEntity: uTabEntity.DeleteSelection;
+		emEnvZone: uTabEnvZone.DeleteSelection;
+	end;
 end;
 
 procedure RecursiveSelect(parent_id : Word);
@@ -444,11 +209,34 @@ begin
 	UpdateSelection;
 end;
 
-procedure LoadMap(const dir : String);
+procedure AttachEnvZoneTo(parent : TEnvZone);
 var
-	dlg : Ihandle;
+	I : Longint;
+	sel : TEnvZoneArray;
+begin
+	sel := Scene.GetSelectedEZ;
 	
-	startup : TSection;
+	for I := 0 to Length(sel)-1 do
+		parent.AddQuads(sel[I].param_tris.data);
+		
+	uTabEnvZone.DeleteSelection;		
+	UpdateSelection;
+end;
+
+procedure RemoveEnvZoneQuad(zone : TEnvZone; id : Longint);
+begin
+	zone.RemoveQuad(id);
+	
+	if Length(zone.param_tris.data) = 0 then
+	begin
+		Scene.env_zones.Remove(zone);
+		zone.Free;
+	end;
+	
+	UpdateSelection;
+end;
+
+procedure LoadMap(const dir : String);
 begin
 	DestroyManipulator;
 	Scene.LevelUnload;
@@ -461,12 +249,7 @@ begin
 	
 	Scene.LevelLoad(dir);
 	
-	if Scene.konf <> nil then
-	begin
-		startup := Scene.konf.root.GetSect('startup', False);
-		if startup <> nil then
-			uWeather.SetWeather(startup.GetStrDef('desc_0', ''));
-	end;
+	ResetWeather;
 	
 	// load templates
 	SaveTemplates;
@@ -478,9 +261,11 @@ begin
 		sceneVerExodus:		LoadTemplates('editor_data\templates_exodus.txt');
 	end;
 	
-	dlg := IupGetHandle('MAINDIALOG');
-	UpdateTemplates(IupGetDialogChild(dlg, 'TREE_TEMPLATES'));
-	IupSetAttribute(dlg, 'TITLE', PAnsiChar('Level Editor - [' + dir + ']'));
+	//
+	uTabEnvZone.UpdateTab;
+	
+	UpdateTemplates(IupGetDialogChild(MainDialog, 'TREE_TEMPLATES'));
+	IupSetAttribute(MainDialog, 'TITLE', PAnsiChar('Level Editor - [' + dir + ']'));
 
 	UpdateSelection;
 	Redisplay;
@@ -491,7 +276,7 @@ var
 	ih : Ihandle;
 	x, y, z : String[32];
 begin
-	ih := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'LABEL_CAMPOS');
+	ih := IupGetDialogChild(MainDialog, 'LABEL_CAMPOS');
 
 	WriteStr(x, camera_pos.x:1:3);
 	WriteStr(y, camera_pos.y:1:3);
@@ -630,14 +415,15 @@ begin
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	
 	Scene.RenderOpaqueFast;
-	if Scene.showEnvZones or (edit_mode = emEnvZone) then
-		Scene.RenderEnvZones;
 	
 	glDepthMask(GL_FALSE);
 	Scene.RenderBlended;
 	glDepthMask(GL_TRUE);
 	
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	
+	if Scene.showEnvZones or (edit_mode = emEnvZone) then
+		Scene.RenderEnvZones;
 	
 	glReadBuffer(GL_BACK_LEFT);
 	glBindTexture(GL_TEXTURE_2D, rt_color);
@@ -738,9 +524,7 @@ var
 	pos : String;
 begin
 	pos := IntToStr(x) + ', ' + IntToStr(y);
-
 	mousexy := IupGetDialogChild(ih, 'MOUSEXY');
-
 	IupSetStrAttribute(mousexy, 'TITLE', PAnsiChar(pos));
 
 	if status[4] = '3' then
@@ -834,11 +618,10 @@ begin
 	end;
 end;
 
-function RaycastEnvZone(const p, dir : TVec3; dist : Single) : TEnvZone;
+function RaycastEnvZone(const p, dir : TVec3; dist : Single; out shape : Pointer) : TEnvZone;
 var
 	group : Longword;
 	actor : TPHActor;
-	shape : TPHShape;
 	sel : TObject;
 begin
 	group := PH_GROUP_DEFAULT_MASK or PH_GROUP_ENV_ZONE_MASK;				
@@ -862,7 +645,6 @@ var
 	shape : TPHShape;
 begin
 	case edit_mode of
-	
 		emEntity: begin
 			e := RaycastEntity(p, dir, dist, shape);
 			if e <> nil then
@@ -892,7 +674,7 @@ begin
 		end;
 		
 		emEnvZone: begin
-			z := RaycastEnvZone(p, dir, dist);
+			z := RaycastEnvZone(p, dir, dist, shape);
 			if z <> nil then
 			begin						
 				if iup_isshift(status) then
@@ -909,7 +691,7 @@ begin
 					z.selected := True;
 					UpdateSelection;
 				end;		
-			end else // sel is not TEntity
+			end else // sel is not TEnvZone
 			begin
 				if not iup_isshift(status) then
 				begin
@@ -918,7 +700,6 @@ begin
 				end;
 			end;			
 		end;
-		
 	end;
 end;
 
@@ -1114,7 +895,7 @@ var
 	e : TEntity;
 	
 	mat : TMatrix;
-	c : TVec3;
+	c, cc : TVec3;
 begin	
 	if not Assigned(Scene.ph_scene) then
 	begin
@@ -1197,12 +978,14 @@ begin
 						
 						For I := 0 to Length(z)-1 do
 						begin
-							mat := z[I].Matrix;
+							z[I].GetCenter(cc);
+							Translate(mat, cc);
+							
 							ApplyManipulator(mat, c);
-							z[I].Matrix := mat;
+							
+							z[I].Transform(mat);
 						end;	
 					end;
-					
 				end;
 				
 				m_used := True;
@@ -1214,41 +997,80 @@ begin
 				begin
 					FrustumSelect(status, lclick_x, lclick_y, x, y);
 				end else
+				
 				if iup_iscontrol(status) and ((GetASyncKeyState(VK_Z) and $8000) <> 0) then
 				begin // attach shape
-					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-					
-					if (e <> nil) and not e.selected then
-					begin
-						UndoSave;
-						AttachShapesTo(e);
+					case edit_mode of
+						emEntity: begin
+							e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
+							
+							if (e <> nil) and not e.selected then
+							begin
+								UndoSave;
+								AttachShapesTo(e);
+							end;
+						end;
+						
+						emEnvZone: begin
+							SetLength(z, 1);
+							z[0] := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
+							if (z[0] <> nil) and not z[0].selected then
+							begin
+								UndoSave;
+								AttachEnvZoneTo(z[0]);
+							end;
+						end;
 					end;
 				end else
+				
 				if iup_iscontrol(status) and ((GetASyncKeyState(VK_X) and $8000) <> 0) then
 				begin // remove shape
-					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-					if (e <> nil) and e.selected and (PHGetGroup(shape) = PH_GROUP_SHAPE) then
-					begin
-					  UndoSave;
-						RemoveShape(e, TSection(PHGetShapeUserdata(shape)));
+					case edit_mode of
+						emEntity: begin
+							e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
+							if (e <> nil) and e.selected and (PHGetGroup(shape) = PH_GROUP_SHAPE) then
+							begin
+							  UndoSave;
+								RemoveShape(e, TSection(PHGetShapeUserdata(shape)));
+							end;
+						end;
+						
+						emEnvZone: begin
+							SetLength(z, 1);
+							z[0] := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
+							if (z[0] <> nil) and z[0].selected then
+							begin
+								UndoSave;
+								RemoveEnvZoneQuad(z[0], Longint(PHGetShapeUserdata(shape)));
+							end;
+						end;
 					end;
 				end else
+				
 				if iup_iscontrol(status) and iup_isshift(status) then 
 				begin // attach
-					e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-					
-					if (e <> nil) and not e.selected then
+					if edit_mode = emEntity then
 					begin
-						UndoSave;					
-						AttachSelectionTo(e);
+						e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
+						
+						if (e <> nil) and not e.selected then
+						begin
+							UndoSave;					
+							AttachSelectionTo(e);
+						end;
 					end;
 				end else 
+				
 				if iup_iscontrol(status) then 
-				begin // create entity
+				begin // create
 					if RaycastPoint(p, dir, RAYCAST_DIST, hit_pos, hit_nrm, shape) then
 					begin
-					  UndoSave;					
-						CreateEntity(hit_pos, hit_nrm);
+					  UndoSave;	
+					  
+					  case edit_mode of				
+							emEntity:  uTabEntity.CreateEntity(hit_pos, hit_nrm);
+							emEnvZone: uTabEnvZone.CreateEnvZone(hit_pos);
+						end;
 					end;
 				end else
 					RaySelect(status, p, dir, RAYCAST_DIST);
@@ -1355,21 +1177,18 @@ end;
 ///////////////////////////////////////////////////////////////////////////////
 // Toolbox callbacks                                                         //
 ///////////////////////////////////////////////////////////////////////////////
-function list_rm_cb(ih : Ihandle; txt : PAnsiChar; item, state : Longint) : Longint; cdecl;
+function fb_ao_cb(ih : Ihandle) : Longint; cdecl;
 begin
-	case item of
-		1 : showAO := False;
-		2 : showAO := True;
-	end;
+	showAO := IupGetInt(ih, 'VALUE') = 1;
 
 	ReloadGLPrograms;
 	Redisplay;
 	Result := IUP_DEFAULT;
 end;
 
-function tg_weather_cb(ih : Ihandle; state : Longint) : Longint; cdecl;
+function tg_weather_cb(ih : Ihandle) : Longint; cdecl;
 begin
-	useWeather := state = 1;
+	useWeather := IupGetInt(ih, 'VALUE') = 1;
 
 	ReloadGLPrograms;
 	Redisplay;
@@ -1379,8 +1198,7 @@ end;
 function btn_tool_cb(ih : Ihandle) : Longint; cdecl;
 var
 	t : String;
-	
-	r_tool_move, r_tool_rotate, r_tool_scale : Ihandle;
+	fr_tool, r_tool_move, r_tool_rotate, r_tool_scale : Ihandle;
 	
 	procedure Hide(ih : Ihandle);
 	begin
@@ -1396,10 +1214,12 @@ var
 begin
 	t := IupGetAttribute(ih, 'TITLE');
 
+	fr_tool := IupGetDialogChild(ih,'FRAME_TOOL');
 	r_tool_move := IupGetDialogChild(ih, 'R_TOOL_MOVE');
 	r_tool_rotate := IupGetDialogChild(ih, 'R_TOOL_ROTATE');
 	r_tool_scale := IupGetDialogChild(ih, 'R_TOOL_SCALE');
 
+	Show(fr_tool);
 	Hide(r_tool_move);
 	Hide(r_tool_rotate);
 	Hide(r_tool_scale);
@@ -1422,9 +1242,10 @@ begin
 	else
 	begin
 		m_mode := mmNone;
+		Hide(fr_tool);
 	end;
 	
-	IupRefresh(IupGetDialogChild(ih,'FRAME_TOOL'));
+	IupRefresh(fr_tool);
 	
 	UpdateManipulator;
 	Redisplay;
@@ -1473,317 +1294,6 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function tg_select_new_cb(ih : Ihandle; state : Longint) : Longint; cdecl;
-begin
-	select_created := state = 1;
-	Result := IUP_DEFAULT;
-end;
-
-function btn_add_template_cb(ih : Ihandle) : Longint; cdecl;
-var
-	I : Longint;
-	t : Ihandle;
-
-	format : String;
-	
-	name : array[0..255] of Char;
-	pivot : Longint;
-	
-	selected : TList;
-begin
-	selected := Scene.GetSelectedList;
-
-	if selected.Count > 0 then
-	begin
-		StrPCopy(@name, TEntity(selected[0]).Name);
-		pivot := 0;
-		
-		format := 'Name: %s'#10;
-		if selected.Count > 1 then
-		begin
-			format := format + 'Pivot: %l|<center>|';
-			for I := 0 to selected.Count-1 do
-				format := format + TEntity(selected[I]).Name + '|';
-			format := format + #10;
-		end;
-		
-		if IupGetParam('Add template', nil, nil, PAnsiChar(format), @name, @pivot) = 1 then
-		begin
-			if name[0] <> #0 then
-			begin
-				if pivot = 0 then
-					NewTemplate(name, selected, nil)
-				else
-					NewTemplate(name, selected, TEntity(selected[pivot-1]));
-	
-				t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
-				UpdateTemplates(t);
-			end;
-		end;
-	end else
-		IupMessage('Message', 'Nothing selected!');
-	
-	selected.Free;
-
-	Result := IUP_DEFAULT;
-end;
-
-function btn_remove_template_cb(ih : Ihandle) : Longint; cdecl;
-var
-	t : Ihandle;
-	id : Longint;
-	v : TSection;
-begin
-	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
-	id := IupGetInt(t, 'VALUE');
-	if id >= 0 then
-	begin
-		v := TSection(IupGetAttribute(t, PAnsiChar('USERDATA'+IntToStr(id))));
-		DeleteTemplate(v);
-		UpdateTemplates(t);
-	end;
-
-	Result := IUP_DEFAULT;
-end;
-
-function btn_rename_entity_cb(ih : Ihandle) : Longint; cdecl;
-var
-	name : array[0..255] of Char;
-	selected : TEntityArray;
-begin
-	selected := Scene.GetSelected;
-
-	if Length(selected) = 1 then
-	begin
-		StrPCopy(@name[0], selected[0].Name);
-		if IupGetParam('Rename entity', nil, nil, 'Name: %s'#10, @name) = 1 then
-		begin
-		  UndoSave;
-			selected[0].Name := PAnsiChar(@name);
-			UpdateSelection;
-		end;
-	end else
-		IupMessage('Message', 'Select just one object');
-
-	Result := IUP_DEFAULT;
-end;
-
-function btn_delete_entity_cb(ih : Ihandle) : Longint; cdecl;
-var
-	selected : TList;
-begin
-  UndoSave;
-	DeleteSelection;
-	Redisplay;
-	Result := IUP_DEFAULT;
-end;
-
-function btn_script_cb(ih : Ihandle) : Longint; cdecl;
-var
-	s : TSimpleValue;
-	selected : TEntityArray;
-begin
-	selected := Scene.GetSelected;
-
-	if Length(selected) = 1 then
-	begin
-	  UndoSave;
-	  
-		s := selected[0].data.GetParam('vss_ver_6', 'section');
-		if s = nil then
-			s := selected[0].data.GetParam('vss_ver_7', 'section');
-		
-		if s <> nil then	
-			EditScript(s as TSection)
-		else
-			WriteLn('Warning! Invalid entity, doesn''t contain vss_ver_6 or vss_ver_7 section');
-	end else
-		IupMessage('Message', 'Select just one object');
-
-	Result := IUP_DEFAULT;
-end;
-
-procedure property_changed_cb(prop : TSimpleValue) cdecl;
-var
-	mat : TMatrix;
-	selected : TEntityArray;
-begin
-	if (prop.name = '') and (prop.vtype = 'pose, matrix') then
-	begin		
-		selected := Scene.GetSelected;
-		
-		if prop = selected[0].param_matrix then
-		begin
-			with prop as TFloatArrayValue do
-			begin
-				if Length(data) = 16 then GetMatrix44(mat)
-				else GetMatrix43(mat)
-			end;
-		
-			selected[0].Matrix := mat;
-			UpdateManipulator;
-		end;
-		
-		Redisplay;
-	end;
-
-	if (prop.name = 'att_offset') and ((prop.vtype = 'pose, matrix') or (prop.vtype = 'pose, matrix_43T')) then
-	begin
-		//selected := Scene.GetSelected;
-		//selected[0].VisualName := (prop as TStringValue).str;
-		Scene.UpdateAttaches;
-		
-		Redisplay;
-	end;
-	
-	if (prop.name = 'visual') and (prop.vtype = 'stringz') then
-	begin
-		selected := Scene.GetSelected;
-		selected[0].VisualName := (prop as TStringValue).str;
-		UpdateSelection;
-		Redisplay;
-	end;
-	
-	// shapes, sphere & box
-	if (prop.name = '') and (prop.vtype = 'pose, matrix') or
-	   (prop.name = 'h_size') and (prop.vtype = 'vec3f') or
-	   (prop.name = 'radius') and (prop.vtype = 'fp32') or
-	   (prop.name = 'center') and (prop.vtype = 'vec3f') then
-	begin
-		selected := Scene.GetSelected;
-		selected[0].UpdateShapes;
-		Redisplay;
-	end;
-end;
-
-function property_edit_cb(tree : Ihandle; sect : TSection; prop : TSimpleValue) : Longint; cdecl;
-var
-	v : TIntegerValue;
-	s : TStringValue;
-	names : String;
-	
-	sel : TEntity;
-	parent : TEntity;
-	
-	skeleton : T4ASkeleton;
-begin
-	Result := 1; // 0 - cancel, 1 - default editor, 2 - apply
-	
-	if prop.vtype = 'bool8' then
-	begin
-		v := prop as TIntegerValue;
-		
-		names := '';
-		
-		if v.name = 'oflags' then
-			names := 'reflectable,cast_ao,ghost,shadowgen,rws,neversleep,force_realtime,dao_auto';
-			
-		if v.name = 'physics_flags' then
-			names := 'is_physics,after_detach_physics_on,sleeping,kinematic,force_kinematic,block_breacking,raycast,block_ai_los';
-			
-		if v.name = 'flags0' then
-		begin
-			sel := Scene.GetSelected[0];
-			if (sel.classname <> 'FORCE_FIELD') and // if  not force field
-			   (sel.data.GetParam('shapes', 'section') = nil) and // not restrictor
-			   (sel.data.GetParam('base_npc_flags', 'bool8') = nil) // and not npc
-			then
-			  // then it's inventory item object!
-				names := 'active,useful_for_player,ammo_for_player,dao_blink_prevent,ready_after_cloned,ui_force_slot,attached_loot';
-		end;
-			
-		if names <> '' then
-		begin
-			if properties.EditBool8(v, names) then
-				Result := 2
-			else
-				Result := 0;
-		end;
-	end;
-	
-	if (prop.vtype = 'u8') and (prop.name = 'ltype') then
-	begin
-		v := prop as TIntegerValue;
-		names := 'directional,omni_normal,omni_shadowed,omni_ambient,spot_normal,spot_shadowed,spot_ambient,quad_normal,quad_shadowed,quad_ambient,elliptic_normal,elliptic_ambient';
-		if Scene.GetVersion > sceneVer2033 then
-			names := names + ',directional_normal,directional_shadowed,halfomni_normal,halfomni_ambient,IBL_probe';
-
-		if properties.EditEnum(v, names, 'Light Type') then
-			Result := 2
-		else
-			Result := 0;
-	end;
-	
-	if (prop.vtype = 'bone_id') then
-	begin
-		s := sect.GetParam(prop.name, 'stringz') as TStringValue;
-		sel := Scene.GetSelected[0];
-		skeleton := sel.GetSkeleton;
-		if skeleton <> nil then
-		begin
-			if ChooseBone(skeleton, s.str) then
-				Result := 2
-			else
-				Result := 0;
-		end;
-	end;
-	
-	if (prop.vtype = 'locator_str') then
-	begin
-		s := sect.GetParam(prop.name, 'stringz') as TStringValue;
-		sel := Scene.GetSelected[0];
-		
-		if prop.name = 'att_bone_id' then
-		begin
-			parent := Scene.EntityById(sel.ParentID);
-			if parent <> nil then
-				skeleton := parent.GetSkeleton
-			else
-				skeleton := nil;
-		end else
-			skeleton := sel.GetSkeleton;
-		
-		if skeleton <> nil then
-		begin		
-			if ChooseLocator(skeleton, s.str) then
-				Result := 2
-			else
-				Result := 0;
-		end;
-	end;
-	
-	if (prop.vtype = 'part_id') then
-	begin
-		s := sect.GetParam(prop.name, 'stringz') as TStringValue;
-		sel := Scene.GetSelected[0];
-		skeleton := sel.GetSkeleton;
-		if skeleton <> nil then
-		begin
-			if ChooseBonePart(skeleton, s.str) then
-				Result := 2
-			else
-				Result := 0;
-		end;
-	end;
-	
-	if (prop.vtype = 'animation_str') then
-	begin
-		s := sect.GetParam(prop.name, 'stringz') as TStringValue;
-		sel := Scene.GetSelected[0];
-		skeleton := sel.GetSkeleton;
-		if skeleton <> nil then
-		begin
-			if ChooseAnimation(skeleton, s.str) then
-				Result := 2
-			else
-				Result := 0;
-		end;
-	end;  
-	
-	if Result <> 0 then
-	 	UndoSave;
-end;
-
 function tabs_changepos_cb(ih : Ihandle; new_pos, old_pos : Longint) : Longint; cdecl;
 begin
 	WriteLn('change tab ', new_pos);
@@ -1791,6 +1301,7 @@ begin
 	case new_pos of
 		0: edit_mode := emEntity;
 		1: edit_mode := emEnvZone;
+		2: begin edit_mode := emWeather; uTabWeather.FillList; end;
 	end;
 	
 	Redisplay;
@@ -1827,9 +1338,6 @@ begin
 end;
 
 function menu_file_reopen_cb(ih : Ihandle) : Longint; cdecl;
-var
-	dlg : Ihandle;
-	fn : String;
 begin
 	Scene.LevelReload;
 	UndoClearHistory;
@@ -1853,6 +1361,7 @@ begin
 		SaveLevelBin(level_path + '\level.bin', Scene.konf, kind);
 		if Scene.konf_add <> nil then
 			SaveLevelBin(level_path + '\level.add.bin', Scene.konf_add, kind);
+		Scene.SaveEnvironmentToFile(level_path + '\level.environment');
 	end else
 		IupMessage('Message', 'Nothing opened');
 		
@@ -1946,7 +1455,7 @@ begin
 		if IupGetInt(dlg, 'STATUS') <> -1 then
 		begin
 			fn := IupGetAttribute(dlg, 'VALUE');
-			Scene.SaveEnvironment(fn);
+			Scene.SaveEnvironmentToFile(fn);
 		end;
 
 		IupDestroy(dlg);
@@ -2002,44 +1511,20 @@ begin
 end;
 
 function menu_edit_copy_cb(ih : Ihandle) : Longint; cdecl;
-var
-	sel : TEntityArray;
-	I : Longint;
 begin
-	sel := Scene.GetSelected;
-	
-	if Length(sel) > 0 then
-	begin
-		FreeAndNil(clipboard);
-		
-		if Length(sel) > 1 then
-		begin
-			clipboard := TSection.Create;
-					
-			clipboard.AddBool('is_group', True);
-			for I := 0 to Length(sel) - 1 do
-				clipboard.items.Add(sel[I].data.Copy);
-		end else
-			clipboard := sel[0].data.Copy as TSection;
+	case edit_mode of
+		emEntity: uTabEntity.CopySelection;
+		//emEnvZone: uTabEnvZone.CopySelection;
 	end;
 	
 	Result := IUP_DEFAULT;
 end;
 
 function menu_edit_paste_cb(ih : Ihandle) : Longint; cdecl;
-var
-	e : TEntityArray;
-	I : Longint;
 begin
-	if Assigned(clipboard) then
-	begin
-		e := CreateEntities(clipboard);
-		
-		DeselectAll;
-		for I := 0 to Length(e)-1 do
-			e[I].selected := True;
-		UpdateSelection;
-		Redisplay;
+	case edit_mode of
+		emEntity: uTabEntity.PasteSelection;
+		//emEnvZone: uTabEnvZone.PasteSelection;
 	end;
 		
 	Result := IUP_DEFAULT;
@@ -2404,6 +1889,8 @@ var
 begin
 	sel := Scene.GetSelected;
 	
+	UndoSave;
+	
 	for I := 0 to Length(sel)-1 do
 	begin
 		mat := sel[I].Matrix;
@@ -2432,33 +1919,24 @@ procedure CreateDialog;
 var
 	gl : Ihandle;
 	
+	fb_none : Ihandle;
+	fb_move : Ihandle;
+	fb_rotate : Ihandle;
+	fb_scale : Ihandle;
+	fb_weather : Ihandle;
+	fb_ao : Ihandle;
+	top_bar : Ihandle;
+	
 	label_sel : Ihandle;
 	mousexy : Ihandle;
 	campos : Ihandle;
 	status_bar : Ihandle;
 
-	list_rm : Ihandle;
-	tg_weather : Ihandle;
-	box_rm : Ihandle;
-
-	btn_none, btn_move, btn_rotate, btn_scale : Ihandle;
 	tg_object, tg_world, tg_group, tg_uniform : Ihandle;
-	box_tools, box_tool_opt : Ihandle;
 	fr_tool : Ihandle;
 	r_tool_move, r_tool_rotate, r_tool_scale : Ihandle;
 
 	tabs : Ihandle;
-
-	fr_create : Ihandle;
-	tree_templates : Ihandle;
-	list_transform : Ihandle;
-	tg_select_new : Ihandle;
-	btn_add, btn_remove : Ihandle;
-
-	fr_entity : Ihandle;
-	btn_rename, btn_delete, btn_script : Ihandle;
-	t_props : Ihandle;
-	t_props_env : Ihandle;
 	
 	toolbox : Ihandle;
 	
@@ -2469,6 +1947,9 @@ var
 
 	dlg : Ihandle;
 begin
+	// Load icons
+	LoadImages;
+
 	// OpenGL Window
 	gl := IupGLCanvas(nil);
 	IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
@@ -2482,6 +1963,49 @@ begin
 	IupSetCallback(gl, 'BUTTON_CB', @gl_button_cb);
 	IupSetCallback(gl, 'KEYPRESS_CB', @gl_keypress_cb);
 	IupSetAttribute(gl, 'NAME', 'GL_CANVAS');
+	
+	// Topbar
+	fb_none := IupFlatButton('None');
+	IupSetAttribute(fb_none, 'IMAGE', 'ICON_CURSOR');
+	IupSetCallback(fb_none, 'FLAT_ACTION', @btn_tool_cb);
+	IupSetAttribute(fb_none, 'TOGGLE', 'YES');
+	
+	fb_move := IupFlatButton('Move');
+	IupSetAttribute(fb_move, 'IMAGE', 'ICON_MOVE');
+	IupSetCallback(fb_move, 'FLAT_ACTION', @btn_tool_cb);
+	IupSetAttribute(fb_move, 'TOGGLE', 'YES');
+	
+	fb_rotate := IupFlatButton('Rotate');
+	IupSetAttribute(fb_rotate, 'IMAGE', 'ICON_ROTATE');
+	IupSetCallback(fb_rotate, 'FLAT_ACTION', @btn_tool_cb);
+	IupSetAttribute(fb_rotate, 'TOGGLE', 'YES');
+	
+	fb_scale := IupFlatButton('Scale');
+	IupSetAttribute(fb_scale, 'IMAGE', 'ICON_SCALE');
+	IupSetCallback(fb_scale, 'FLAT_ACTION', @btn_tool_cb);
+	IupSetAttribute(fb_scale, 'TOGGLE', 'YES');
+	
+	fb_weather := IupFlatButton('Weather');
+	IupSetAttribute(fb_weather, 'IMAGE', 'ICON_WEATHER');
+	IupSetAttribute(fb_weather, 'TOGGLE', 'YES');
+	IupSetInt(fb_weather, 'VALUE', Integer(useWeather));
+	IupSetCallback(fb_weather, 'FLAT_ACTION', @tg_weather_cb);
+	
+	fb_ao := IupFlatButton('Show AO');
+	IupSetAttribute(fb_ao, 'IMAGE', 'ICON_AO');
+	IupSetAttribute(fb_ao, 'TOGGLE', 'YES');
+	IupSetInt(fb_ao, 'VALUE', Integer(showAO));
+	IupSetCallback(fb_ao, 'FLAT_ACTION', @fb_ao_cb);
+	
+	top_bar := IupHBox(
+		IupSetAttributes(IupRadio(IupHBox(fb_none, fb_move, fb_rotate, fb_scale, nil)), 'MARGIN=0x0, PADDING=0x0'), 
+		IupSetAttributes(IupSpace, 'SIZE=15x5'), 
+		fb_weather, fb_ao, 
+		nil
+	);
+	
+	IupSetAttribute(top_bar, 'MARGIN', '1x1');
+	IupSetAttribute(top_bar, 'PADDING', '1x1');
 	
 	// Statusbar
 	mousexy := IupLabel('0, 0');
@@ -2500,30 +2024,10 @@ begin
 	status_bar := IupHBox(mousexy, label_sel, campos, nil);
 
 	// Left Toolbox
-	list_rm := IupList(nil);
-	IupSetAttributes(list_rm, 'DROPDOWN=YES, 1="Default", 2="AO"');
-	IupSetAttribute(list_rm, 'VALUE', '1');
-	IupSetCallback(list_rm, 'ACTION', @list_rm_cb);
-	
-	tg_weather := iup.Toggle('Weather', @tg_weather_cb, useWeather);
-	
-	box_rm := IupHBox(
-		IupLabel('Render Mode'),
-		list_rm,
-		tg_weather,
-		nil
-	);
-	IupSetAttribute(box_rm, 'MARGIN', '0x0');
-
-	btn_none := iup.Button('None', @btn_tool_cb);
-	btn_move := iup.Button('Move', @btn_tool_cb);
-	btn_rotate := iup.Button('Rotate', @btn_tool_cb);
-	btn_scale := iup.Button('Scale', @btn_tool_cb);
-	
 	tg_object := iup.Toggle('Object', @tg_axis_cb);
 	tg_world := iup.Toggle('World', @tg_axis_cb);
 	
-	r_tool_move := IupRadio(IupHBox(tg_object, tg_world, nil));
+	r_tool_move := IupRadio(IupHBox(tg_object, tg_world, IupFill, nil));
 	IupSetAttribute(r_tool_move, 'NAME', 'R_TOOL_MOVE');
 	IupSetAttribute(r_tool_move, 'VISIBLE', 'NO');
 	IupSetAttribute(r_tool_move, 'FLOATING', 'YES');
@@ -2532,22 +2036,20 @@ begin
 	tg_world := iup.Toggle('World', @tg_axis_cb);
 	tg_group := iup.Toggle('Group', @tg_axis_cb);
 	
-	r_tool_rotate := IupRadio(IupHBox(tg_object, tg_world, tg_group, nil));
+	r_tool_rotate := IupRadio(IupHBox(tg_object, tg_world, tg_group, IupFill, nil));
 	IupSetAttribute(r_tool_rotate, 'NAME', 'R_TOOL_ROTATE');
 	IupSetAttribute(r_tool_rotate, 'VISIBLE', 'NO');
 	IupSetAttribute(r_tool_rotate, 'FLOATING', 'YES');
 	
 	tg_uniform := iup.Toggle('Uniform', @tg_uniform_scale_cb);
 	
-	r_tool_scale := IupHBox(tg_uniform, nil);
+	r_tool_scale := IupHBox(tg_uniform, IupFill, nil);
 	IupSetAttribute(r_tool_scale, 'NAME', 'R_TOOL_SCALE');
 	IupSetAttribute(r_tool_scale, 'VISIBLE', 'NO');
 	IupSetAttribute(r_tool_scale, 'FLOATING', 'YES');
 	
-	{
 	fr_tool := IupFrame(
 		IupSetAttributes(IupVBox(
-			IupHBox(btn_none, btn_move, btn_rotate, btn_scale, IupFill, nil),
 			r_tool_move,
 			r_tool_rotate,
 			r_tool_scale,
@@ -2555,82 +2057,25 @@ begin
 		), 'MARGIN=5x3')
 	);
 	IupSetAttribute(fr_tool, 'NAME', 'FRAME_TOOL');
-	IupSetAttribute(fr_tool, 'TITLE', 'Tool');
-	}
+	IupSetAttribute(fr_tool, 'TITLE', 'Tool Options');
+	IupSetAttribute(fr_tool, 'VISIBLE', 'NO');
+	IupSetAttribute(fr_tool, 'FLOATING', 'YES');
 	
-	// use variable due to compiler bug
-	box_tools := IupHBox(btn_none, btn_move, btn_rotate, btn_scale, IupFill, nil);
 	
-	fr_tool := IupFrame(
-		IupSetAttributes(IupVBox(
-			box_tools,
-			r_tool_move,
-			r_tool_rotate,
-			r_tool_scale,
-			nil
-		), 'MARGIN=5x3')
-	);
-	IupSetAttribute(fr_tool, 'NAME', 'FRAME_TOOL');
-	IupSetAttribute(fr_tool, 'TITLE', 'Tool');
-	
-	tree_templates := IupSetAttributes(IupTree, 'NAME=TREE_TEMPLATES, RASTERSIZE=200x');
-	IupSetAttribute(tree_templates, 'ADDEXPANDED', 'NO');
-	IupSetAttribute(tree_templates, 'ADDROOT', 'NO');
-	IupSetAttribute(tree_templates, 'IMAGELEAF', 'IMGEMPTY');
-	IupSetAttribute(tree_templates, 'HIDELINES', 'YES');
-
-	list_transform := IupList(nil);
-	IupSetAttributes(list_transform, 'NAME=LIST_TRANSFORM, DROPDOWN=YES');
-	IupSetAttributes(list_transform, '1="Y = World UP", 2="Y = Normal", 3="Z = Normal", 4="Z = -Normal"');
-	IupSetAttribute(list_transform, 'VALUE', '1');
-	
-	tg_select_new := iup.Toggle('Select', @tg_select_new_cb, select_created);
-
-	btn_add := iup.Button('Add', @btn_add_template_cb);
-	btn_remove := iup.Button('Remove', @btn_remove_template_cb);
-
-	fr_create := IupFrame(
-		IupVBox(
-			tree_templates,
-			IupSetAttributes(IupHBox(btn_add, btn_remove, nil), 'MARGIN=0x0'),
-			IupSetAttributes(IupHBox(list_transform, tg_select_new, nil), 'MARGIN=0x0'), 
-			nil
-		)
-	);
-	IupSetAttribute(fr_create, 'TITLE', 'Create');
-
-	t_props := IupSetAttributes(IupTree, 'NAME=TREE_PROPS, RASTERSIZE=200x');
-	IupSetCallback(t_props, 'PROPS_VALUECHANGED_CB', @property_changed_cb);
-	IupSetCallback(t_props, 'PROPS_EDIT_CB', @property_edit_cb);
-
-	btn_rename := iup.Button('Rename', @btn_rename_entity_cb);
-	btn_delete := iup.Button('Delete', @btn_delete_entity_cb);
-	btn_script := iup.Button('Script', @btn_script_cb);
-
-	fr_entity := IupFrame(
-		IupVbox(
-			IupSetAttributes(IupHBox(btn_rename, btn_delete, btn_script, nil), 'MARGIN=0x0'),
-			t_props, nil
-		)
-	);
-	IupSetAttributes(fr_entity, 'TITLE=Entity, NAME=FRAME_ENTITY, VISIBLE=NO');
-	
-	t_props_env := IupSetAttributes(IupTree, 'NAME=TREE_PROPS_ENV, RASTERSIZE=200x');
-
 	tabs := IupTabs(
-		IupVBox(fr_create, fr_entity, nil),
-		IupVBox(IupLabel('nothing to do here!'), t_props_env, nil),
+		uTabEntity.CreateTab,
+		uTabEnvZone.CreateTab,
+		uTabWeather.CreateTab,
 		nil
 	);
 	
 	IupSetAttribute(tabs, 'TABTITLE0', 'Entities');
 	IupSetAttribute(tabs, 'TABTITLE1', 'Environment');
-	
-	IupSetAttribute(tabs, 'TABVISIBLE1', 'NO'); // not ready yet :)
+	IupSetAttribute(tabs, 'TABTITLE2', 'Weather');
 	
 	IupSetCallback(tabs, 'TABCHANGEPOS_CB', @tabs_changepos_cb);
 
-	toolbox := IupVBox(box_rm, fr_tool, tabs, nil);
+	toolbox := IupVBox(fr_tool, tabs, nil);
 	IupSetAttribute(toolbox, 'MARGIN', '10x10');
 	IupSetAttribute(toolbox, 'GAP', '5x5');
 	
@@ -2732,7 +2177,7 @@ begin
 
 	// Dialog
 	dlg := IupDialog(
-		IupSplit( toolbox, IupVBox(gl, status_bar, nil) )
+		IupSplit( toolbox, IupVBox(top_bar, gl, status_bar, nil) )
 	);
 	
 	IupSetAttribute(dlg, 'TITLE', 'Level Editor');
@@ -2763,6 +2208,8 @@ begin
 end;
 
 begin
+	utabentity.UpdateSelection := UpdateSelection; // Refactor!!
+
 	IupOpen(nil, nil);
 	IupGLCanvasOpen;
 	
@@ -2797,8 +2244,6 @@ begin
 	
 	Scene.LevelUnload;
 	Scene.Free;
-	
-	clipboard.Free;
 	
 	FinalizeEngine;
 	

@@ -19,7 +19,7 @@ function CreateEntities(template : TSection; const transform : TMatrix) : TEntit
 function CreateEntities(template : TSection) : TEntityArray; overload;
 
 implementation
-uses sysutils;
+uses sysutils, uEditorUtils;
 
 var
 	templates : TTextKonfig;
@@ -96,15 +96,21 @@ begin
 			IupSetStrAttribute(tree, PAnsiChar('ADDLEAF' + IntToStr(ref)), PAnsiChar(v.name));
 			nid := IupGetInt(tree, 'LASTADDNODE');
 			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(nid)), Pointer(v));
+			
+			if (v is TSection) and TSection(v).GetBool('is_group', False) then
+				IupSetAttribute(tree, PAnsiChar('IMAGE' + IntToStr(nid)), 'ICON_GROUP')
+			else
+				IupSetAttribute(tree, PAnsiChar('IMAGE' + IntToStr(nid)), 'ICON_OBJECT')
 		end;
 	end;
 end;
 
 procedure UpdateTemplates(ih : Ihandle);
-var
-	I : Longint;
 begin
 	IupSetAttribute(ih, 'DELNODE', 'ALL');
+	
+	IupSetAttribute(ih, 'IMAGEBRANCHCOLLAPSED', 'ICON_FOLDER1');
+	IupSetAttribute(ih, 'IMAGEBRANCHEXPANDED', 'ICON_FOLDER2');
 	
 	if Assigned(templates) then
 	begin
@@ -258,46 +264,9 @@ begin
 		_Recurs(templates.root, t);
 end;
 
-function _GenerateName(src : String) : String;
-var
-	I : Longint;
-	tail : String;
-	cut : Boolean;
-	num, name : String;
-	
-	function IsDigit(c : Char) : Boolean;
-	begin
-		IsDigit := (c >= '0') and (c <= '9');
-	end;
+function _IsNameFree(const name : String) : Boolean;
 begin
-	if Scene.EntityByName(src) = nil then
-	begin
-		_GenerateName := src
-	end else
-	begin
-		// cut "_NNNN" tail if exist
-		if Length(src) > 5 then
-		begin
-			tail := Copy(src, Length(src)-4, 5);
-			cut := (tail[1] = '_') and 
-							IsDigit(tail[2]) and 
-							IsDigit(tail[3]) and 
-							IsDigit(tail[4]) and 
-							IsDigit(tail[5]);
-							
-			if cut then
-				src := Copy(src, 1, Length(src)-5);
-		end;
-				
-		I := 0;
-		repeat
-			num := IntToStr(I);
-			name := src + '_' + StringOfChar('0',4-Length(num)) + num;
-			Inc(I);
-		until Scene.EntityByName(name) = nil;
-		
-		_GenerateName := name;
-	end;
+	Result := Scene.EntityByName(name) = nil;
 end;
 
 function _CreateGroup(template : TSection) : TEntityArray;
@@ -311,7 +280,6 @@ var
 	
 	entities : TEntityArray;
 	
-	id : Word;
 	name : String;
 	new_data : TSection;
 	p_id : TIntegerValue;
@@ -358,7 +326,7 @@ begin
 		
 		if new_ids[I] = 65535 then
 		begin
-			IupMessageError(IupGetHandle('MAINDIALOG'), 'Not enough IDs!');
+			ShowError('Not enough IDs!');
 			for J := 0 to I - 1 do
 				Scene.RemoveEntity(entities[J]);	
 				
@@ -366,7 +334,7 @@ begin
 			Exit;
 		end;
 		
-		name := _GenerateName(data[I].name);
+		name := GenerateName(data[I].name, _IsNameFree);
 		
 		new_data := data[I].Copy as TSection;
 		p_id := new_data.GetParam('id', 'u16') as TIntegerValue;
@@ -405,11 +373,11 @@ begin
 	id := Scene.GenerateId;
 	if id = 65535 then
 	begin
-		IupMessageError(IupGetHandle('MAINDIALOG'), 'Not enough IDs!');
+		ShowError('Not enough IDs!');
 		Result := nil;
 		Exit;
 	end;
-	name := _GenerateName(template.name);
+	name := GenerateName(template.name, _IsNameFree);
 	
 	new_data := template.Copy as TSection;
 	p_id := new_data.GetParam('id', 'u16') as TIntegerValue;

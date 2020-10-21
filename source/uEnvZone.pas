@@ -10,40 +10,45 @@ type
 		
 		ph_scene : TPHScene; // TODO use global variable?
 		ph : TPHActor;
-		ph_shape : TPHShape;
+		ph_meshes : array of TPHTrimesh;
 		
-		FMatrix : TMatrix;
 		FSelected : Boolean;
 		
 		constructor Create(owner : TPHScene; data : TSection);
 		destructor Destroy; override;
 		
 		procedure GetBBox(out b : TAABB);
+		procedure GetCenter(out c : TVec3);
+		
+		procedure Transform(const m : TMatrix);
+		
+		procedure AddLayer(layer : TSection);
+		procedure RemoveLayer(const name : String);
+		function GetLayer(const name : String) : TSection;
+		
+		procedure AddQuads(data : array of Single);
+		procedure RemoveQuad(id : Longint);
 		
 		protected
 		procedure UpdatePhysics;
-		procedure SetMatrix(const m : TMatrix);
+		
+		function GetName : String;
+		procedure SetName(const name : String);
 		
 		public
-		property Matrix : TMatrix read FMatrix write SetMatrix;
 		property Selected : Boolean read FSelected write FSelected;
+		property Name : String read GetName write SetName;
 	end;
 	
 	TEnvZoneArray = array of TEnvZone;
+	
+	// utils
+	function GetCenter(arr : TEnvZoneArray) : TVec3; overload;
 
 implementation
 uses Iup, PHGroups, sysutils;
 
 constructor TEnvZone.Create(owner : TPHScene; data : TSection);
-var
-	Tris : TFloatArrayValue;
-	I : Longint;
-	
-	v : array[1..6] of TVec3;
-	fwd, rt, up, c : TVec3;
-	
-	dim : TVec3;
-	desc : Pointer;
 begin
 	inherited Create;
 	
@@ -55,68 +60,25 @@ begin
 	if (param_tris = nil) then
 		raise Exception.Create('Invalid env zone description!');
 		
-	if Length(param_tris.data) <> 18 then
+	if (Length(param_tris.data) mod (3*6)) <> 0 then
 	begin
 		IupMessageError(IupGetHandle('MAINDIALOG'), 
-		'Invalid env zone description! Length(param_tris.data) <> 18');
+		'Invalid env zone description! (Length(param_tris.data) mod (3*6)) <> 0');
 	end;
-		
-	// Calc matrix
-	Tris := param_tris;
-	
-	v[1].x := Tris.data[0]; v[1].y := Tris.data[1]; v[1].z := Tris.data[2];
-	v[2].x := Tris.data[3]; v[2].y := Tris.data[4]; v[2].z := Tris.data[5];
-	v[3].x := Tris.data[6]; v[3].y := Tris.data[7]; v[3].z := Tris.data[8];
-	v[4].x := Tris.data[9]; v[4].y := Tris.data[10]; v[4].z := Tris.data[11];
-	v[5].x := Tris.data[12]; v[5].y := Tris.data[13]; v[5].z := Tris.data[14];
-	v[6].x := Tris.data[15]; v[6].y := Tris.data[16]; v[6].z := Tris.data[17];
-	
-	fwd.x := v[2].x - v[1].x;
-	fwd.y := v[2].y - v[1].y;	
-	fwd.z := v[2].z - v[1].z;
-	//Normalize(fwd);
-	
-	rt.x := v[3].x - v[2].x;
-	rt.y := v[3].y - v[2].y;	
-	rt.z := v[3].z - v[2].z;
-	//Normalize(rt);
-	
-	Cross(up, fwd, rt);
-	Normalize(up);
-	
-	c := v[1];
-	for I := 2 to 6 do
-	begin
-		c.x := c.x + v[I].x;
-		c.y := c.y + v[I].y;
-		c.z := c.z + v[I].z;
-	end;
-	
-	c.x := c.x / 6;
-	c.y := c.y / 6;
-	c.z := c.z / 6;
-	
-	FMatrix[1,1] := rt.x; FMatrix[1,2] := rt.y; FMatrix[1,3] := rt.z; FMatrix[1,4] := 0.0;
-	FMatrix[2,1] := up.x; FMatrix[2,2] := up.y; FMatrix[2,3] := up.z; FMatrix[2,4] := 0.0;
-	FMatrix[3,1] := fwd.x; FMatrix[3,2] := fwd.y; FMatrix[3,3] := fwd.z; FMatrix[3,4] := 0.0;
-	FMatrix[4,1] := c.x; FMatrix[4,2] := c.y; FMatrix[4,3] := c.z; FMatrix[4,4] := 1.0;
-	
-	dim.x := 0.5; dim.y := 0.5; dim.z := 0.5;
-	desc := PHShapeBox(@dim, nil);
-	
-	ph := PHCreateActor(ph_scene, 1, 1, @desc, nil);
-	ph_shape := PHGetShape(ph, 0);
-	
-	PHSetUserdata(ph, self);
-	PHSetGroup(ph_shape, PH_GROUP_ENV_ZONE);
 	
 	UpdatePhysics;
 end;
 
 destructor TEnvZone.Destroy;
+var I : Longint;
 begin
 	data.Free;
-	PHRemoveActor(ph_scene, ph);	
+	
+	PHRemoveActor(ph_scene, ph);
+		
+	for I := 0 to Length(ph_meshes)-1 do
+		PHFreeTrimesh(ph_meshes[I]);
+		
 	inherited;
 end;
 
@@ -142,75 +104,163 @@ begin
 	end;
 end;
 
-procedure TEnvZone.UpdatePhysics;
+procedure TEnvZone.GetCenter(out c : TVec3);
 var
-	ph_matrix : TMatrix;
-	scale : TVec3;
+	bb : TAABB;
 begin
-	ph_matrix := FMatrix;
-	scale.x := Sqrt(ph_matrix[1,1]*ph_matrix[1,1] + ph_matrix[1,2]*ph_matrix[1,2] + ph_matrix[1,3]*ph_matrix[1,3]);
-	ph_matrix[1,1] := ph_matrix[1,1] / scale.x; 
-	ph_matrix[1,2] := ph_matrix[1,2] / scale.x;
-	ph_matrix[1,3] := ph_matrix[1,3] / scale.x;
-	scale.y := Sqrt(ph_matrix[2,1]*ph_matrix[2,1] + ph_matrix[2,2]*ph_matrix[2,2] + ph_matrix[2,3]*ph_matrix[2,3]);
-	ph_matrix[2,1] := ph_matrix[2,1] / scale.y; 
-	ph_matrix[2,2] := ph_matrix[2,2] / scale.y;
-	ph_matrix[2,3] := ph_matrix[2,3] / scale.y;
-	scale.z := Sqrt(ph_matrix[3,1]*ph_matrix[3,1] + ph_matrix[3,2]*ph_matrix[3,2] + ph_matrix[3,3]*ph_matrix[3,3]);
-	ph_matrix[3,1] := ph_matrix[3,1] / scale.z; 
-	ph_matrix[3,2] := ph_matrix[3,2] / scale.z;
-	ph_matrix[3,3] := ph_matrix[3,3] / scale.z;
-	
-	scale.x := scale.x / 2;
-	scale.y := scale.y / 2;
-	scale.z := scale.z / 2;
-	PHSetBoxDim(ph_shape, @scale);
-	
-	PHSetGlobalPoseM44(ph, @ph_matrix);
+	GetBBox(bb);
+	AABBCenter(c, bb);
 end;
 
-procedure TEnvZone.SetMatrix(const m : TMatrix);
+procedure TEnvZone.Transform(const m : TMatrix);
 var
-	p : TVec3;
+	I : Longint;
+	v, c : TVec3;
 begin
-	FMatrix := m;
-	UpdatePhysics;
+	GetCenter(c);
+	
+	for I := 0 to (Length(param_tris.data) div 3) - 1 do
+	begin
+		v.x := param_tris.data[I*3  ] - c.x;
+		v.y := param_tris.data[I*3+1] - c.y;
+		v.z := param_tris.data[I*3+2] - c.z;
 		
-	p.x := -0.5; p.y := 0.0; p.z := -0.5;
-	Transform(p, FMatrix);
-	param_tris.data[0] := p.x;
-	param_tris.data[1] := p.y;
-	param_tris.data[2] := p.z;
+		vmath.Transform(v, m);
+		
+		param_tris.data[I*3  ] := v.x;// + c.x;
+		param_tris.data[I*3+1] := v.y;// + c.y;
+		param_tris.data[I*3+2] := v.z;// + c.z;		
+	end;
 	
-	p.x := -0.5; p.y := 0.0; p.z :=  0.5;
-	Transform(p, FMatrix);
-	param_tris.data[3] := p.x;
-	param_tris.data[4] := p.y;
-	param_tris.data[5] := p.z;
+	UpdatePhysics;
+end;
+
+procedure TEnvZone.AddLayer(layer : TSection);
+var
+	layers : TSection;
+begin
+	layers := data.GetSect('layers');
+	layers.items.Add(layer);
 	
-	p.x :=  0.5; p.y := 0.0; p.z :=  0.5;
-	Transform(p, FMatrix);
-	param_tris.data[6] := p.x;
-	param_tris.data[7] := p.y;
-	param_tris.data[8] := p.z;
+	(layers.GetParam('count', 'u32') as TIntegerValue).num := layers.ParamCount-1;
+end;
+
+procedure TEnvZone.RemoveLayer(const name : String);
+var
+	layers : TSection;
+	item : TSection;
+begin
+	layers := data.GetSect('layers');
+	item := layers.GetSect(name, False);
 	
-	p.x := -0.5; p.y := 0.0; p.z := -0.5;
-	Transform(p, FMatrix);
-	param_tris.data[9] := p.x;
-	param_tris.data[10] := p.y;
-	param_tris.data[11] := p.z;
+	if item <> nil then
+	begin
+		layers.items.Remove(item);
+		item.Free;
+	end;
 	
-	p.x :=  0.5; p.y := 0.0; p.z := -0.5;
-	Transform(p, FMatrix);
-	param_tris.data[12] := p.x;
-	param_tris.data[13] := p.y;
-	param_tris.data[14] := p.z;
+	(layers.GetParam('count', 'u32') as TIntegerValue).num := layers.ParamCount-1;
+end;
+
+function TEnvZone.GetLayer(const name : String) : TSection;
+var
+	layers : TSection;
+	item : TSection;
+begin
+	layers := data.GetSect('layers');
+	Result := layers.GetSect(name, False);
+end;
+
+procedure TEnvZone.AddQuads(data : array of Single);
+var start : Longint;
+begin
+	start := Length(param_tris.data);
+	SetLength(param_tris.data, Length(param_tris.data) + Length(data));
+	Move(data[0], param_tris.data[start], Length(data)*Sizeof(Single));
+	UpdatePhysics;
+end;
+
+procedure TEnvZone.RemoveQuad(id : Longint);
+begin
+	if id < (Length(param_tris.data) div (3*6)) then
+	begin
+		Move(param_tris.data[(id+1)*3*6], param_tris.data[id*3*6], Sizeof(Single)*Length(param_tris.data)-((id+1)*3*6));
+		SetLength(param_tris.data, Length(param_tris.data) - 3*6);
+		UpdatePhysics;
+	end;
+end;
+
+procedure TEnvZone.UpdatePhysics;
+const
+	indices : array[1..12] of Longint = (0, 1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 0);
+var
+	I : Longint;
+	nquads : Longint;
+	descs : array of Pointer;
+begin		
+	PHRemoveActor(ph_scene, ph);
 	
-	p.x :=  0.5; p.y := 0.0; p.z :=  0.5;
-	Transform(p, FMatrix);
-	param_tris.data[15] := p.x;
-	param_tris.data[16] := p.y;
-	param_tris.data[17] := p.z;
+	for I := 0 to Length(ph_meshes)-1 do
+		PHFreeTrimesh(ph_meshes[I]);
+
+	nquads := Length(param_tris.data) div (3*6);
+	
+	SetLength(descs, nquads);
+	SetLength(ph_meshes, nquads);
+	
+	for I := 0 to nquads-1 do
+	begin
+		ph_meshes[I] := PHCreateTrimesh(6, 4, @param_tris.data[I*6*3], @indices, Sizeof(TVec3), 12, 0);
+		descs[I] := PHShapeTrimesh(ph_meshes[I]);
+	end;
+	
+	ph := PHCreateActor(ph_scene, 1, Length(descs), @descs[0], nil);
+	PHSetUserdata(ph, self);
+	
+	for I := 0 to PHGetShapeCount(ph) - 1 do
+	begin
+		PHSetShapeUserdata(PHGetShape(ph,I), Pointer(I));
+		PHSetGroup(PHGetShape(ph,I), PH_GROUP_ENV_ZONE);
+	end;
+end;
+
+function TEnvZone.GetName : String;
+begin
+	GetName := data.GetStr('name');
+end;
+
+procedure TEnvZone.SetName(const name : String);
+var param_name : TStringValue;
+begin
+	param_name := data.GetParam('name', 'stringz') as TStringValue;
+	param_name.str := name;
+end;
+
+function GetCenter(arr : TEnvZoneArray) : TVec3; overload;
+var
+	c : TVec3;
+	bb, bb2 : TAABB;
+	I : Longint;
+begin
+	if Length(arr) > 0 then
+	begin
+		arr[0].GetBBox(bb);
+	
+		for I := 1 to Length(arr) - 1 do
+		begin
+			arr[I].GetBBox(bb2);
+			AABBMerge(bb, bb2);
+		end;
+		
+		AABBCenter(c, bb);
+	end else
+	begin
+		c.x := 0;
+		c.y := 0;
+		c.z := 0;
+	end;
+		
+	GetCenter := c;
 end;
 
 end.

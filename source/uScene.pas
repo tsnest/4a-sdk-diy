@@ -79,6 +79,8 @@ type
 		function GetSelectedList : TList;
 		function GetSelected : TEntityArray;
 		
+		function EnvZoneByName(const name : String) : TEnvZone;
+		
 		function GetSelectedEZList : TList;
 		function GetSelectedEZ : TEnvZoneArray;
 		
@@ -90,8 +92,12 @@ type
 		procedure LoadLevelCform(const dir : String);
 		procedure UnloadLevelCform;
 		
-		procedure LoadEnvironment(const fn : String);
-		procedure SaveEnvironment(const fn : String);		
+		procedure LoadEnvironment(env_konf : TTextKonfig);
+		function  SaveEnvironment : TTextKonfig;
+		procedure UnloadEnvironment;
+		
+		procedure LoadEnvironmentFromFile(const fn : String);
+		procedure SaveEnvironmentToFile(const fn : String);		
 	end;
 	
 var
@@ -192,12 +198,10 @@ begin
 	env_zones := TList.Create;
 	
 	if FileExists(dir + '\level.environment') then
-		LoadEnvironment(dir + '\level.environment');
+		LoadEnvironmentFromFile(dir + '\level.environment');
 end;
 
 procedure TScene.LevelUnload;
-var
-	I : Integer;
 begin
   level_dir := '';
   
@@ -212,13 +216,7 @@ begin
 	FreeAndNil(egeoms);
 
   UnloadEntities;
-	
-	if Assigned(env_zones) then
-	begin
-		for I := 0 to env_zones.Count - 1 do
-			TEnvZone(env_zones[I]).Free;
-		FreeAndNil(env_zones);
-	end;
+	UnloadEnvironment;
 
 	UnloadLevelCform;
 	PHDestroyScene(ph_scene);
@@ -242,6 +240,11 @@ begin
   		
   	UnloadEntities;
   	LoadEntities(k_level, k_level_add);
+  	
+  	UnloadEnvironment;
+  	env_zones := TList.Create;
+  	if FileExists(level_dir + '\level.environment') then
+			LoadEnvironmentFromFile(level_dir + '\level.environment');
 	end;
 end;
 
@@ -570,7 +573,6 @@ end;
 procedure TScene.RenderBlended;
 var
 	I : Longint;
-	E : TEntity;
 begin
 
 	if showEGeoms and Assigned(egeoms_maler) then
@@ -591,7 +593,6 @@ end;
 procedure TScene.RenderDistort;
 var
 	I : Longint;
-	E : TEntity;
 begin	
 
 	for I := 0 to visible.Count-1 do
@@ -600,68 +601,46 @@ begin
 end;
 
 procedure TScene.RenderEnvZones;
+const
+	c : array[0..3] of TVec3 = (
+		(X: 0.0; Y: 0.0; Z: 0.8),
+		(X: 0.8; Y: 0.0; Z: 0.0),
+		(X: 0.8; Y: 0.8; Z: 0.0),
+		(X: 0.0; Y: 0.8; Z: 0.8)
+	);
 var
-	I : Longint;
-	colors : array[0..3] of TVec3;
+	I, J, clr : Longint;
+	alpha : Single;
+	zone : TEnvZone;
 begin
 	if env_zones = nil then
 		Exit;
 		
-	colors[0].x := 0.0;
-	colors[0].y := 0.0;
-	colors[0].z := 0.8;
-	
-	colors[1].x := 0.8;
-	colors[1].y := 0.0;
-	colors[1].z := 0.0;
-	
-	colors[2].x := 0.8;
-	colors[2].y := 0.8;
-	colors[2].z := 0.0;
-	
-	colors[3].x := 0.0;
-	colors[3].y := 0.8;
-	colors[3].z := 0.8;
-		
-	glDisable(GL_CULL_FACE);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	for I := 0 to env_zones.Count-1 do
 	begin
-		glPushMatrix;	
-		glMultMatrixf(@TEnvZone(env_zones[I]).FMatrix);
+		zone := TEnvZone(env_zones[I]);
+	
+		clr := I mod Length(c);
+		if zone.Selected then
+			alpha := 0.8
+		else
+			alpha := 0.5;
 			
-		glColor3fv(@colors[I mod Length(Colors)]);
+		glColor4f(c[clr].x, c[clr].y, c[clr].z, alpha);
 		
 		glBegin(GL_TRIANGLES);
-		
-		glVertex3f(-0.5, 0.0, -0.5);
-		glVertex3f(-0.5, 0.0,  0.5);
-		glVertex3f( 0.5, 0.0,  0.5);
-		glVertex3f(-0.5, 0.0, -0.5);
-		glVertex3f( 0.5, 0.0, -0.5);
-		glVertex3f( 0.5, 0.0,  0.5);
-		
+		for J := 0 to (Length(zone.param_tris.data) div 3) - 1 do
+			glVertex3fv(@zone.param_tris.data[J*3]);
+		for J := (Length(zone.param_tris.data) div 3) - 1 downto 0 do
+			glVertex3fv(@zone.param_tris.data[J*3]);
 		glEnd;
-		
-		if TEnvZone(env_zones[I]).Selected then
-		begin
-			glColor3f(0.0, 1.0, 0.0);
-			
-			glBegin(GL_LINE_LOOP);
-			
-			glVertex3f(-0.5, 0.0, -0.5);
-			glVertex3f(-0.5, 0.0,  0.5);
-			glVertex3f( 0.5, 0.0,  0.5);
-			glVertex3f( 0.5, 0.0, -0.5);
-	
-			glEnd;		
-		end;
-		
-		glPopMatrix;
 	end;
 	
 	glColor3f(1.0, 1.0, 1.0);
-	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
 end;
 
 procedure TScene.AddEntity(e : TEntity);
@@ -806,6 +785,25 @@ begin
 	GetSelected := sel;
 end;
 
+function TScene.EnvZoneByName(const name : String) : TEnvZone;
+var
+	I : Integer;
+begin
+	Result := nil;
+
+	if Assigned(env_zones) then
+	begin
+		for I := 0 to env_zones.Count - 1 do
+		begin
+			if TEnvZone(env_zones[I]).Name = name then
+			begin
+				Result := TEnvZone(env_zones[I]);
+				Exit;
+			end;
+		end;
+	end;
+end;
+
 function TScene.GetSelectedEZList : TList;
 var
 	list : TList;
@@ -944,32 +942,22 @@ begin
 	SetLength(ph_meshes, 0);
 end;
 
-procedure TScene.LoadEnvironment(const fn : String);
+procedure TScene.LoadEnvironment(env_konf : TTextKonfig);
 var
 	I : Longint;
-	K : TKonfig;
-	env_konf : TTextKonfig;
 	
 	sect_environment : TSection;
 	version : Longword;
 	
 	sect_zones : TSection;
 	data : TSection;
-begin
-	env_konf := TTextKonfig.Create;
-		
-	K := TKonfig.Create;
-	K.Load(fn);
-	K.Decompile(env_konf, GetVersion >= sceneVerLL);
-	K.Free;
-	
+begin	
 	sect_environment := env_konf.root.GetSect('environment');
 	version := sect_environment.GetInt('version', 'u32');
 	
 	if version > 11 then
 	begin
 		WriteLn('level.environment: unsupported version ', version, ', won''t load');
-		env_konf.Free;
 		Exit;
 	end;
 	
@@ -980,11 +968,9 @@ begin
 		data.name := 'env_zone'; // will be renumerated in SaveEnvironment ;)
 		env_zones.Add(TEnvZone.Create(ph_scene, data));
 	end;
-	
-	env_konf.Free;
 end;
 
-procedure TScene.SaveEnvironment(const fn : String);
+function TScene.SaveEnvironment : TTextKonfig;
 var
 	I : Longint;
 	version : Longint;
@@ -995,8 +981,6 @@ var
 	
 	data : TSection;
 	n : String[16];
-	
-	K : TKonfig;
 begin
 	case GetVersion of
 		sceneVer2033:   version := 8;
@@ -1039,11 +1023,54 @@ begin
 			sect2.items.Add(data);
 		end;
 		
+		Result := env_konf;
+	end else
+		Result := nil;
+end;
+
+procedure TScene.UnloadEnvironment;
+var
+	I : Longint;
+begin
+	if Assigned(env_zones) then
+	begin
+		for I := 0 to env_zones.Count - 1 do
+			TEnvZone(env_zones[I]).Free;
+		FreeAndNil(env_zones);
+	end;
+end;
+
+procedure TScene.LoadEnvironmentFromFile(const fn : String);
+var
+	K : TKonfig;
+	env_konf : TTextKonfig;
+begin
+	env_konf := TTextKonfig.Create;
+		
+	K := TKonfig.Create;
+	K.Load(fn);
+	K.Decompile(env_konf, GetVersion >= sceneVerLL);
+	K.Free;
+	
+	LoadEnvironment(env_konf);
+	
+	env_konf.Free;
+end;
+
+procedure TScene.SaveEnvironmentToFile(const fn : String);
+var
+	env_konf : TTextKonfig;
+	K : TKonfig;
+begin
+	env_konf := SaveEnvironment;
+	
+	if env_konf <> nil then
+	begin	
 		K := TKonfig.Create;
 		K.kind := 3;
-		K.Compile(env_konf);
+		K.Compile(env_konf, GetVersion >= sceneVerLL);
 		K.Save(fn);
-		
+			
 		K.Free;
 		env_konf.Free;
 	end;

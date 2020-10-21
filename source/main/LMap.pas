@@ -8,7 +8,7 @@ function ScaleAO(ao : Byte) : Byte;
 procedure ConvertLightMap(const path, outf : String); 
 
 implementation
-uses sysutils;
+uses sysutils, FreeImage;
 
 function ScaleAO(ao : Byte) : Byte;
 var
@@ -19,25 +19,6 @@ begin
 	if s > 255.0 then s := 255;
 	ScaleAO := Trunc(s);
 end;
-
-type
-	FIBITMAP = Pointer;
-	
-const
-	FI_DLL = 'FreeImage.dll';
-	FIF_DDS = 24;
-	
-function  FreeImage_Load(format : Longword; filename : PAnsiChar; flags : Longint = 0) : FIBITMAP; stdcall; external FI_DLL;
-procedure FreeImage_Unload(dib : FIBITMAP); stdcall; external FI_DLL;
-
-function  FreeImage_GetBits(dib : FIBITMAP) : PByte; stdcall; external FI_DLL;
-function  FreeImage_GetScanLine(dib : FIBITMAP; scanline : Longint) : PByte; stdcall; external FI_DLL;
-
-function  FreeImage_GetBPP(dib : FIBITMAP) : Longword; stdcall; external FI_DLL;
-function  FreeImage_GetWidth(dib : FIBITMAP) : Longword; stdcall; external FI_DLL;
-function  FreeImage_GetHeight(dib : FIBITMAP) : Longword; stdcall; external FI_DLL;
-
-function  FreeImage_ConvertTo32Bits(dib : FIBITMAP) : FIBITMAP; stdcall; external FI_DLL;
 
 procedure LoadLMap(var data : array of Byte; id : Shortint; const fn : String);
 var

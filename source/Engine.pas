@@ -1,6 +1,7 @@
 unit Engine;
 
 interface
+uses Konfig;
 
 type
 	TEngineVersion = (
@@ -15,12 +16,14 @@ var
 	version : TEngineVersion;	
 	ResourcesPath : String = 'content';
 	LevelPath : String;
+	
+	sound_params : TTextKonfig;
 
 procedure InitializeEngine;
 procedure FinalizeEngine;
 
 implementation
-uses sysutils, KonfigLibrary, texturePrefs, Texture, uWeather;
+uses sysutils, framework, KonfigLibrary, texturePrefs, Texture, uWeather;
 
 procedure InitializeEngine;
 var
@@ -28,6 +31,8 @@ var
 	has_configbin : Boolean;
 	has_texturesbin : Boolean;
 	has_textures_handles_storage : Boolean;
+	
+	K : TKonfig;
 begin
 	has_scriptsbin := False;
 	has_configbin := False;
@@ -88,6 +93,22 @@ begin
 	
 	uWeather.Initialize;
 	
+	if FileExists(ResourcesPath + '\sounds\sounds.bin') then
+	begin
+		framework.Initialize;
+		K := TKonfig.Create;
+		K.Load(ResourcesPath + '\sounds\sounds.bin');
+		
+		case version of
+			eVer2033:   sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
+			eVerLL:     sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
+			eVerRedux:  sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
+		end;
+		
+		K.Free;
+		framework.Finalize;
+	end;
+	
 	Write('Engine version is ');
 	case version of
 		eVer2033: 		Write('Metro 2033');
@@ -106,6 +127,8 @@ begin
 	FreeAndNil(texture_params);
 	FreeAndNil(texture_params2);
 	FreeAndNil(texture_aliases);
+	
+	FreeAndNil(sound_params);
 end;
 
 end.
