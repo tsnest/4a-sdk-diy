@@ -69,6 +69,9 @@ begin
 	LoadImage('ICON_MOVE', 'editor_data\icons\move.png');
 	LoadImage('ICON_ROTATE', 'editor_data\icons\rotate.png');
 	LoadImage('ICON_SCALE', 'editor_data\icons\scale.png');
+	
+	LoadImage('ICON_DISKETTE', 'editor_data\icons\diskette.png');
+	LoadImage('ICON_TRASHCAN', 'editor_data\icons\trashcan.png');
 end;
 
 end.

@@ -1,16 +1,19 @@
 unit script_block_descs;
 
 interface
-uses Konfig;
+uses Konfig, Iup, glfont;
 
 const
 	BlockSizeX = 150;
 	BlockSizeY = 150;
+	
+	BlockMarginX = 10;
+	BlockMarginY = 5;
+	BlockMarginPointX = 20;
 
 type
 	TBlockDesc = class
 		clsid : String;
-		sizex, sizey : Longint;
 		
 		in_names : array of String;
 		out_names : array of String;
@@ -24,13 +27,15 @@ type
 var	
 	block_descs : array of TBlockDesc;
 	
-procedure LoadDescs(const fn : String);
+procedure LoadDescs(const fn : String; tree : Ihandle);
 procedure UnloadDescs;
 
 function GetBlockDesc(blk : TSection; out unique : Boolean) : TBlockDesc;
 
+procedure CalcBlockSize(desc : TBlockDesc; font : TGLFont; out width, height : Longint);
+
 implementation
-uses classes, sysutils;
+uses classes, sysutils, Math;
 
 constructor TBlockDesc.Create;
 begin
@@ -43,26 +48,76 @@ begin
 	props.Free;
 	inherited;
 end;
-	
-procedure LoadDescs(const fn : String);
+
+procedure _LoadDescs(sect : TSection; tree : Ihandle; ref : Longint);
 var
 	I, J : Integer;
 	
-	k : TTextKonfig;
 	s : TSection;
+	desc : TBlockDesc;
 	
 	names : TStringList;
 	props : TSection;
 begin
+	for I := sect.ParamCount - 1 downto 0 do
+	begin
+		s := sect.GetParam(I) as TSection;
+		
+		if s.GetParam('clsid', 'stringz') <> nil then
+		begin
+			J := Length(block_descs);
+			SetLength(block_descs, J+1);
+			
+			block_descs[J] := TBlockDesc.Create;
+			desc := block_descs[J];
+			
+			desc.clsid := s.GetStr('clsid');
+			
+			names := TStringList.Create;
+			
+			names.CommaText := s.GetStr('in_names');
+			SetLength(desc.in_names, names.Count);
+			for J := 0 to names.Count - 1 do
+				desc.in_names[J] := names[J];
+				
+			names.CommaText := s.GetStr('out_names');
+			SetLength(desc.out_names, names.Count);
+			for J := 0 to names.Count - 1 do
+				desc.out_names[J] := names[J];
+				
+			names.Free;
+			
+			props := s.GetSect('properties', False);
+			if Assigned(props) then
+				for J := 0 to props.items.Count - 1 do
+					desc.props.items.Add(TSimpleValue(props.items[J]).Copy);
+					
+			IupSetStrAttribute(tree, PAnsiChar('ADDLEAF' + IntToStr(ref)), PAnsiChar(s.name));
+			J := IupGetInt(tree, 'LASTADDNODE');
+			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(J)), Pointer(desc));
+		end else
+		begin
+			IupSetAttribute(tree, PAnsiChar('ADDBRANCH' + IntToStr(ref)), PAnsiChar(s.name));
+			J := IupGetInt(tree, 'LASTADDNODE');
+			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(J)), nil);
+			
+			_LoadDescs(s, tree, J);
+		end;
+	end;
+end;
+	
+procedure LoadDescs(const fn : String; tree : Ihandle);
+var
+	I : Integer;
+	k : TTextKonfig;
+begin
 	k := TTextKonfig.Create;
 	k.LoadFromFile(fn);
 	
-	SetLength(block_descs, k.root.items.Count + 1);
+	SetLength(block_descs, 1);
 	
 	// block_descs[0] is default desc
 	block_descs[0] := TBlockDesc.Create;
-	block_descs[0].sizex := BlockSizeX;
-	block_descs[0].sizey := BlockSizeY;
 	SetLength(block_descs[0].in_names, 5);
 	for I := 0 to Length(block_descs[0].in_names) - 1 do
 		block_descs[0].in_names[I] := 'in'+IntToStr(I);
@@ -70,34 +125,7 @@ begin
 	for I := 0 to Length(block_descs[0].out_names) - 1 do
 		block_descs[0].out_names[I] := 'out'+IntToStr(I);
 		
-	for I := 1 to Length(block_descs) - 1 do
-	begin
-		s := TSimpleValue(k.root.items[I-1]) as TSection;
-		
-		block_descs[I] := TBlockDesc.Create;
-		block_descs[I].clsid := s.GetStr('clsid');
-		block_descs[I].sizex := s.GetInt('sizex', BlockSizeX, 'u32');
-		block_descs[I].sizey := s.GetInt('sizey', BlockSizeY, 'u32');
-		
-		names := TStringList.Create;
-		
-		names.CommaText := s.GetStr('in_names');
-		SetLength(block_descs[I].in_names, names.Count);
-		for J := 0 to names.Count - 1 do
-			block_descs[I].in_names[J] := names[J];
-			
-		names.CommaText := s.GetStr('out_names');
-		SetLength(block_descs[I].out_names, names.Count);
-		for J := 0 to names.Count - 1 do
-			block_descs[I].out_names[J] := names[J];
-			
-		names.Free;
-		
-		props := s.GetSect('properties', False);
-		if Assigned(props) then
-			for J := 0 to props.items.Count - 1 do
-				block_descs[I].props.items.Add(TSimpleValue(props.items[J]).Copy);
-	end;
+	_LoadDescs(k.root, tree, -1);
 	
 	k.Free;
 end;
@@ -126,8 +154,6 @@ begin
 		
 		desc := TBlockDesc.Create;
 		desc.clsid := clsid;
-		desc.sizex := BlockSizeX;
-		desc.sizey := BlockSizeY;
 		
 		SetLength(desc.in_names, 2);
 		desc.in_names[0] := 'enable';
@@ -162,6 +188,31 @@ begin
 	end;
 	
 	Result := desc;
+end;
+
+procedure CalcBlockSize(desc : TBlockDesc; font : TGLFont; out width, height : Longint);
+const
+	GAP_POINT = 10;
+var
+	I : Longint;
+	maxln : Longint;
+	w : Longint;
+begin
+	width := Max(BlockSizeX, font.StringWidth(desc.clsid) + BlockMarginX*2);
+	
+	maxln := Max(Length(desc.in_names), Length(desc.out_names));
+	for I := 0 to maxln-1 do
+	begin
+		w := GAP_POINT + BlockMarginPointX*2;
+		if I < Length(desc.in_names) then
+			Inc(w, font.StringWidth(desc.in_names[I]));
+		if I < Length(desc.out_names) then
+			Inc(w, font.StringWidth(desc.out_names[I]));
+			
+		width := Max(w, width);
+	end;
+	
+	height := BlockMarginY*2 + font.cell_height*2 + maxln * font.cell_height;
 end;
 
 end.

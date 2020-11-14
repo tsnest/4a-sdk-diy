@@ -1,765 +1,711 @@
-'actions/action_move2camera' = begin
-	clsid : stringz = 'actions/action_move2camera';
+'actions' = begin
 
-	sizex : u32 = 165;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity,finished';
-end;
-
-'actions/activate-deactivate' = begin
-	clsid : stringz = 'actions/activate-deactivate';
-
-	sizex : u32 = 165;
-	sizey : u32 = 85;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity,finished';
-
-	properties = begin
-		register : bool = True;
+	'action_move2camera' = begin
+		clsid : stringz = 'actions/action_move2camera';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity,finished';
 	end;
-end;
-
-'actions/ai/follow' = begin
-	clsid : stringz = 'actions/ai/follow';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
+	'activate-deactivate' = begin
+		clsid : stringz = 'actions/activate-deactivate';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity,finished';
 	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity';
-	
-	properties = begin
-		leader : 'entity_link, uobject_link' = 65535;
-		wait_point : 'entity_link, uobject_link' = 65535;
-		flags : flags32;
-		flags : u32 = 1;
-		far_distance_min : fp32 = 8;
-		far_distance_max : fp32 = 10;
-		follow_distance_min : fp32 = 3;
-		follow_distance_max : fp32 = 5;
-		near_distance_min : fp32 = 3;
-		near_distance_max : fp32 = 3.00099992752075;
-		near_delay_min : u32 = 5000;
-		near_delay_max : u32 = 10000;
-		max_distance : fp32 = 120;
-	end;
-end;
-
-'actions/camera attach' = begin
-	clsid : stringz = 'actions/camera attach';
-	
-	sizex : u32 = 150;
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,unk,camera';
-	
-	properties = begin
-		owner : 'entity_link, uobject_link' = 65535;
-		bone : locator_str;
-		bone : stringz = 'joint1';
-		offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-		auto_offset : bool = False;
-		accrue : fp32 = 1;
-		falloff : fp32 = 1;
-		use_rotation : bool = False;
-		keep_rot : bool = True;
-		use_rotation_speed : fp32 = 2;
-		precise_finish : bool = False;
-		exclusive : bool = False;
-	end;
-end;
-
-'actions/collision_group' = begin
-	clsid : stringz = 'actions/collision_group';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'activate';
-	out_names : stringz = 'entity';
-	
-	properties = begin
-		collisions_group : u8 = 1;
-	end;
-end;
-
-'actions/console command' = begin
-	clsid : stringz = 'actions/console command';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'activate';
-	out_names : stringz = '';
-	
-	properties = begin
-		cmd : stringz = '';
-	end;
-end;
-
-'actions/destroy' = begin
-	clsid : stringz = 'actions/destroy';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity';	
-end;
-
-'actions/engine/3d_text' = begin
-	clsid : stringz = 'actions/engine/3d_text';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 85;
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,finished';
-	
-	properties = begin
-		offset : vec3f = [0, 0, 0];
-		rotation : fp32 = 0;
-		key : stringz = '$continue_menu';
-		size : fp32 = 65;
-		h_alignment : u8 = 2;
-		v_alignment : u8 = 2;
-		color : 'color, vec4f' = [0.996078491210938, 0.443137288093567, 0.243137270212173, 1];
-		bone : bone_str;
-		bone : stringz = 'joint1';
-	end;
-end;
-
-'actions/engine/clone' = begin
-	clsid : stringz = 'actions/engine/clone';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'activate';
-	out_names : stringz = '';
-	
-	properties = begin
-		source : 'entity_link, uobject_link' = 65535;
-		position : 'entity_link, uobject_link' = 65535;
-	end;
-end;
-
-'actions/engine/set env layer' = begin
-	clsid : stringz = 'actions/engine/set env layer';
-	
-	sizex : u32 = 165;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'activate';
-	out_names : stringz = '';
-	
-	properties = begin
-		zone : stringz = 'env_zone_0000';
-		layer : stringz = 'default';
-	end;
-end;
-
-'actions/engine/signal' = begin
-	clsid : stringz = 'actions/engine/signal';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'activate';
-	out_names : stringz = '';
-	
-	properties = begin
-		localus : bool = False;
-		signal : stringz = '';
-	end;
-end;
-
-'actions/hit' = begin
-	clsid : stringz = 'actions/hit';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity';
-	
-	properties = begin
-		initiator : 'entity_link, uobject_link' = 65535;
-		amount : fp32 = 2;
-		bone : bone_str;
-		bone : stringz = 'bip01';
-		hit_type : u8 = 3;
-	end;
-end;
-
-'actions/link' = begin
-	clsid : stringz = 'actions/link';
-
-	sizex : u32 = 150;
-	sizey : u32 = 90;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'destantion,source';
-	
-	properties = begin
-		destination_bone : bone_str;
-		destination_bone : stringz = 'bone_crane_root';
-		source_bone : bone_str;
-		source_bone : stringz = 'bone_crane_root';
-	end;
-end;
-
-'actions/move' = begin
-	clsid : stringz = 'actions/move';
-
-	sizex : u32 = 150;
-	sizey : u32 = 90;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity,finished,dest';
-	
-	properties = begin
-		dest : 'entity_link, uobject_link' = 65535;
-		keep_move : bool = False;
-	end;
-end;
-
-'actions/open fire' = begin
-	clsid : stringz = 'actions/open fire';
-
-	sizex : u32 = 150;
-	sizey : u32 = 90;
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity';
-	
-	properties = begin
-		target : 'entity_link, uobject_link' = 65535;
-		min_queue_size : u32 = 1;
-		max_queue_size : u32 = 1;
-		min_queue_interval : u32 = 0;
-		max_queue_interval : u32 = 0;
-		instant : bool = False;
-	end;
-end;
-
-'actions/p-force' = begin
-	clsid : stringz = 'actions/p-force';
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,finished';
-	
-	properties = begin
-		min_amount : fp32 = 3;
-		max_amount : fp32 = 5;
-		max_influence_dst : fp32 = 50;
-		instant : bool = True;
-		bone : stringz = '';
-		dir : vec3f = [0, 0, 1];
-		in_local_coords : bool = False;
-		single_force : bool = False;
-	end;
-end;
-
-'actions/play motion' = begin
-	clsid : stringz = 'actions/play motion';
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,finished,failed';
-	
-	properties = begin
-		dbg_model : ref_model;
-		dbg_model : stringz = 'dynamic\objects\mafony\mafon_01';
-		dbg_skel : stringz = 'dynamic\objects\mafony\mafon_01';
-		initial_offset : fp32 = 0;
-		animation : animation_str;
-		animation : stringz = 'play_phase_02';
-		bone_part : part_id;
-		bone_part : stringz = 'default';
-		force_looped : u8 = 0;
-		overlay : bool = False;
-	end;
-end;
-
-'actions/play patrol path' = begin
-	clsid : stringz = 'actions/play patrol path';
-	
-	sizex : u32 = 200;
-	sizey : u32 = 150;
-	
-	in_names : stringz = 'activate,deactivate,soft_deactivate';
-	out_names : stringz = 'entity,finished,start,path_failed,soft_finish';
-	
-	properties = begin
-		start_point : 'entity_link, uobject_link' = 65535;
-		start_from_nearest : bool = False;
-		body_state : stringz = '';
-		anim_state : stringz = '';
-		movement_type : stringz = '';
-		weapon_state : stringz = '';
-		action : stringz = '';
-		target : 'entity_link, uobject_link' = 65535;
-		flags : flags32;
-		flags : u32 = 0;
-		anim_state_approach_speed : fp32 = 2;
-		state_from_first : bool = False;
-		match_exact_goal : bool = False;
-	end;
-end;
-
-'actions/play particles' = begin
-	clsid : stringz = 'actions/play particles';
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,finished';
-
-	properties = begin
-		particles : 'particles, str_shared';
-		particles : stringz = 'anomaly\dust_fog_blue_lamp';
-		start_as_free : bool = False;
-	end;
-end;
-
-'actions/play sound' = begin
-	clsid : stringz = 'actions/play sound';
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,started,finished';
-
-	properties = begin
-		sound : sound;
-		sound : stringz = 'objects\door\close_door_01';
-		volume : fp32 = 1;
-		instant : bool = True;
-		ai_sound_type : u32 = 0;
-		stop_interval : fp32 = 1;
-		startus_intervalus : fp32 = 0;
-		looped : bool = False;
-		enable_slowmo : bool = True;
-		enable_fx : bool = True;
-		play_as_music : bool = False;
-	end;
-end;
-
-'actions/player/civil mode' = begin
-	clsid : stringz = 'actions/player/civil mode';
-	
-	sizex : u32 = 150;
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = '';
-	
-	properties = begin
-		instant : bool = True;
-		allow_inventory_ui : bool = True;
-		slots = begin
-			knife_slot : bool = False;
-			pistol_slot : bool = False;
-			smg_slot : bool = False;
-			rifle_slot : bool = False;
-			grenade_slot : bool = False;
-			gasmask_slot : bool = True;
-			nightvision_slot : bool = False;
-			map_slot : bool = True;
-			medkit_slot : bool = True;
-			filter_slot : bool = False;
-			grenade_sticky : bool = False;
-			grenade_flash : bool = False;
-			macheta : bool = False;
-			charger : bool = True;
+		properties = begin
+			register : bool = True;
 		end;
 	end;
-end;
-
-'actions/player/hide subj' = begin
-	clsid : stringz = 'actions/player/hide subj';
 	
-	sizex : u32 = 165;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'out';
-	
-	properties = begin
-		hands : bool = True;
-		knife : bool = False;
+	'ai/follow' = begin
+		clsid : stringz = 'actions/ai/follow';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity';
+		
+		properties = begin
+			leader : 'entity_link, uobject_link' = 65535;
+			wait_point : 'entity_link, uobject_link' = 65535;
+			flags : flags32;
+			flags : u32 = 1;
+			far_distance_min : fp32 = 8;
+			far_distance_max : fp32 = 10;
+			follow_distance_min : fp32 = 3;
+			follow_distance_max : fp32 = 5;
+			near_distance_min : fp32 = 3;
+			near_distance_max : fp32 = 3.00099992752075;
+			near_delay_min : u32 = 5000;
+			near_delay_max : u32 = 10000;
+			max_distance : fp32 = 120;
+		end;
 	end;
-end;
-
-'actions/player/restrictor_obstacle' = begin
-	clsid : stringz = 'actions/player/restrictor_obstacle';
 	
-	sizex : u32 = 200;
-	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity';
-end;
-
-'actions/player/show subj' = begin
-	clsid : stringz = 'actions/player/show subj';
-	
-	sizex : u32 = 165;
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'out';
-	
-	properties = begin
-		hands : bool = True;
-		knife : bool = False;
+	'camera attach' = begin
+		clsid : stringz = 'actions/camera attach';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,unk,camera';
+		
+		properties = begin
+			owner : 'entity_link, uobject_link' = 65535;
+			bone : locator_str;
+			bone : stringz = 'joint1';
+			offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+			auto_offset : bool = False;
+			accrue : fp32 = 1;
+			falloff : fp32 = 1;
+			use_rotation : bool = False;
+			keep_rot : bool = True;
+			use_rotation_speed : fp32 = 2;
+			precise_finish : bool = False;
+			exclusive : bool = False;
+		end;
 	end;
-end;
-
-'actions/set enemy' = begin
-	clsid : stringz = 'actions/set enemy';
 	
-	in_names : stringz = 'in';
-	out_names : stringz = 'entity';
-	
-	properties = begin
-		enemy : 'entity_link, uobject_link' = 65535;
-		point : 'entity_link, uobject_link' = 65535;
-		threat : bool = False;
-		lock : bool = True;
+	'collision_group' = begin
+		clsid : stringz = 'actions/collision_group';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity';
+		
+		properties = begin
+			collisions_group : u8 = 1;
+		end;
 	end;
-end;
-
-'actions/turn light' = begin
-	clsid : stringz = 'actions/turn light';
 	
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'entity,finished';
-	
-	description : stringz = '1
-		note: from PDB
-		enum eonoff	
-		{
-			eonoff_off = 0x0,
-			eonoff_on = 0x1,
-			eonoff_invert = 0x2,
-			eonoff_invalid = 0x3,
-			eonoff_max = 0xFF
-		};
-	';
-	
-	
-	properties = begin
-		onoff : u8 = 2;
-		on_or_off : bool = False;
+	'console command' = begin
+		clsid : stringz = 'actions/console command';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = '';
+		
+		properties = begin
+			cmd : stringz = '';
+		end;
 	end;
-end;
-
-'entities/entity self' = begin
-	clsid : stringz = 'entities/entity self';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'entity';
-	out_names : stringz = '';
-end;
-
-'entities/entity ref' = begin
-	clsid : stringz = 'entities/entity ref';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'entity';
-	out_names : stringz = '';
-	
-	properties = begin
-		target : 'entity_link, uobject_link' = 65535;
+	'destroy' = begin
+		clsid : stringz = 'actions/destroy';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity';	
 	end;
-end;
-
-'entities/entity player' = begin
-	clsid : stringz = 'entities/entity player';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
+	'engine' = begin
 	
-	in_names : stringz = 'entity';
-	out_names : stringz = '';
-end;
-
-"entities/entity player's hands" = begin
-	clsid : stringz = "entities/entity player's hands";
+		'3d_text' = begin
+			clsid : stringz = 'actions/engine/3d_text';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity,finished';
+			
+			properties = begin
+				offset : vec3f = [0, 0, 0];
+				rotation : fp32 = 0;
+				key : stringz = '$continue_menu';
+				size : fp32 = 65;
+				h_alignment : u8 = 2;
+				v_alignment : u8 = 2;
+				color : 'color, vec4f' = [0.996078491210938, 0.443137288093567, 0.243137270212173, 1];
+				bone : bone_str;
+				bone : stringz = 'joint1';
+			end;
+		end;
+		
+		'clone' = begin
+			clsid : stringz = 'actions/engine/clone';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				source : 'entity_link, uobject_link' = 65535;
+				position : 'entity_link, uobject_link' = 65535;
+			end;
+		end;
+		
+		'set env layer' = begin
+			clsid : stringz = 'actions/engine/set env layer';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				zone : stringz = 'env_zone_0000';
+				layer : stringz = 'default';
+			end;
+		end;
+		
+		'signal' = begin
+			clsid : stringz = 'actions/engine/signal';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				localus : bool = False;
+				signal : stringz = '';
+			end;
+		end;
 	
-	sizex : u32 = 180;
-	
-	in_names : stringz = 'entity';
-	out_names : stringz = '';
-end;
-
-"entities/entity player's torch" = begin
-	clsid : stringz = "entities/entity player's torch";
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'entity';
-	out_names : stringz = '';
-end;
-
-'fun/text splash' = begin
-	clsid : stringz = 'fun/text splash';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-
-	in_names : stringz = 'activate,deactivate';
-	out_names : stringz = 'target,finished';
-	
-	properties = begin
-		text : stringz = 'sherlock';
-		color : 'color, vec4f' = [1, 1, 0, 0];
-		max_size : fp32 = 140;
-		speed : fp32 = 200;
-		stop : bool = True;
-		interrupt : bool = True;
 	end;
-end;
-
-'logic/and-2' = begin
-	clsid : stringz = 'logic/and-2';
 	
-	in_names : stringz = 'in,reset,set1,set2,clear1,clear2';
-	out_names : stringz = 'then,else';
-	
-	properties = begin
-		b1 : bool = False;
-		b2 : bool = False;
+	'hit' = begin
+		clsid : stringz = 'actions/hit';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity';
+		
+		properties = begin
+			initiator : 'entity_link, uobject_link' = 65535;
+			amount : fp32 = 2;
+			bone : bone_str;
+			bone : stringz = 'bip01';
+			hit_type : u8 = 3;
+		end;
 	end;
-end;
-
-'logic/delay' = begin
-	clsid : stringz = 'logic/delay';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 120;
-	
-	in_names : stringz = 'in,activate,deactivate,restart';
-	out_names : stringz = 'out';
-	
-	properties = begin
-		min : u32 = 100;
-		max : u32 = 100;
-		one_at_a_time : bool = False;
-		active : bool = True;
+	'link' = begin
+		clsid : stringz = 'actions/link';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'destantion,source';
+		
+		properties = begin
+			destination_bone : bone_str;
+			destination_bone : stringz = 'bone_crane_root';
+			source_bone : bone_str;
+			source_bone : stringz = 'bone_crane_root';
+		end;
 	end;
-end;
-
-'logic/locker' = begin
-	clsid : stringz = 'logic/locker';
 	
-	in_names : stringz = 'lock,unlock,in';
-	out_names : stringz = 'out,out_fail'; { not sure out_fail exist in 2033 }
-	
-	properties = begin
-		locked : bool = False;
-		auto_lock : bool = True;
-		next_frame : bool = True;
+	'move' = begin
+		clsid : stringz = 'actions/move';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity,finished,dest';
+		
+		properties = begin
+			dest : 'entity_link, uobject_link' = 65535;
+			keep_move : bool = False;
+		end;
 	end;
-end;
-
-'logic/random-2' = begin
-	clsid : stringz = 'logic/random-2';
 	
-	in_names : stringz = 'in';
-	out_names : stringz = '1,2';
-end;
-
-'logic/random-3' = begin
-	clsid : stringz = 'logic/random-3';
-	
-	in_names : stringz = 'in';
-	out_names : stringz = '1,2,3';
-end;
-
-'logic/random-4' = begin
-	clsid : stringz = 'logic/random-4';
-	
-	in_names : stringz = 'in';
-	out_names : stringz = '1,2,3,4';
-end;
-
-'logic/random-5' = begin
-	clsid : stringz = 'logic/random-5';
-	
-	in_names : stringz = 'in';
-	out_names : stringz = '1,2,3,4,5';
-end;
-
-'triggers/aftercloned' = begin
-	clsid : stringz = 'triggers/aftercloned';
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'on_cloned';
-	
-	properties = begin
-		active : bool = True;
+	'open fire' = begin
+		clsid : stringz = 'actions/open fire';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity';
+		
+		properties = begin
+			target : 'entity_link, uobject_link' = 65535;
+			min_queue_size : u32 = 1;
+			max_queue_size : u32 = 1;
+			min_queue_interval : u32 = 0;
+			max_queue_interval : u32 = 0;
+			instant : bool = False;
+		end;
 	end;
+	
+	'p-force' = begin
+		clsid : stringz = 'actions/p-force';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			min_amount : fp32 = 3;
+			max_amount : fp32 = 5;
+			max_influence_dst : fp32 = 50;
+			instant : bool = True;
+			bone : stringz = '';
+			dir : vec3f = [0, 0, 1];
+			in_local_coords : bool = False;
+			single_force : bool = False;
+		end;
+	end;
+	
+	'play motion' = begin
+		clsid : stringz = 'actions/play motion';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished,failed';
+		
+		properties = begin
+			dbg_model : ref_model;
+			dbg_model : stringz = 'dynamic\objects\mafony\mafon_01';
+			dbg_skel : stringz = 'dynamic\objects\mafony\mafon_01';
+			initial_offset : fp32 = 0;
+			animation : animation_str;
+			animation : stringz = 'play_phase_02';
+			bone_part : part_id;
+			bone_part : stringz = 'default';
+			force_looped : u8 = 0;
+			overlay : bool = False;
+		end;
+	end;
+	
+	'play patrol path' = begin
+		clsid : stringz = 'actions/play patrol path';
+		
+		in_names : stringz = 'activate,deactivate,soft_deactivate';
+		out_names : stringz = 'entity,finished,start,path_failed,soft_finish';
+		
+		properties = begin
+			start_point : 'entity_link, uobject_link' = 65535;
+			start_from_nearest : bool = False;
+			body_state : stringz = '';
+			anim_state : stringz = '';
+			movement_type : stringz = '';
+			weapon_state : stringz = '';
+			action : stringz = '';
+			target : 'entity_link, uobject_link' = 65535;
+			flags : flags32;
+			flags : u32 = 0;
+			anim_state_approach_speed : fp32 = 2;
+			state_from_first : bool = False;
+			match_exact_goal : bool = False;
+		end;
+	end;
+	
+	'play particles' = begin
+		clsid : stringz = 'actions/play particles';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+	
+		properties = begin
+			particles : 'particles, str_shared';
+			particles : stringz = 'anomaly\dust_fog_blue_lamp';
+			start_as_free : bool = False;
+		end;
+	end;
+	
+	'play sound' = begin
+		clsid : stringz = 'actions/play sound';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,started,finished';
+	
+		properties = begin
+			sound : sound;
+			sound : stringz = 'objects\door\close_door_01';
+			volume : fp32 = 1;
+			instant : bool = True;
+			ai_sound_type : u32 = 0;
+			stop_interval : fp32 = 1;
+			startus_intervalus : fp32 = 0;
+			looped : bool = False;
+			enable_slowmo : bool = True;
+			enable_fx : bool = True;
+			play_as_music : bool = False;
+		end;
+	end;
+	
+	'player' = begin
+	
+		'civil mode' = begin
+			clsid : stringz = 'actions/player/civil mode';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = '';
+			
+			properties = begin
+				instant : bool = True;
+				allow_inventory_ui : bool = True;
+				slots = begin
+					knife_slot : bool = False;
+					pistol_slot : bool = False;
+					smg_slot : bool = False;
+					rifle_slot : bool = False;
+					grenade_slot : bool = False;
+					gasmask_slot : bool = True;
+					nightvision_slot : bool = False;
+					map_slot : bool = True;
+					medkit_slot : bool = True;
+					filter_slot : bool = False;
+					grenade_sticky : bool = False;
+					grenade_flash : bool = False;
+					macheta : bool = False;
+					charger : bool = True;
+				end;
+			end;
+		end;
+		
+		'hide subj' = begin
+			clsid : stringz = 'actions/player/hide subj';
+			
+			in_names : stringz = 'in';
+			out_names : stringz = 'out';
+			
+			properties = begin
+				hands : bool = True;
+				knife : bool = False;
+			end;
+		end;
+		
+		'restrictor_obstacle' = begin
+			clsid : stringz = 'actions/player/restrictor_obstacle';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity';
+		end;
+		
+		'show subj' = begin
+			clsid : stringz = 'actions/player/show subj';
+			
+			in_names : stringz = 'in';
+			out_names : stringz = 'out';
+			
+			properties = begin
+				hands : bool = True;
+				knife : bool = False;
+			end;
+		end;
+	
+	end;
+	
+	'set enemy' = begin
+		clsid : stringz = 'actions/set enemy';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'entity';
+		
+		properties = begin
+			enemy : 'entity_link, uobject_link' = 65535;
+			point : 'entity_link, uobject_link' = 65535;
+			threat : bool = False;
+			lock : bool = True;
+		end;
+	end;
+	
+	'turn light' = begin
+		clsid : stringz = 'actions/turn light';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+		
+		description : stringz = '1
+			note: from PDB
+			enum eonoff	
+			{
+				eonoff_off = 0x0,
+				eonoff_on = 0x1,
+				eonoff_invert = 0x2,
+				eonoff_invalid = 0x3,
+				eonoff_max = 0xFF
+			};
+		';
+		
+		
+		properties = begin
+			onoff : u8 = 2;
+			on_or_off : bool = False;
+		end;
+	end;
+
 end;
 
-'triggers/engine/signal' = begin
-	clsid : stringz = 'triggers/engine/signal';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'on_signal';
-	
-	properties = begin
-		active : bool = True;
-		signal : stringz = '';
+'entities' = begin
+
+	'entity self' = begin
+		clsid : stringz = 'entities/entity self';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
 	end;
+	
+	'entity ref' = begin
+		clsid : stringz = 'entities/entity ref';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+		
+		properties = begin
+			target : 'entity_link, uobject_link' = 65535;
+		end;
+	end;
+	
+	'entity player' = begin
+		clsid : stringz = 'entities/entity player';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+	end;
+	
+	"entity player's hands" = begin
+		clsid : stringz = "entities/entity player's hands";
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+	end;
+	
+	"entity player's torch" = begin
+		clsid : stringz = "entities/entity player's torch";
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+	end;
+
 end;
 
-'triggers/hit' = begin
-	clsid : stringz = 'triggers/hit';
+'fun' = begin
 
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'out,entity';
+	'text splash' = begin
+		clsid : stringz = 'fun/text splash';
 	
-	properties = begin
-		active : bool = True;
-		entity : 'entity_link, uobject_link' = 65535;
-		initiator : 'entity_link, uobject_link' = 65535;
-		player : bool = True;
-		hit_type : u8 = 5;
-		any_hittype : bool = True;
-		range_min : fp32 = 0;
-		range_max : fp32 = 1000000;
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'target,finished';
+		
+		properties = begin
+			text : stringz = 'sherlock';
+			color : 'color, vec4f' = [1, 1, 0, 0];
+			max_size : fp32 = 140;
+			speed : fp32 = 200;
+			stop : bool = True;
+			interrupt : bool = True;
+		end;
 	end;
+
 end;
 
-'triggers/npc enemy' = begin
-	clsid : stringz = 'triggers/npc enemy';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 90;
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'out,unk1,entity';
-	
-	properties = begin
-		active : bool = True;
-		entity : 'entity_link, uobject_link' = 65535;
-		initiator : 'entity_link, uobject_link' = 65535;
-		player : bool = True;
+'logic' = begin
+
+	'and-2' = begin
+		clsid : stringz = 'logic/and-2';
+		
+		in_names : stringz = 'in,reset,set1,set2,clear1,clear2';
+		out_names : stringz = 'then,else';
+		
+		properties = begin
+			b1 : bool = False;
+			b2 : bool = False;
+		end;
 	end;
+	
+	'delay' = begin
+		clsid : stringz = 'logic/delay';
+		
+		in_names : stringz = 'start,activate,deactivate,stop,restart';
+		out_names : stringz = 'out';
+		
+		properties = begin
+			min : u32 = 100;
+			max : u32 = 100;
+			one_at_a_time : bool = False;
+			active : bool = True;
+		end;
+	end;
+	
+	'locker' = begin
+		clsid : stringz = 'logic/locker';
+		
+		in_names : stringz = 'lock,unlock,in';
+		out_names : stringz = 'out,out_fail';
+		
+		properties = begin
+			locked : bool = False;
+			auto_lock : bool = True;
+			next_frame : bool = True;
+		end;
+	end;
+	
+	'random-2' = begin
+		clsid : stringz = 'logic/random-2';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = '1,2';
+	end;
+	
+	'random-3' = begin
+		clsid : stringz = 'logic/random-3';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = '1,2,3';
+	end;
+	
+	'random-4' = begin
+		clsid : stringz = 'logic/random-4';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = '1,2,3,4';
+	end;
+	
+	'random-5' = begin
+		clsid : stringz = 'logic/random-5';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = '1,2,3,4,5';
+	end;
+
 end;
 
-'triggers/object_is_close' = begin
-	clsid : stringz = 'triggers/object_is_close';
-	
-	in_names : stringz = 'enable,disable,check';
-	out_names : stringz = 'entity,on_close,on_far';
-	
-	properties = begin
-		active : bool = False;
-		distance : fp32 = 10;
+'triggers' = begin
+
+	'aftercloned' = begin
+		clsid : stringz = 'triggers/aftercloned';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'on_cloned';
+		
+		properties = begin
+			active : bool = True;
+		end;
 	end;
+	
+	'engine/signal' = begin
+		clsid : stringz = 'triggers/engine/signal';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'on_signal';
+		
+		properties = begin
+			active : bool = True;
+			signal : stringz = '';
+		end;
+	end;
+	
+	'hit' = begin
+		clsid : stringz = 'triggers/hit';
+	
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'out,entity';
+		
+		properties = begin
+			active : bool = True;
+			entity : 'entity_link, uobject_link' = 65535;
+			initiator : 'entity_link, uobject_link' = 65535;
+			player : bool = True;
+			hit_type : u8 = 5;
+			any_hittype : bool = True;
+			range_min : fp32 = 0;
+			range_max : fp32 = 1000000;
+		end;
+	end;
+	
+	'npc enemy' = begin
+		clsid : stringz = 'triggers/npc enemy';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'out,unk1,entity';
+		
+		properties = begin
+			active : bool = True;
+			entity : 'entity_link, uobject_link' = 65535;
+			initiator : 'entity_link, uobject_link' = 65535;
+			player : bool = True;
+		end;
+	end;
+	
+	'object_is_close' = begin
+		clsid : stringz = 'triggers/object_is_close';
+		
+		in_names : stringz = 'enable,disable,check';
+		out_names : stringz = 'entity,on_close,on_far';
+		
+		properties = begin
+			active : bool = False;
+			distance : fp32 = 10;
+		end;
+	end;
+	
+	'player' = begin
+		clsid : stringz = 'triggers/player';
+		
+		in_names : stringz = 'enable,disable,check';
+		out_names : stringz = 'enter,leave,zone';
+		
+		properties = begin
+			active : bool = True;
+			reaction_count : s32 = -1;
+			zone_link : 'entity_link, uobject_link' = 65535;
+		end;
+	end;
+	
+	'startgame' = begin
+		clsid : stringz = 'triggers/startgame';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'out';
+		
+		properties = begin
+			active : bool = True;
+			trigger_on_game_load : bool = False;
+		end;
+	end;
+	
+	'use' = begin
+		clsid : stringz = 'triggers/use';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'on_use,unk2,entity';
+		
+		properties = begin
+			active : bool = False;
+			entity : 'entity_link, uobject_link' = 65535;
+			initiator : 'entity_link, uobject_link' = 65535;
+			player : bool = True;
+			usage_distance : fp32 = 2;
+			use_action : choose;
+			use_action : stringz = '';
+			use_offset : vec2f = [0, -0.100000001490116];
+			blink : bool = False;
+			blink_distance : fp32 = 10;
+		end;
+	end;
+	
+	'velocity' = begin
+		clsid : stringz = 'triggers/velocity';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'greater,less,entity';
+		
+		properties = begin
+			active : bool = True;
+			entity : 'entity_link, uobject_link' = 65535;
+			velocity : fp32 = 2.0;
+		end;
+	end;
+
 end;
 
-'triggers/player' = begin
-	clsid : stringz = 'triggers/player';
-	
-	in_names : stringz = 'enable,disable,check';
-	out_names : stringz = 'enter,leave,zone';
-	
-	properties = begin
-		active : bool = True;
-		reaction_count : s32 = -1;
-		zone_link : 'entity_link, uobject_link' = 65535;
-	end;
-end;
+'trolley' = begin
 
-'triggers/startgame' = begin
-	clsid : stringz = 'triggers/startgame';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'out';
-	
-	properties = begin
-		active : bool = True;
-		trigger_on_game_load : bool = False;
+	'drezina goto target' = begin
+		clsid : stringz = 'trolley/drezina goto target';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'drezina,target';
+		
+		properties = begin
+			accel : fp32 = 0.150000006;
+			decel : fp32 = 0.1000000015;
+			speed_min : fp32 = 0.150000006;
+			speed_max : fp32 = 0.4499999881;
+			dist : fp32 = 5;
+			smooth_approach : bool = True;
+		end;
 	end;
-end;
+	
+	'start drezina' = begin
+		clsid : stringz = 'trolley/start drezina';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'drezina';
+		
+		properties = begin
+			dbg_model : ref_model;
+			dbg_model : stringz = 'dynamic\objects\drezina\drezima_motocikl\drezina_motocikl';
+			dbg_skel : stringz = 'dynamic\objects\drezina\drezima_motocikl\drezima_motocikl';
+			animation : animation_str;
+			animation : stringz = 'drezina_motocikl_criticalhit_1';
+			speed : fp32 = 0.5;
+			initial_offset : fp32 = 0;
+			slope_threshold : fp32 = 0;
+			slope_min_time : fp32 = 0;
+			slope_cooldown : fp32 = 0;
+		end;
+	end;
 
-'triggers/use' = begin
-	clsid : stringz = 'triggers/use';
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'on_use,unk2,entity';
-	
-	properties = begin
-		active : bool = False;
-		entity : 'entity_link, uobject_link' = 65535;
-		initiator : 'entity_link, uobject_link' = 65535;
-		player : bool = True;
-		usage_distance : fp32 = 2;
-		use_action : choose;
-		use_action : stringz = '';
-		use_offset : vec2f = [0, -0.100000001490116];
-		blink : bool = False;
-		blink_distance : fp32 = 10;
-	end;
-end;
-
-'triggers/velocity' = begin
-	clsid : stringz = 'triggers/velocity';
-	
-	in_names : stringz = 'enable,disable';
-	out_names : stringz = 'greater,less,entity';
-	
-	properties = begin
-		active : bool = True;
-		entity : 'entity_link, uobject_link' = 65535;
-		velocity : fp32 = 2.0;
-	end;
-end;
-
-'trolley/drezina goto target' = begin
-	clsid : stringz = 'trolley/drezina goto target';
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'drezina,target';
-	
-	properties = begin
-		accel : fp32 = 0.150000006;
-		decel : fp32 = 0.1000000015;
-		speed_min : fp32 = 0.150000006;
-		speed_max : fp32 = 0.4499999881;
-		dist : fp32 = 5;
-		smooth_approach : bool = True;
-	end;
-end;
-
-'trolley/start drezina' = begin
-	clsid : stringz = 'trolley/start drezina';
-	
-	in_names : stringz = 'in';
-	out_names : stringz = 'drezina';
-	
-	properties = begin
-		dbg_model : ref_model;
-		dbg_model : stringz = 'dynamic\objects\drezina\drezima_motocikl\drezina_motocikl';
-		dbg_skel : stringz = 'dynamic\objects\drezina\drezima_motocikl\drezima_motocikl';
-		animation : animation_str;
-		animation : stringz = 'drezina_motocikl_criticalhit_1';
-		speed : fp32 = 0.5;
-		initial_offset : fp32 = 0;
-		slope_threshold : fp32 = 0;
-		slope_min_time : fp32 = 0;
-		slope_cooldown : fp32 = 0;
-	end;
 end;

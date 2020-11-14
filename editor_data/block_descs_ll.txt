@@ -1,8 +1,5 @@
 'actions/console command' = begin
 	clsid : stringz = 'actions/console command';
-
-	sizex : u32 = 150;
-	sizey : u32 = 70;
 	
 	in_names : stringz = 'activate';
 	out_names : stringz = '';
@@ -14,9 +11,6 @@ end;
 
 'actions/engine/3d_text' = begin
 	clsid : stringz = 'actions/engine/3d_text';
-
-	sizex : u32 = 150;
-	sizey : u32 = 85;
 	
 	in_names : stringz = 'activate,deactivate';
 	out_names : stringz = 'entity,finished';
@@ -41,9 +35,6 @@ end;
 'actions/engine/signal' = begin
 	clsid : stringz = 'actions/engine/signal';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 85;
-	
 	in_names : stringz = 'activate';
 	out_names : stringz = '';
 	
@@ -56,9 +47,6 @@ end;
 
 'actions/play color cube' = begin
 	clsid : stringz = 'actions/play color cube';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 85;
 	
 	in_names : stringz = 'activate,deactivate';
 	out_names : stringz = 'entity,finished';
@@ -74,18 +62,12 @@ end;
 'entities/entity self' = begin
 	clsid : stringz = 'entities/entity self';
 	
-	sizex : u32 = 150;
-	sizey : u32 = 70;
-	
 	in_names : stringz = 'entity';
 	out_names : stringz = '';
 end;
 
 'logic/counter' = begin
 	clsid : stringz = 'logic/counter';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 100;
 	
 	in_names : stringz = 'touch,inc,dec,reset';
 	out_names : stringz = 'propagate';
@@ -98,9 +80,6 @@ end;
 
 'triggers/engine/signal' = begin
 	clsid : stringz = 'triggers/engine/signal';
-	
-	sizex : u32 = 150;
-	sizey : u32 = 85;
 	
 	in_names : stringz = 'enable,disable';
 	out_names : stringz = 'out';

@@ -7,7 +7,6 @@ procedure EditScript(s : TSection);
 
 implementation
 uses classes, sysutils, Iup, GL, GLU, vmath, properties, 
-	chunkedFile, // only for image loading
 	uScene,
 	uEntity,
 	glfont,
@@ -117,6 +116,7 @@ type
 	TBlock = class
 		clsid : String;
 		posx, posy : Longint;
+		sizex, sizey : Longint;
 		desc : TBlockDesc;
 		free_desc : Boolean;
 		
@@ -189,10 +189,7 @@ type
 		links : TList;
 		script_version : Word;
 	
-		dlg : Ihandle;
-		icon_clear : Ihandle;
-		icon_save : Ihandle;
-		
+		dlg : Ihandle;	
 		font : TGLFont;
 		
 		mousex, mousey : Longint;
@@ -356,31 +353,20 @@ end;
 	
 constructor TScriptEditor.Create;
 var
-	I : Longint;
 	gl, main : Ihandle;
 	
 	btn_clear : Ihandle;
 	btn_save : Ihandle;
 	
-	list_descs : Ihandle;
+	tree_descs : Ihandle;
 	fr_create : Ihandle;
 	
 	tree_props : Ihandle;
 	fr_properties : Ihandle;
 	
 	toolbox : Ihandle;
-	
-	r : TMemoryReader;
 begin
 	inherited Create;
-	
-	r := TMemoryReader.CreateFromFile('editor_data\diskette.data');
-	icon_save := IupImageRGBA(32, 32, Pointer(r.data));
-	r.Free;
-	
-	r := TMemoryReader.CreateFromFile('editor_data\clear.data');
-	icon_clear := IupImageRGBA(32, 32, Pointer(r.data));
-	r.Free;
 	
 	main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
 
@@ -398,23 +384,24 @@ begin
 	IupSetCallback(gl, 'ACTION', @gl_redraw_cb_wrapper);
 	
 	btn_clear := IupButton('Clear', nil);
-	IupSetAttributeHandle(btn_clear, 'IMAGE', icon_clear);
+	IupSetAttribute(btn_clear, 'IMAGE', 'ICON_TRASHCAN');
 	IupSetCallback(btn_clear, 'ACTION', @btn_clear_cb);
 	
 	btn_save := IupButton('Save', nil);
-	IupSetAttributeHandle(btn_save, 'IMAGE', icon_save);
+	IupSetAttribute(btn_save, 'IMAGE', 'ICON_DISKETTE');
 	IupSetCallback(btn_save, 'ACTION', @btn_save_cb);
 	
-	list_descs := IupList(nil);
-	IupSetAttribute(list_descs, 'NAME', 'LIST_DESCS');
-	IupSetAttribute(list_descs, 'EXPAND', 'HORIZONTAL');
-	IupSetInt(list_descs, 'VISIBLELINES', 16);
+	tree_descs := IupTree;
+	IupSetAttribute(tree_descs, 'NAME', 'TREE_DESCS');
+	//IupSetAttribute(tree_descs, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(tree_descs, 'ADDROOT', 'NO');
+	//IupSetInt(tree_descs, 'VISIBLELINES', 20);
 	
-	for I := 1 to Length(block_descs) - 1 do
-		IupSetStrAttribute(list_descs, PAnsiChar(IntToStr(I)), 
-		PAnsiChar(block_descs[I].clsid));
+	IupSetAttribute(tree_descs, 'IMAGEBRANCHCOLLAPSED', 'ICON_FOLDER1');
+	IupSetAttribute(tree_descs, 'IMAGEBRANCHEXPANDED', 'ICON_FOLDER2');
+	IupSetAttribute(tree_descs, 'IMAGELEAF', 'IMGBLANK');
 	
-	fr_create := IupFrame(IupVBox(list_descs, nil));
+	fr_create := IupFrame(IupVBox(tree_descs, nil));
 	IupSetAttribute(fr_create, 'TITLE', 'Create');
 	
 	tree_props := IupTree;
@@ -440,6 +427,15 @@ begin
 	IupSetAttribute(dlg, 'VALUE', '0'); // set to 1 if save button clicked
 	IupSetAttribute(dlg, 'TScriptEditor->this', Pointer(self));
 	
+	IupMap(dlg);
+	
+	case Scene.GetVersion of
+		sceneVer2033:		LoadDescs('editor_data\block_descs.txt', tree_descs);
+		sceneVerLL:			LoadDescs('editor_data\block_descs_ll.txt', tree_descs);
+		sceneVerRedux:	LoadDescs('editor_data\block_descs_redux.txt', tree_descs);
+		else						LoadDescs('editor_data\block_descs.txt', tree_descs);
+	end;
+	
 	blocks := TList.Create;
 	links := TList.Create;
 	script_version := 0;
@@ -457,12 +453,11 @@ destructor TScriptEditor.Destroy;
 begin
 	IupDestroy(dlg);
 	
-	IupDestroy(icon_clear);
-	IupDestroy(icon_save);
-	
 	ClearScript;
 	blocks.Free;
 	links.Free;
+	
+	UnloadDescs;
 	
 	inherited Destroy;
 end;
@@ -510,6 +505,7 @@ begin
 			blk := TSection(sect_blocks.items[I]);
 		
 	 		block := TBlock.Create(blk);
+	 		CalcBlockSize(block.desc, font, block.sizex, block.sizey);
 			blocks.Add(block);
 		end;
 	end;
@@ -599,13 +595,13 @@ end;
 function TScriptEditor.GetInPoint(const block : TBlock; n : Longint) : TVec2;
 begin
 	Result.x := block.posx;
-	Result.y := block.posy + 40 + (font.cell_height*n) - (font.cell_height/2);
+	Result.y := block.posy + BlockMarginY + font.cell_height*2 + (font.cell_height*n) - (font.cell_height/2);
 end;
 
 function TScriptEditor.GetOutPoint(const block : TBlock; n : Longint) : TVec2;
 begin
-	Result.x := block.posx + block.desc.sizex;
-	Result.y := block.posy + 40 + (font.cell_height*n) - (font.cell_height/2);
+	Result.x := block.posx + block.sizex;
+	Result.y := block.posy + BlockMarginY + font.cell_height*2 + (font.cell_height*n) - (font.cell_height/2);
 end;
 
 procedure TScriptEditor.SelectBlock(block : TBlock);
@@ -674,10 +670,8 @@ begin
 		
 		posx := block.posx;
 		posy := block.posy;
-		
-		sizex := block.desc.sizex;
-		//sizey := block.desc.sizey;
-		sizey := 40 + (Max(Length(block.desc.in_names), Length(block.desc.out_names)) + 1) * font.cell_height;
+		sizex := block.sizex;
+		sizey := block.sizey;
 	
 		glColor3f(1.0, 1.0, 1.0);
 		glBegin(GL_QUADS);
@@ -706,15 +700,15 @@ begin
 		glEnd;
 		
 		glColor3f(1.0, 1.0, 1.0);
-		font.DrawText2D(posx + 10, posy + 5 + font.cell_height, block.clsid);
+		font.DrawText2D(posx + BlockMarginX, posy + BlockMarginY + font.cell_height, block.clsid);
 		
 		for J := 0 to Length(block.desc.in_names) - 1 do
 		begin
 			glColor3f(1.0, 1.0, 1.0);
 			s := block.desc.in_names[J];	
 			
-			x := posx + 20;
-			y := posy + 40 + (font.cell_height*J);
+			x := posx + BlockMarginPointX;
+			y := posy + BlockMarginY + font.cell_height*2 + font.cell_height*J;
 			
 			font.DrawText2D(x, y, s);
 		
@@ -736,8 +730,8 @@ begin
 			glColor3f(1.0, 1.0, 1.0);
 			s := block.desc.out_names[J];
 			
-			x := posx + sizex - 20 - font.StringWidth(s);
-			y := posy + 40 + (font.cell_height*J);
+			x := posx + sizex - BlockMarginPointX - font.StringWidth(s);
+			y := posy + BlockMarginY + font.cell_height*2 + font.cell_height*J;
 			
 			font.DrawText2D(x, y, s);
 		
@@ -921,11 +915,12 @@ end;
 
 function TScriptEditor.gl_button_cb(ih : Ihandle; button, pressed : Longint; x, y : Longint; status : PAnsiChar) : Longint;
 var
-	list_descs : Ihandle;
+	tree_descs : Ihandle;
 	
 	link : TLink;
 	block : TBlock;
 	I : Integer;
+	obj : TObject;
 begin
 	if (button = Ord('1')) and (pressed = 1) then
 	begin
@@ -997,16 +992,21 @@ begin
 	if (button = Ord('1')) and (pressed = 1) and iup_iscontrol(status) then
 	begin
 		// create block
-		list_descs := IupGetDialogChild(ih, 'LIST_DESCS');
-		I := IupGetInt(list_descs, 'VALUE');
+		tree_descs := IupGetDialogChild(ih, 'TREE_DESCS');
+		I := IupGetInt(tree_descs, 'VALUE');
 		WriteLn('create block 1');
-		if I <> 0 then
+		if I > 0 then
 		begin
-			WriteLn('create block 2 ', I);
-			block := TBlock.Create(block_descs[I]);
-			block.posx := Trunc(mousex*scale)+offsetx;
-			block.posy := Trunc(mousey*scale)+offsety;
-			blocks.Add(block);
+			obj := TObject(IupGetAttribute(tree_descs, PAnsiChar('USERDATA' + IntToStr(I))));
+			if obj is TBlockDesc then
+			begin
+				WriteLn('create block 2 ', I);
+				block := TBlock.Create(TBlockDesc(obj));
+				block.posx := Trunc(mousex*scale)+offsetx;
+				block.posy := Trunc(mousey*scale)+offsety;
+				CalcBlockSize(block.desc, font, block.sizex, block.sizey);
+				blocks.Add(block);
+			end;
 		end;
 	end;
 	
@@ -1156,17 +1156,7 @@ var
 	count : TSimpleValue;
 	
 	res : Longint;
-	
-	scene_ver : TSceneVersion;
 begin
-	scene_ver := Scene.GetVersion;
-
-	case scene_ver of
-		sceneVer2033:		LoadDescs('editor_data\block_descs.txt');
-		sceneVerLL:			LoadDescs('editor_data\block_descs_ll.txt');
-		sceneVerRedux:	LoadDescs('editor_data\block_descs_redux.txt');
-		else						LoadDescs('editor_data\block_descs.txt');
-	end;
 	editor := TScriptEditor.Create;
 	
 	// may in reality be more than one script per object?
@@ -1178,7 +1168,7 @@ begin
 	begin
 		// set script version according to scene version
 		// move to constructor?
-		case scene_ver of
+		case Scene.GetVersion of
 			sceneVerLL: 			editor.script_version := SCRIPT_VER_LL;
 			sceneVerRedux: 		editor.script_version := SCRIPT_VER_REDUX;
 			sceneVerArktika1:	editor.script_version := SCRIPT_VER_ARKTIKA1;
@@ -1218,7 +1208,6 @@ begin
 	end;
 	
 	editor.Free;
-	UnloadDescs;
 end;
 
 end.
