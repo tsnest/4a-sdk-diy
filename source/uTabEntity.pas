@@ -191,6 +191,13 @@ begin
 		Redisplay;
 	end;
 	
+	if (prop.name = 'startup_animation') and (prop.vtype = 'stringz') then
+	begin
+		selected[0].Animation := (prop as TStringValue).str;
+		UpdateSelection;
+		Redisplay;
+	end;
+	
 	// shapes, sphere & box
 	if (prop.name = '') and (prop.vtype = 'pose, matrix') or
 	   (prop.name = 'h_size') and (prop.vtype = 'vec3f') or
@@ -320,8 +327,10 @@ begin
 		if skeleton <> nil then
 		begin
 			if ChooseAnimation(skeleton, s.str) then
+			begin
+				property_changed_cb(s); // hack
 				Result := 2
-			else
+			end else
 				Result := 0;
 		end;
 	end;  

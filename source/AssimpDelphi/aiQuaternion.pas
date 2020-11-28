@@ -30,6 +30,7 @@ begin
 	// adjust signs (if necessary)
 	if cosom < 0.0 then
 	begin
+		cosom := -cosom;
 		qEnd.x := -qEnd.x;
 		qEnd.y := -qEnd.y;
 		qEnd.z := -qEnd.z;

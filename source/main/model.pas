@@ -636,6 +636,14 @@ begin
 	
 	if ParamStr(I) = '-lmap' then
 	begin
+		LMap.soc_version := False;
+		Include(flags, lfUseLMap);
+		Inc(I);
+	end;
+	
+	if ParamStr(I) = '-lmap_soc' then
+	begin
+		LMap.soc_version := True;
 		Include(flags, lfUseLMap);
 		Inc(I);
 	end;
@@ -686,6 +694,10 @@ begin
 		WriteLn(#9'model -model2ogf infile outfile');
 		WriteLn(#9'model -model2nxcform_pc infile outfile');
 		WriteLn(#9'model -model2level model1 model2 .. modelN leveldir');
-		WriteLn(#9'model [-nomu] -level2level xrleveldir leveldir');
+		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] -level2level xrleveldir leveldir');
+		WriteLn('Options:');
+		WriteLn(#9'-nomu : skip Multiple Usage models');
+		WriteLn(#9'-lmap : convert lightmaps (CS/CoP version) to level.lmap_pc');
+		WriteLn(#9'-lmap_soc : convert lightmaps (SoC version) to level.lmap_pc');
 	end;
 end.

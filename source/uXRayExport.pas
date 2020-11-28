@@ -1,11 +1,14 @@
 unit uXRayExport;
 
 interface
+uses fouramdl;
+
+function ExportObject(const name : String; model : T4AModelHierrarhy) : Boolean;
 
 procedure ExportXRayLevel(map_name : String);
 
 implementation
-uses classes, sysutils, lwoexport, chunkedFile, vmath, fouramdl, Texture, 
+uses classes, sysutils, lwoexport, chunkedFile, vmath, Texture, 
 	uScene, uEntity,
 	uXRayExportOptions,
 	uAprilFools;

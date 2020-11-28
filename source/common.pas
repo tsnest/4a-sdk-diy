@@ -1,11 +1,12 @@
 unit common;
 
 interface
-uses classes, GL, fouramdl, vmath, texturePrefs, glfont;
+uses classes, GL, fouramdl, motion, vmath, texturePrefs, glfont;
 
 type
 	IMaler = class
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
+		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
 	end;
 	
 	ILevelMaler = class
@@ -140,7 +141,7 @@ type
 		destructor Destroy; override;
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
-		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False);
+		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 	end;
 
 	TSkeletonModelMaler = class(IMaler)
@@ -148,28 +149,34 @@ type
 		child : array of TSkinnedModelMaler;
 		
 		tex_subst : TStringList;
+		bone_xform : array[0..255] of TMatrix;
+		inv_bind_pose : array of TMatrix;
 
 		constructor Create(m : T4AModelSkeleton; lod : Longint = 2);
 		destructor Destroy; override;
 
 		procedure GetTexSubst(var tex : String);
+		
+		procedure ResetTransform;
+		procedure MotionTransform(mot : T4AMotion; t : Single);
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
-		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False);
+		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 	end;
 	
 	TSkinnedModelMaler = class(IMaler)
+		parent : TSkeletonModelMaler;
 		model : T4AModelSkinned;
 		materials : TMaterialSet;
 		buffers : array[1..2] of GLuint;
 		
 		mtlsets : array of TMaterialSet;
 
-		constructor Create(parent : TSkeletonModelMaler; m : T4AModelSkinned);
+		constructor Create(_parent : TSkeletonModelMaler; m : T4AModelSkinned);
 		destructor Destroy; override;
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
-		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False);
+		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 	end;
 	
 	TSoftbodyModelMaler = class(IMaler)
@@ -182,6 +189,7 @@ type
 		destructor Destroy; override;
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
+		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 	end;
 
 	TLevelMaler = class(ILevelMaler)
@@ -225,6 +233,7 @@ procedure RenderWireframe;
 function SelectColor(var clr : TVec4; alpha : Boolean = False) : Boolean;
 procedure LoadMeshes(model : T4AModelSkeleton; const path : String);
 procedure LoadSkeleton(model : T4AModelSkeleton);
+procedure UpdateBBox(model : T4AModelSkeleton);
 
 type
 	TFlagColor = (fclWhite, fclYellow);
@@ -666,7 +675,7 @@ begin
 		(sh = 'grass\default') or
 		(sh = 'grass_bush\default') or
 		(sh = 'geometry\default_aref') or
-		(sh = 'grass_bush\default') or
+		(sh = 'geometry\skin_aref') or
 		// ll
 		(sh = 'geometry\default_aref_no_tess') or
 		(sh = 'geometry\default_env_aref') or
@@ -1009,12 +1018,6 @@ var
 	vpos, ipos : GLsizei;
 	
 	texture, shader : String;
-	
-	render_verts : array of record
-		point : TVec3;
-		tc : TVec2;
-		normal : TVec3;
-	end;
 begin
 	inherited Create;
 
@@ -1077,17 +1080,7 @@ begin
 
 		vsize := Length(s.vertices)*Sizeof(T4AVertStatic);
 		isize := Length(s.indices)*Sizeof(Word);
-{		
-		SetLength(render_verts, Length(s.vertices));
-		for J := 0 to Length(render_verts)-1 do
-		begin
-			render_verts[J].point := s.vertices[J].point;
-			render_verts[J].tc := s.vertices[J].tc;
-			UnpackNormal(render_verts[J].normal, s.vertices[J].normal);
-		end;
 
-		glBufferSubData(GL_ARRAY_BUFFER, vpos, vsize, Pointer(render_verts));
-}
 		glBufferSubData(GL_ARRAY_BUFFER, vpos, vsize, Pointer(s.vertices));
 		glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, ipos, isize, Pointer(s.indices));
 
@@ -1263,6 +1256,18 @@ begin
 	begin
 		child[I] := TSkinnedModelMaler.Create(self, model.meshes[L,I]);
 	end;
+	
+	if model.skeleton <> nil then
+	begin
+		SetLength(inv_bind_pose, Length(model.skeleton.bones));	
+		for I := 0 to Length(inv_bind_pose) - 1 do
+		begin
+			model.skeleton.GetBoneTransform(I, inv_bind_pose[I]);
+			Invert43(inv_bind_pose[I]);
+		end;
+	end; 
+	
+	ResetTransform;
 end;
 
 destructor TSkeletonModelMaler.Destroy;
@@ -1280,6 +1285,64 @@ end;
 procedure TSkeletonModelMaler.GetTexSubst(var tex : String);
 begin
 	tex := model.GetTextureSubst(tex);
+end;
+
+procedure TSkeletonModelMaler.ResetTransform;
+var
+	I, max : Integer;
+begin
+	if model.skeleton <> nil then
+		max := Length(model.skeleton.bones)
+	else
+		max := 255;
+		
+	for I := 0 to max do
+		Identity(bone_xform[I]);
+end;
+
+procedure TSkeletonModelMaler.MotionTransform(mot : T4AMotion; t : Single);
+var
+	I : Integer;
+	skl : T4ASkeleton;
+	
+	xform_local : array[0..255] of TMatrix;
+	xform : array[0..255] of TMatrix;
+	
+	procedure GetTransform(id : Longint; out m : TMatrix);
+	begin
+		if skl.bones[id].parent_id = -1 then
+			Identity(m)
+		else
+			GetTransform(skl.bones[id].parent_id, m);		
+			
+		Mul44(m, xform_local[id]);
+	end;
+begin
+	skl := model.skeleton;
+	if skl = nil then
+		Exit;
+		
+	// get local transform
+	for I := 0 to Length(skl.bones) - 1 do
+	begin
+		if mot.AffectsBone(I) then
+			mot.GetTransform(I, t, xform_local[I])
+		else
+			skl.GetBoneTransformLocal(I, xform_local[I]);
+	end;
+	
+	// transform each matrix by it's parent
+	for I := 0 to Length(skl.bones) - 1 do
+	begin
+		GetTransform(I, xform[I]);
+	end;
+
+	// multiply by inv_bind_pose
+	for I := 0 to Length(skl.bones) - 1 do
+	begin
+		Mul44(xform[I], inv_bind_pose[I]);
+		Transpose(bone_xform[I], xform[I]);
+	end;
 end;
 
 procedure TSkeletonModelMaler.Draw(mtlset : Longint; selected : Boolean; blended : Boolean; distort : Boolean);
@@ -1302,7 +1365,7 @@ begin
 	end;
 end;
 
-constructor TSkinnedModelMaler.Create(parent : TSkeletonModelMaler; m : T4AModelSkinned);
+constructor TSkinnedModelMaler.Create(_parent : TSkeletonModelMaler; m : T4AModelSkinned);
 var
 	I, J : Integer;
 	s : T4AModelSkinnedMesh;
@@ -1315,6 +1378,8 @@ var
 	texture, shader : String;
 begin
 	inherited Create;
+
+	parent := _parent;
 
 	model := m;
 
@@ -1421,9 +1486,11 @@ begin
 		
 	glEnableVertexAttribArrayARB(0);
 	glEnableVertexAttribArrayARB(1);
-	if useBump then glEnableVertexAttribArrayARB(2);
-	if useBump then glEnableVertexAttribArrayARB(3);
-	if useTextures then glEnableVertexAttribArrayARB(4);
+	glEnableVertexAttribArrayARB(2);
+	glEnableVertexAttribArrayARB(3);
+	if useBump then     glEnableVertexAttribArrayARB(4);
+	if useBump then     glEnableVertexAttribArrayARB(5);
+	if useTextures then glEnableVertexAttribArrayARB(6);
 
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_DYNAMIC]);
@@ -1435,14 +1502,16 @@ begin
 
 	glDisableVertexAttribArrayARB(0);
 	glDisableVertexAttribArrayARB(1);
-	if useBump then glDisableVertexAttribArrayARB(2);
-	if useBump then glDisableVertexAttribArrayARB(3);
-	if useTextures then glDisableVertexAttribArrayARB(4);
+	glDisableVertexAttribArrayARB(2);
+	glDisableVertexAttribArrayARB(3);
+	if useBump then     glDisableVertexAttribArrayARB(4);
+	if useBump then     glDisableVertexAttribArrayARB(5);
+	if useTextures then glDisableVertexAttribArrayARB(6);
 end;
 
 procedure TSkinnedModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended : Boolean; distort : Boolean);
 var
-	I : Integer;
+	I, J, K : Longint;
 	s : T4AModelSkinnedMesh;
 
 	vpos, ipos : PByte;
@@ -1474,8 +1543,8 @@ begin
 	if model.version < MODEL_VER_ARKTIKA1 then
 	begin
 		scale := 1/2720;
-		glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 1, scale, scale, scale, 1.0);
-	end; 
+		glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, scale, scale, scale, 1.0);
+	end;
 
 	for I := 0 to Length(model.meshes) - 1 do
 	begin
@@ -1485,14 +1554,39 @@ begin
 		if model.version >= MODEL_VER_ARKTIKA1 then
 		begin
 			scale := (1/32767) * s.scale;
-			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 1, scale, scale, scale, 1.0); 
+			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, scale, scale, scale, 1.0); 
 		end;
+		
+		// setup bones xform
+		if parent <> nil then
+			for J := 0 to Length(s.bone_ids) - 1 do
+			begin
+				K := s.bone_ids[J];
+				glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 1 + J*3, @parent.bone_xform[K][1,1]);
+				glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 2 + J*3, @parent.bone_xform[K][2,1]);
+				glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 3 + J*3, @parent.bone_xform[K][3,1]);
+				//glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 4 + J*4, @parent.bone_xform[K][4,1]);
+			end
+		else
+			for J := 0 to Length(s.bone_ids) - 1 do
+			begin
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 1 + J*3, 1.0, 0.0, 0.0, 0.0);
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 2 + J*3, 0.0, 1.0, 0.0, 0.0);
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 3 + J*3, 0.0, 0.0, 1.0, 0.0);
+				//glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 4 + J*4, 0.0, 0.0, 0.0, 1.0);
+			end;
 
 		glVertexAttribPointerARB(0, 3, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), vpos+0);
 		glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+8);
-		if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+12);
-		if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+16);
-		if useTextures then glVertexAttribPointerARB(4, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), vpos+28);
+		glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_FALSE, Sizeof(T4AVertSkin), vpos+20);
+		glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+24);
+		
+		if useBump then 
+			glVertexAttribPointerARB(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+12);
+		if useBump then 
+			glVertexAttribPointerARB(5, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+16);
+		if useTextures then 
+			glVertexAttribPointerARB(6, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), vpos+28);
 
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
@@ -1609,6 +1703,11 @@ begin
 		
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
 	end;
+end;
+
+procedure TSoftbodyModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended : Boolean; distort : Boolean);
+begin
+	Draw(mtlset, selected, blended, distort);
 end;
 
 constructor TLevelMaler.Create(l : T4ALevel);

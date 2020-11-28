@@ -4,20 +4,20 @@ interface
 uses vmath, chunkedFile;
 
 const
-	OGF_MT_NORMAL				 = 0;
-	OGF_MT_HIERRARHY			= 1;
-	OGF_MT_PROGRESSIVE		= 2;
-	OGF_MT_SKELETON_ANIM	= 3;
+	OGF_MT_NORMAL              = 0;
+	OGF_MT_HIERRARHY           = 1;
+	OGF_MT_PROGRESSIVE         = 2;
+	OGF_MT_SKELETON_ANIM       = 3;
 	OGF_MT_SKELETON_GEOMDEF_PM = 4;
 	OGF_MT_SKELETON_GEOMDEF_ST = 5;
-	OGF_MT_LOD						= 6;
-	OGF_MT_TREE_ST				= 7;
-	OGF_MT_SKELETON_RIGID = 10;
-	OGF_MT_TREE_PM				= 11;
+	OGF_MT_LOD                 = 6;
+	OGF_MT_TREE_ST             = 7;
+	OGF_MT_SKELETON_RIGID      = 10;
+	OGF_MT_TREE_PM             = 11;
 
-	OGF_VF_STATIC				 = $112;
-	OGF_VF_SKIN1					= $12071980;
-	OGF_VF_SKIN2					= $12071980*2;
+	OGF_VF_STATIC              = $112;
+	OGF_VF_SKIN1               = $12071980;
+	OGF_VF_SKIN2               = $12071980*2;
 
 type
 	TOGFVertStatic = record
@@ -153,6 +153,47 @@ type
 	end;
 
 	function LoadOGF(r : TMemoryReader) : TOGFModel;
+	
+type
+	TOMFFile = class
+		motions : array of record
+			name : String;
+			frame_count : Longword;
+			data : array of record
+				flags : Byte;
+				rotation : array of Smallint;
+				position : array of Smallint;
+				position_origin : TVec3;
+				position_scale : TVec3;
+			end; 
+		end;
+		
+		bone_parts : array of record
+			name : String;
+			bone_names : array of String;
+			bone_ids : array of Longint;
+		end;
+		
+		motions_params : array of record
+			name : String;
+			flags : Longword;
+			part_id : Word;
+			data_idx : Word;
+			speed : Single;
+			power : Single;
+			accrue : Single;
+			falloff : Single;
+			
+			mark_lines : array of record
+				name : String;
+				marks : array of record
+					start, _end : Single;
+				end;
+			end;
+		end;
+		
+		procedure Load(reader : TMemoryReader);
+	end;
 
 implementation
 uses SysUtils;
@@ -347,18 +388,18 @@ begin
 end;
 
 const
-	OGF_CHUNK_HEADER			= 1;
-	OGF_CHUNK_TEXTURE		 = 2;
-	OGF_CHUNK_VERTICES		= 3;
-	OGF_CHUNK_INDICES		 = 4;
-	OGF_CHUNK_SWIDATA		 = 6;
-	OGF_CHUNK_VCONTAINER	= 7;
-	OGF_CHUNK_ICONTAINER	= 8;
-	OGF_CHUNK_CHILD			 = 9;
-	OGF_CHUNK_CHILD_L		 = 10;
-	OGF_CHUNK_TREEDEF		 = 12;
+	OGF_CHUNK_HEADER       = 1;
+	OGF_CHUNK_TEXTURE      = 2;
+	OGF_CHUNK_VERTICES     = 3;
+	OGF_CHUNK_INDICES      = 4;
+	OGF_CHUNK_SWIDATA      = 6;
+	OGF_CHUNK_VCONTAINER   = 7;
+	OGF_CHUNK_ICONTAINER   = 8;
+	OGF_CHUNK_CHILD        = 9;
+	OGF_CHUNK_CHILD_L      = 10;
+	OGF_CHUNK_TREEDEF      = 12;
 	OGF_CHUNK_SWICONTAINER = 20;
-	OGF_CHUNK_GCONTAINER	= 21;
+	OGF_CHUNK_GCONTAINER   = 21;
 
 function LoadOGF(r : TMemoryReader) : TOGFModel;
 var
@@ -625,11 +666,11 @@ begin
 end;
 
 const
-	FSL_CHUNK_VERSION	= 1;
-	FSL_CHUNK_TEXTURES = 2;
-	FSL_CHUNK_VISUALS	= 3;
-	FSL_CHUNK_VBUFFERS = 9;
-	FSL_CHUNK_IBUFFERS = 10;
+	FSL_CHUNK_VERSION    = 1;
+	FSL_CHUNK_TEXTURES   = 2;
+	FSL_CHUNK_VISUALS    = 3;
+	FSL_CHUNK_VBUFFERS   = 9;
+	FSL_CHUNK_IBUFFERS   = 10;
 	FSL_CHUNK_SWIBUFFERS = 11;
 	
 	FSL12_CHUNK_VBUFFERS = 10;
@@ -796,6 +837,138 @@ begin
 		end;
 		r.Free;
 	end;
+end;
+
+const
+	OMF_CHUNK_S_MOTIONS = 14;
+	OMF_CHUNK_SM_PARAMS = 15;
+	
+procedure TOMFFile.Load(reader : TMemoryReader);
+var
+	I, J, K, count : Longint;
+	version : Longint;
+	r, r2 : TMemoryReader;
+	
+	c : Char;
+	l : Longint;
+begin
+	
+	r := reader.OpenChunk(OMF_CHUNK_SM_PARAMS);
+	
+	version := r.ReadWord;
+	
+	SetLength(bone_parts, r.ReadWord);
+	for I := 0 to Length(bone_parts)-1 do
+	begin
+		bone_parts[I].name := r.ReadStringZ;
+		
+		count := r.ReadWord;
+		SetLength(bone_parts[I].bone_names, count);
+		SetLength(bone_parts[I].bone_ids, count);
+		for J := 0 to count-1 do
+		begin
+			bone_parts[I].bone_names[J] := r.ReadStringZ;
+			bone_parts[I].bone_ids[J] := r.ReadLongword;
+		end;
+	end;
+		
+	SetLength(motions_params, r.ReadWord);
+	for I := 0 to Length(motions_params)-1 do
+	begin
+		motions_params[I].name := r.ReadStringZ;
+		motions_params[I].flags := r.ReadLongword;
+		motions_params[I].part_id := r.ReadWord;
+		motions_params[I].data_idx := r.ReadWord;
+		motions_params[I].speed := r.ReadSingle;
+		motions_params[I].power := r.ReadSingle;
+		motions_params[I].accrue := r.ReadSingle;
+		motions_params[I].falloff := r.ReadSingle;
+		
+		if version >= 4 then with motions_params[I] do begin
+		
+			SetLength(mark_lines, r.ReadLongword);
+			for J := 0 to Length(mark_lines)-1 do
+			begin
+				repeat
+					c := Char(r.ReadByte);
+					l := Length(mark_lines[J].name);
+					
+					SetLength(mark_lines[J].name, l+1);
+					mark_lines[J].name[l+1] := c;
+				until c = #10;
+				
+				SetLength(mark_lines[J].marks, r.ReadLongword);
+				for K := 0 to Length(mark_lines[J].marks)-1 do
+				begin
+					mark_lines[J].marks[K].start := r.ReadSingle;
+					mark_lines[J].marks[K]._end := r.ReadSingle;
+				end;
+			end;
+		
+		end;
+	end;
+
+	r.Free;
+	
+	r := reader.OpenChunk(OMF_CHUNK_S_MOTIONS);
+	
+	r2 := r.OpenChunk(0);
+	SetLength(motions, r2.ReadLongword);
+	r2.Free;
+	
+	for I := 0 to Length(motions)-1 do
+	begin
+		r2 := r.OpenChunk(I+1);
+		
+		motions[I].name := r2.ReadStringZ;
+		motions[I].frame_count := r2.ReadLongword;
+		
+		while r2.More do
+		begin
+			J := Length(motions[I].data);
+			SetLength(motions[I].data, J+1);
+			
+			with motions[I].data[J] do
+			begin
+				flags := r2.ReadByte;
+				
+				if (flags and $02) = 0 then // has rotation
+				begin
+					r2.ReadLongword; // skip CRC
+					SetLength(rotation, motions[I].frame_count*4);
+				end else
+					SetLength(rotation, 4);
+					
+				r2.Read(rotation[0], Length(rotation)*Sizeof(Smallint));
+				
+				if (flags and $01) <> 0 then // has position
+				begin
+					r2.ReadLongword; // CRC
+					SetLength(position, motions[I].frame_count*3);
+					
+					if (flags and $04) <> 0 then
+						r2.Read(position[0], Length(position)*Sizeof(Smallint))
+					else
+						for K := 0 to motions[I].frame_count-1 do
+						begin
+							position[K*3+0] := Trunc(r2.ReadShortint / 127 * 32767);
+							position[K*3+1] := Trunc(r2.ReadShortint / 127 * 32767);
+							position[K*3+2] := Trunc(r2.ReadShortint / 127 * 32767);
+						end;
+					
+					r2.Read(position_scale, Sizeof(TVec3));
+					r2.Read(position_origin, Sizeof(TVec3));
+				end else
+					r2.Read(position_origin, Sizeof(TVec3));
+			end;
+					
+		end;
+		
+		r2.Free;
+	end;
+	
+	r.Free;
+	
 end;
 
 end.

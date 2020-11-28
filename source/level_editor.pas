@@ -46,6 +46,22 @@ var
 	context_menu : Ihandle;
 	
 var
+	anim_timer : Ihandle;
+	
+function anim_timer_action_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Redisplay;
+	Result := IUP_DEFAULT;
+end;
+	
+procedure CreateAnimTimer;
+begin
+	anim_timer := IupTimer;
+	IupSetInt(anim_timer, 'TIME', 33);
+	IupSetCallback(anim_timer, 'ACTION_CB', @anim_timer_action_cb);
+end;
+	
+var
 	mouse_x, mouse_y : Longint;
 	wheel_up, wheel_down : Boolean;
 	
@@ -1588,6 +1604,15 @@ begin
 	if title = 'Decals' then DoIt(Scene.showDecals);
 	if title = 'EGeoms' then DoIt(Scene.showEGeoms);
 	
+	if title = 'Animation' then
+	begin
+		DoIt(TEntity.showAnimation);
+		if TEntity.showAnimation then
+			IupSetAttribute(anim_timer, 'RUN', 'YES')
+		else
+			IupSetAttribute(anim_timer, 'RUN', 'NO')
+	end;
+	
 	Redisplay;
 	Result := IUP_DEFAULT;
 end;
@@ -2123,6 +2148,7 @@ begin
 	sm_show := IupSubmenu('Show',
 		IupMenu(
 			iup.MenuItem('Flags', @menu_show_cb, Scene.showFlags),
+			iup.MenuItem('Animation', @menu_show_cb, TEntity.showAnimation),
 			iup.MenuItem('Shapes', @menu_show_cb, Scene.showShapes),
 			iup.MenuItem('Environment zones', @menu_show_cb, Scene.showEnvZones),
 			iup.MenuItem('Decals', @menu_show_cb, Scene.showDecals),
@@ -2232,6 +2258,7 @@ begin
 
 	CreateDialog;
 	CreateContextMenu;
+	CreateAnimTimer;
 	
 	if ParamCount > 1 then
 		LoadMap(ParamStr(2));

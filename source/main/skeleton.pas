@@ -11,6 +11,8 @@ type
 		q : TVec4;
 		position : TVec3;
 		bone_part : Word;
+		
+		parent_id : Longint;
 	end;
 	P4ABone = ^T4ABone;
 	
@@ -21,6 +23,8 @@ type
 		q : TVec4;
 		position : TVec3;
 		flags : Byte; // LL 
+		
+		parent_id : Longint;
 	end;
 	P4ALocator = ^T4ALocator;
 	
@@ -48,6 +52,11 @@ type
 		
 		function  GetTransform(const name : String; out transform : TMatrix) : Boolean;
 		function  GetTransformLocal(const name : String; out transform : TMatrix) : Boolean;
+		
+		function  GetBoneTransform(id : Longint; out transform : TMatrix) : Boolean;
+		function  GetBoneTransformLocal(id : Longint; out transform : TMatrix) : Boolean;
+		function  GetLocatorTransform(id : Longint; out transform : TMatrix) : Boolean;
+		function  GetLocatorTransformLocal(id : Longint; out transform : TMatrix) : Boolean;
 	end;
 
 implementation
@@ -128,6 +137,11 @@ begin
 	finally
 		r.Free;
 	end;
+	
+	for I := 0 to Length(bones) - 1 do
+		bones[I].parent_id := GetBoneID(bones[I].parent_name);
+	for I := 0 to Length(locators) - 1 do
+		locators[I].parent_id := GetBoneID(locators[I].parent_name);
 end;
 
 procedure Quaterion2Angles(out angles : TVec3; const q : TVec4);
@@ -311,6 +325,11 @@ begin
 	finally
 		reader.Free;
 	end;
+	
+	for I := 0 to Length(bones) - 1 do
+		bones[I].parent_id := GetBoneID(bones[I].parent_name);
+	for I := 0 to Length(locators) - 1 do
+		locators[I].parent_id := GetBoneID(locators[I].parent_name);
 end;
 
 function T4ASkeleton.GetBoneID(const name : String) : Longint;
@@ -372,131 +391,61 @@ begin
 end;
 
 procedure MatrixQuaterion(out m : TMatrix; const q : TVec4; x, y, z : Single);
-var
-	tx, ty, tz : Single;
-	twx, twy, twz : Single;
-	txx, txy, txz : Single;
-	tyy, tyz, tzz : Single;
 begin
-	tx  := q.x + q.x;
-	ty  := q.y + q.y;
-	tz  := q.z + q.z;
-	twx := tx * q.w;
-	twy := ty * q.w;
-	twz := tz * q.w;
-	txx := tx * q.x;
-	txy := ty * q.x;
-	txz := tz * q.x;
-	tyy := ty * q.y;
-	tyz := tz * q.y;
-	tzz := tz * q.z;
-	
-	m[1,1] := 1.0 - (tyy + tzz); m[1,2] := txy - twz; m[1,3] := txz + twy; m[1,4] := 0.0;
-	m[2,1] := txy + twz; m[2,2] := 1.0 - (txx + tzz); m[2,3] := tyz - twx; m[2,4] := 0.0;
-	m[3,1] := txz - twy; m[3,2] := tyz + twx; m[3,3] := 1.0 - (txx + tyy); m[3,4] := 0.0;
+	RotateQuaternion(m, q);
 	m[4,1] := x; m[4,2] := y; m[4,3] := z; m[4,4] := 1.0;
 end;
-{
+
 function T4ASkeleton.GetTransform(const name : String; out transform : TMatrix) : Boolean;
 var
 	I : Longint;
-	mat, t, rx, ry, rz : TMatrix;
 begin
 	I := GetBoneID(name);
 	if I <> -1 then
 	begin
-		if bones[I].parent_name <> '' then
-			GetTransform(bones[I].parent_name, mat)
-		else
-			Identity(mat);
-
-		if version >= 5 then
-		begin
-			Translate(t, bones[I].position);
-			RotateAxis(rx, 1, 0, 0, bones[I].orientation.x);
-			RotateAxis(ry, 0, 1, 0, bones[I].orientation.y);
-			RotateAxis(rz, 0, 0, 1, bones[I].orientation.z);
-			
-			Mul44(mat, t);
-			Mul44(mat, rx);
-			Mul44(mat, ry);
-			Mul44(mat, rz);
-		end else
-		begin
-		
-		//	with bones[I] do
-		//		MatrixBone2033(t, 
-		//		orientation.y, orientation.x, orientation.z, 
-		//		position.x, position.y, position.z);
-		//	Mul44(mat, t);
-		//
-			Translate(t, bones[I].position);
-			RotateAxis(rx, 0, 1, 0, bones[I].orientation.y);
-			RotateAxis(ry, 1, 0, 0, bones[I].orientation.x);
-			RotateAxis(rz, 0, 0, 1, bones[I].orientation.z);
-			
-			Mul44(mat, t);
-			Mul44(mat, rx);
-			Mul44(mat, ry);
-			Mul44(mat, rz);
-		end;
-			
-		transform := mat;
-		Result := True;
+		Result := GetBoneTransform(I, transform);
 	end else
 	begin
 		I := GetLocatorID(name);
-		if I <> -1 then
-		begin
-			if locators[I].parent_name <> '' then
-				GetTransform(locators[I].parent_name, mat)
-			else
-				Identity(mat);
-				
-			if version >= 5 then
-			begin
-				Translate(t, locators[I].position);
-				RotateAxis(rx, 1, 0, 0, locators[I].orientation.x);
-				RotateAxis(ry, 0, 1, 0, locators[I].orientation.y);
-				RotateAxis(rz, 0, 0, 1, locators[I].orientation.z);
-				
-				Mul44(mat, t);
-				Mul44(mat, rx);
-				Mul44(mat, ry);
-				Mul44(mat, rz);
-			end else
-			begin
-				with locators[I] do
-					MatrixBone2033(t, 
-					orientation.y, orientation.x, orientation.z, 
-					position.x, position.y, position.z);
-				Mul44(mat, t);
-			end;
-			
-			transform := mat;
-			Result := True;
-		end else
+		if I <> -1 then		
+			Result := GetLocatorTransform(I, transform)
+		else
 			Result := False;
 	end;
 end;
-}
 
-function T4ASkeleton.GetTransform(const name : String; out transform : TMatrix) : Boolean;
+function T4ASkeleton.GetTransformLocal(const name : String; out transform : TMatrix) : Boolean;
 var
 	I : Longint;
-	mat, t : TMatrix;
 begin
 	I := GetBoneID(name);
 	if I <> -1 then
 	begin
-		if bones[I].parent_name <> '' then
-			GetTransform(bones[I].parent_name, mat)
+		Result := GetBoneTransformLocal(I, transform);
+	end else
+	begin
+		I := GetLocatorID(name);
+		if I <> -1 then		
+			Result := GetLocatorTransformLocal(I, transform)
+		else
+			Result := False;
+	end;
+end;
+
+function T4ASkeleton.GetBoneTransform(id : Longint; out transform : TMatrix) : Boolean;
+var
+	mat, t : TMatrix;
+begin
+	if (id >= 0) and (id < Length(bones)) then
+	begin
+		if bones[id].parent_id <> -1 then
+			GetBoneTransform(bones[id].parent_id, mat)
 		else
 			Identity(mat);
 
 		if version >= 5 then
 		begin
-			with bones[I] do
+			with bones[id] do
 				MatrixQuaterion(t, 
 				q, 
 				position.x, position.y, position.z);
@@ -504,7 +453,7 @@ begin
 			Mul44(mat, t);
 		end else
 		begin
-			with bones[I] do
+			with bones[id] do
 				MatrixBone2033(t, 
 				orientation.y, orientation.x, orientation.z, 
 				position.x, position.y, position.z);
@@ -515,88 +464,94 @@ begin
 		transform := mat;
 		Result := True;
 	end else
-	begin
-		I := GetLocatorID(name);
-		if I <> -1 then
-		begin
-			if locators[I].parent_name <> '' then
-				GetTransform(locators[I].parent_name, mat)
-			else
-				Identity(mat);
-				
-			if version >= 5 then
-			begin
-				with locators[I] do
-					MatrixQuaterion(t, 
-					q, 
-					position.x, position.y, position.z);
-					
-				Mul44(mat, t);
-			end else
-			begin
-				with locators[I] do
-					MatrixBone2033(t, 
-					orientation.y, orientation.x, orientation.z, 
-					position.x, position.y, position.z);
-					
-				Mul44(mat, t);
-			end;
-			
-			transform := mat;
-			Result := True;
-		end else
-			Result := False;
-	end;
+		Result := False;
 end;
 
-function T4ASkeleton.GetTransformLocal(const name : String; out transform : TMatrix) : Boolean;
+function T4ASkeleton.GetBoneTransformLocal(id : Longint; out transform : TMatrix) : Boolean;
 var
-	I : Longint;
-	mat : TMatrix;
+	t : TMatrix;
 begin
-	I := GetBoneID(name);
-	if I <> -1 then
+	if (id >= 0) and (id < Length(bones)) then
 	begin
 		if version >= 5 then
 		begin
-			with bones[I] do
-				MatrixQuaterion(mat, 
+			with bones[id] do
+				MatrixQuaterion(t, 
 				q, 
 				position.x, position.y, position.z);
 		end else
 		begin
-			with bones[I] do
-				MatrixBone2033(mat, 
+			with bones[id] do
+				MatrixBone2033(t, 
 				orientation.y, orientation.x, orientation.z, 
 				position.x, position.y, position.z);
+		end;
+			
+		transform := t;
+		Result := True;
+	end else
+		Result := False;
+end;
+
+function T4ASkeleton.GetLocatorTransform(id : Longint; out transform : TMatrix) : Boolean;
+var
+	mat, t : TMatrix;
+begin
+	if (id >= 0) and (id < Length(locators)) then
+	begin
+		if locators[id].parent_id <> -1 then
+			GetBoneTransform(locators[id].parent_id, mat)
+		else
+			Identity(mat);
+
+		if version >= 5 then
+		begin
+			with locators[id] do
+				MatrixQuaterion(t, 
+				q, 
+				position.x, position.y, position.z);
+				
+			Mul44(mat, t);
+		end else
+		begin
+			with locators[id] do
+				MatrixBone2033(t, 
+				orientation.y, orientation.x, orientation.z, 
+				position.x, position.y, position.z);
+				
+			Mul44(mat, t);
 		end;
 			
 		transform := mat;
 		Result := True;
 	end else
+		Result := False;
+end;
+
+function T4ASkeleton.GetLocatorTransformLocal(id : Longint; out transform : TMatrix) : Boolean;
+var
+	t : TMatrix;
+begin
+	if (id >= 0) and (id < Length(locators)) then
 	begin
-		I := GetLocatorID(name);
-		if I <> -1 then
-		begin			
-			if version >= 5 then
-			begin
-				with locators[I] do
-					MatrixQuaterion(mat, 
-					q, 
-					position.x, position.y, position.z);
-			end else
-			begin
-				with locators[I] do
-					MatrixBone2033(mat, 
-					orientation.y, orientation.x, orientation.z, 
-					position.x, position.y, position.z);
-			end;
-			
-			transform := mat;
-			Result := True;
+		if version >= 5 then
+		begin
+			with locators[id] do
+				MatrixQuaterion(t, 
+				q, 
+				position.x, position.y, position.z);
 		end else
-			Result := False;
-	end;
+		begin
+			with locators[id] do
+				MatrixBone2033(t, 
+				orientation.y, orientation.x, orientation.z, 
+				position.x, position.y, position.z);
+		end;
+			
+		transform := t;
+		Result := True;
+	end else
+		Result := False;
 end;
 
 end.

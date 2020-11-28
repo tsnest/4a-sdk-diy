@@ -5,6 +5,7 @@ interface
 var ao_scale : Single = 1.0;
 function ScaleAO(ao : Byte) : Byte;
 
+var soc_version : Boolean = False;
 procedure ConvertLightMap(const path, outf : String); 
 
 implementation
@@ -46,17 +47,21 @@ begin
 				begin		
 					offset := id*(1024*1024*4) + I*1024*4 + J*4;
 					
-					// SoC version
-					//data[offset + 0] := ScaleAO((src+0)^);
-					//data[offset + 1] := ScaleAO((src+1)^);
-					//data[offset + 2] := ScaleAO((src+2)^);
-					//data[offset + 3] := ScaleAO((src+0)^);
-					
-					// CS/CoP version
-					data[offset + 0] := ScaleAO((src+3)^);
-					data[offset + 1] := ScaleAO((src+3)^);
-					data[offset + 2] := ScaleAO((src+3)^);
-					data[offset + 3] := ScaleAO((src+3)^);
+					if soc_version then
+					begin
+						// SoC version
+						data[offset + 0] := ScaleAO((src+0)^);
+						data[offset + 1] := ScaleAO((src+1)^);
+						data[offset + 2] := ScaleAO((src+2)^);
+						data[offset + 3] := ScaleAO((src+0)^);
+					end else
+					begin
+						// CS/CoP version
+						data[offset + 0] := ScaleAO((src+3)^);
+						data[offset + 1] := ScaleAO((src+3)^);
+						data[offset + 2] := ScaleAO((src+3)^);
+						data[offset + 3] := ScaleAO((src+3)^);
+					end;
 					
 					Inc(src, 4);
 				end;

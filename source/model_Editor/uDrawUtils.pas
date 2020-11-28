@@ -1,9 +1,9 @@
 unit uDrawUtils;
 
 interface
-uses fouramdl, skeleton;
+uses fouramdl, skeleton, motion;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton);
+procedure DrawSkeleton(skeleton : T4ASkeleton; mot : T4AMotion = nil; time : Single = 0.0);
 procedure DrawBoneOBB(ms : T4AModelSkeleton);
 
 procedure DrawNormals(model : T4AModel);
@@ -11,12 +11,41 @@ procedure DrawNormals(model : T4AModel);
 implementation
 uses vmath, GL;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton);
+procedure DrawSkeleton(skeleton : T4ASkeleton; mot : T4AMotion = nil; time : Single = 0.0);
 var
 	I : Longint;
 	mt : TMatrix;
 const
 	pvt_scale : Single = 0.02;
+	
+	procedure MotTransform(const name : String; out m : TMatrix);
+	var
+		id : Longint;
+		parent : TMatrix;
+		mat : TMatrix;
+	begin
+		id := skeleton.GetBoneID(name);
+		if skeleton.bones[id].parent_name <> '' then
+			MotTransform(skeleton.bones[id].parent_name, parent)
+		else
+			Identity(parent);
+			
+		mot.GetTransform(id, time, mat);
+		Mul44(parent, mat);
+		m := parent;
+	end;
+	
+	procedure GetTransform(const name : String; out m : TMatrix);
+	var
+		id : Longint;
+	begin
+		id := skeleton.GetBoneID(name);
+		if (mot <> nil) and mot.AffectsBone(id) then
+			MotTransform(name, m)
+		else
+			skeleton.GetTransform(name, m);
+	end;
+	
 begin
 	glDisable(GL_DEPTH_TEST);
 	
@@ -27,10 +56,10 @@ begin
 	begin
 		if skeleton.bones[I].parent_name <> '' then
 		begin
-			skeleton.GetTransform(skeleton.bones[I].name, mt);
+			GetTransform(skeleton.bones[I].name, mt);
 			glVertex3f(mt[4,1], mt[4,2], mt[4,3]);
 			
-			skeleton.GetTransform(skeleton.bones[I].parent_name, mt);
+			GetTransform(skeleton.bones[I].parent_name, mt);
 			glVertex3f(mt[4,1], mt[4,2], mt[4,3]);
 		end;
 	end;
@@ -43,7 +72,7 @@ begin
 	
 	for I := 0 to Length(skeleton.bones)-1 do
 	begin
-		skeleton.GetTransform(skeleton.bones[I].name, mt);
+		GetTransform(skeleton.bones[I].name, mt);
 		glVertex3f(mt[4,1], mt[4,2], mt[4,3]);
 	end;
 	
@@ -53,7 +82,7 @@ begin
 	
 	for I := 0 to Length(skeleton.bones)-1 do
 	begin
-		skeleton.GetTransform(skeleton.bones[I].name, mt);
+		GetTransform(skeleton.bones[I].name, mt);
 
 		glColor3f(1.0, 0.0, 0.0);
 		glVertex3f(mt[4,1],mt[4,2],mt[4,3]);

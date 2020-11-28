@@ -4,9 +4,11 @@ uses common, Iup,
 		 sysutils, classes, chunkedFile, vmath, PhysX, fouramdl,
 		 Engine, Texture,
 		 //uAO, 
-		 uImportStatic, uImportDynamic, uImportMotion, 
-		 skeleton, cform_utils, nxcform, uDrawUtils,
-		 KonfigLibrary, uChooseMaterial, uChooseTexture, uExportScene;
+		 uImportStatic, uImportDynamic, uImportMotion,
+		 uExportScene, uXRayExport,
+		 skeleton, motion, cform_utils, nxcform, uDrawUtils,
+		 KonfigLibrary, uChoose, uChooseMaterial, uChooseTexture,
+		 uEditorUtils, uImages;
 
 var
 	selected : T4AModel;
@@ -30,14 +32,150 @@ var
 var
 	anglex, angley : Single;
 	distance : Single = 5.0;
-
-procedure Redisplay;
+	
+///////////////////////////////////////////////////////////////////////////////
+// Animation stuff                                                           //
+///////////////////////////////////////////////////////////////////////////////
 var
-	gl : Ihandle;
+	motion : T4AMotion;
+	motion_time : Single;
+	motion_name : String;
+	motion_timer : Ihandle;
+	
+procedure LoadMotion(const fn : String);
 begin
-	gl := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
-	IupRedraw(gl, 0);
+	try
+		motion := T4AMotion.CreateAndLoad(fn);
+		
+		motion_name := ChangeFileExt(ExtractFileName(fn), '');
+		IupSetAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', PAnsiChar(motion_name));
+	except 
+		on E: Exception do
+			ShowError(E.ClassName + ': ' + E.Message);
+	end
 end;
+
+procedure UnloadMotion;
+begin
+	FreeAndNil(motion);
+	motion_name := '';
+	IupSetAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', '<none>');
+end;
+	
+function motion_timer_cb(ih : Ihandle) : Longint; cdecl;
+var
+	val : Ihandle;
+	min, max : Longint;
+begin
+	if Assigned(motion) then
+	begin	
+		motion_time := motion_time + 1 / motion.frame_count;
+		
+		if motion_time > 1.0 then
+			motion_time := 0.0;
+			
+		val := IupGetDialogChild(mainDialog, 'MOTION_TIME');
+		min := IupGetInt(val, 'MIN');
+		max := IupGetInt(val, 'MAX');
+		IupSetInt(val, 'VALUE', min + Trunc(motion_time * (max-min)));
+		
+		Redisplay;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+	
+function btn_motion_cb(ih : Ihandle) : Longint; cdecl;
+var
+	I : Longint;
+	sl : TStringList;
+	fn : String;
+begin
+	if Assigned(skeleton) and ChooseAnimation(skeleton, motion_name) then
+	begin
+		if motion_name <> '' then
+		begin
+			sl := TStringList.Create;
+			sl.CommaText := skeleton.anim_path;
+			
+			for I := 0 to sl.Count - 1 do
+			begin
+				fn := ResourcesPath + '\motions\' + sl[I] + '\' + motion_name + '.motion';
+				if FileExists(fn) then
+				begin
+					UnloadMotion;
+					LoadMotion(fn);
+					Break;
+				end;
+			end;
+			
+			sl.Free;
+		end else
+			UnloadMotion;
+			
+	end;
+	
+	Redisplay;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function btn_play_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	IupSetAttribute(motion_timer, 'RUN', 'YES');
+	Result := IUP_DEFAULT;
+end;
+
+function btn_pause_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	IupSetAttribute(motion_timer, 'RUN', 'NO');
+	Result := IUP_DEFAULT;
+end;
+	
+function motion_time_changed_cb(ih : Ihandle) : Longint; cdecl;
+var
+	min, max : Longint;
+begin
+	min := IupGetInt(ih, 'MIN');
+	max := IupGetInt(ih, 'MAX');
+	motion_time := (IupGetInt(ih, 'VALUE') -  min) / (max - min);
+	//WriteLn(motion_time:1:3); 
+	Redisplay;
+	Result := IUP_DEFAULT;
+end;
+	
+function CreateAnimBox : Ihandle;
+var
+	time : Ihandle;
+	btn_motion : Ihandle;
+	btn_play : Ihandle;
+	btn_pause : Ihandle;
+begin
+	motion_timer := IupTimer;
+	IupSetCallback(motion_timer, 'ACTION_CB', @motion_timer_cb);
+	IupSetInt(motion_timer, 'TIME', 33);
+	
+	btn_motion := iup.Button('<none>', @btn_motion_cb);
+	IupSetAttribute(btn_motion, 'RASTERSIZE', '150x');
+	IupSetAttribute(btn_motion, 'NAME', 'BTN_MOTION');
+	
+	btn_play := iup.Button('', @btn_play_cb);
+	IupSetAttribute(btn_play, 'IMAGE', 'ICON_PLAY');
+	IupSetAttribute(btn_play, 'NAME', 'BTN_PLAY');
+	
+	btn_pause := iup.Button('', @btn_pause_cb);
+	IupSetAttribute(btn_pause, 'IMAGE', 'ICON_PAUSE');
+	IupSetAttribute(btn_pause, 'NAME', 'BTN_PAUSE');
+	
+	time := IupVal(nil);
+	IupSetAttribute(time, 'NAME', 'MOTION_TIME');
+	IupSetAttribute(time, 'MAX', '500');
+	IupSetAttribute(time, 'EXPAND', 'HORIZONTAL');
+	IupSetCallback(time, 'VALUECHANGED_CB', @motion_time_changed_cb);
+	
+	Result := IupHBox(btn_motion, btn_play, btn_pause, time, nil);
+end;
+
 
 function FileDlg(save : Boolean; out filename : String; const ext : String = '.model'; const desc : String = '4A Model') : Boolean;
 var
@@ -122,7 +260,7 @@ begin
 
 	selected := sel;
 
-	dlg := IupGetHandle('MAINDIALOG');
+	dlg := MainDialog;
 	fr_material := IupGetDialogChild(dlg, 'FRAME_MATERIAL');
 	list_surfaces := IupGetDialogChild(dlg, 'LIST_SURFACES');
 	
@@ -289,7 +427,7 @@ begin
 		raise Exception.Create('PHCreateScene failed');
 
 	surfaces := TList.Create;
-	list_surfaces := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'LIST_SURFACES');
+	list_surfaces := IupGetDialogChild(MainDialog, 'LIST_SURFACES');
 
 	if mdl is T4AModelHierrarhy then
 	begin
@@ -355,7 +493,7 @@ begin
 	PHDestroyScene(ph_scene);
 	ph_scene := nil;
 	
-	list_surfaces := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'LIST_SURFACES');
+	list_surfaces := IupGetDialogChild(MainDialog, 'LIST_SURFACES');
 	IupSetAttribute(list_surfaces, 'REMOVEITEM', 'ALL');
 	FreeAndNil(surfaces);
 	
@@ -377,7 +515,7 @@ begin
 	else
 		texturesCompressed := False;
 		
-	list_mtlsets := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'LIST_MTLSETS');
+	list_mtlsets := IupGetDialogChild(MainDialog, 'LIST_MTLSETS');
 	IupSetAttribute(list_mtlsets, 'REMOVEITEM', 'ALL');
 	
 	current_mtlset := -1;
@@ -398,6 +536,7 @@ begin
 		skeleton := ms.skeleton;
 		
 		LoadEditModel(ms);
+		UpdateBBox(ms);
 	end; 
 	
 	if model is T4AModelSoftbody then
@@ -449,7 +588,7 @@ begin
 		r.Free;
 	except
 		on E: Exception do begin
-			IupMessage('Error', PAnsiChar(E.ClassName + ': ' + E.Message));
+			ShowError(E.ClassName + ': ' + E.Message);
 
 			FreeAndNil(mdl);
 			r.Free;
@@ -459,6 +598,8 @@ begin
 	end;
 
 	ModelLoad(mdl);
+	
+	IupSetAttribute(MainDialog, 'TITLE', PAnsiChar('Model Editor - ['+fn+']'));
 end;
 
 procedure ModelUnload;
@@ -466,7 +607,9 @@ begin
 	UnloadEditModel;
 	FreeAndNil(model);
 	mtlsets := nil;
-	skeleton := nil;	
+	skeleton := nil;
+	
+	UnloadMotion;
 	
 	ClearResources;
 end;
@@ -540,6 +683,7 @@ function gl_redraw_cb(ih : Ihandle; x, y : Single) : Longint; cdecl;
 var
 	sinx, cosx : Single;
 	siny, cosy : Single;
+	h : Single;
 	
 	m : TMatrix;
 	
@@ -555,7 +699,12 @@ begin
 	siny := Sin(angley * (PI/180));
 	cosy := Cos(angley * (PI/180));
 
-	LookAtLH(m, distance*siny*cosx, distance*sinx, distance*cosy*cosx, 0, 0, 0, 0, 1, 0);
+	if (model = nil) then
+		h := 0.0
+	else
+		h := (model.bbox.min.y + model.bbox.max.y) * 0.5;
+
+	LookAtLH(m, distance*siny*cosx, distance*sinx, distance*cosy*cosx, 0, h, 0, 0, 1, 0);
 	glLoadMatrixf(@m);
 
 	glGetDoublev(GL_MODELVIEW_MATRIX, @modelview_d);
@@ -570,6 +719,14 @@ begin
 	try
 		if Assigned(maler) then
 		begin
+			if maler is TSkeletonModelMaler then
+			begin
+				if Assigned(motion) then
+					TSkeletonModelMaler(maler).MotionTransform(motion, motion_time)
+				else
+					TSkeletonModelMaler(maler).ResetTransform;
+			end;
+		
 			maler.Draw(current_mtlset);
 			maler.Draw(current_mtlset, False, True); // blended
 		end;
@@ -584,7 +741,7 @@ begin
 		DrawNormals(model);
 	
 	if showSkeleton and Assigned(skeleton) then
-		DrawSkeleton(skeleton);
+		DrawSkeleton(skeleton, motion, motion_time);
 	
 	if showBoneOBB and (model is T4AModelSkeleton) then
 		DrawBoneOBB(T4AModelSkeleton(model));
@@ -754,8 +911,7 @@ begin
 			except 
 				on E: Exception do
 				begin
-					IupMessageError(IupGetHandle('MAINDIALOG'), 
-					PAnsiChar(E.ClassName + ': ' + E.Message));
+					ShowError(E.ClassName + ': ' + E.Message);
 					
 					mdl_lod.Free;
 				end;
@@ -797,7 +953,7 @@ begin
 				mdl.Save(w);
 				w.SaveTo(fn);
 			except on E: Exception do
-				IupMessageError(IupGetHandle('MAINDIALOG'), PAnsiChar(E.ClassName + ': ' + E.Message));
+				ShowError(E.ClassName + ': ' + E.Message);
 			end;
 			w.Free;
 		end;
@@ -1306,7 +1462,7 @@ begin
 	
 	if skeleton = nil then
 	begin
-		IupMessageError(IupGetDialog(ih), 'Open model with skeleton first!');
+		ShowError('Open model with skeleton first!');
 		Exit;
 	end;
 
@@ -1324,7 +1480,7 @@ begin
 		except
 			on E: Exception do
 			begin
-				IupMessageError(IupGetDialog(ih), PAnsiChar(E.Message));
+				ShowError(E.Message);
 				w := nil;
 			end;
 		end;
@@ -1354,7 +1510,7 @@ var
 begin
 	dlg := IupFileDlg;
 	IupSetAttribute(dlg, 'DIALOGTYPE', 'SAVE');
-	IupSetAttribute(dlg, 'EXTFILTER', 'FBX|*.fbx|3DS|*.3ds|OBJ|*.obj|');
+	IupSetAttribute(dlg, 'EXTFILTER', 'FBX|*.fbx|3DS|*.3ds|OBJ|*.obj|LWO|*.lwo|');
 
 	IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -1362,38 +1518,45 @@ begin
 	begin
 		fn := IupGetAttribute(dlg, 'VALUE');
 		
-		scene := TExportScene.Create;
-		Identity(matrix);
-		
-		if model is T4AModelSkeleton then
-		begin		
-			model_id := scene.AddModel('model', T4AModelSkeleton(model), current_mtlset, True);
-			scene.AddObject('Object', matrix, model_id);
+		if IupGetInt(dlg, 'FILTERUSED') = 4 then
+		begin
+			if model is T4AModelHierrarhy then
+				ExportObject(fn, T4AModelHierrarhy(model));
+		end else
+		begin
+			scene := TExportScene.Create;
+			Identity(matrix);
 			
-			scene.AddSkeleton(skeleton);
-		end;
-		
-		if model is T4AModelHierrarhy then
-		begin
-			model_id := scene.AddModel('model', T4AModelHierrarhy(model), current_mtlset);
-			scene.AddObject('Object', matrix, model_id);
-		end;
-		
-		if scene.objects.Count > 0 then
-		begin
-			case IupGetInt(dlg, 'FILTERUSED') of
-				1: ext := 'fbx';
-				2: ext := '3ds';
-				3: ext := 'obj';
+			if model is T4AModelSkeleton then
+			begin		
+				model_id := scene.AddModel('model', T4AModelSkeleton(model), current_mtlset, True);
+				scene.AddObject('Object', matrix, model_id);
+				
+				scene.AddSkeleton(skeleton);
 			end;
 			
-			if ExtractFileExt(fn) = '' then
-				fn := fn + '.' + ext;
+			if model is T4AModelHierrarhy then
+			begin
+				model_id := scene.AddModel('model', T4AModelHierrarhy(model), current_mtlset);
+				scene.AddObject('Object', matrix, model_id);
+			end;
 			
-			scene.DoExport(ext, fn);
+			if scene.objects.Count > 0 then
+			begin
+				case IupGetInt(dlg, 'FILTERUSED') of
+					1: ext := 'fbx';
+					2: ext := '3ds';
+					3: ext := 'obj';
+				end;
+				
+				if ExtractFileExt(fn) = '' then
+					fn := fn + '.' + ext;
+				
+				scene.DoExport(ext, fn);
+			end;
+			
+			scene.Free;
 		end;
-		
-		scene.Free;
 	end;
 
 	IupDestroy(dlg);
@@ -1724,7 +1887,7 @@ begin
 		nil
 	);
 
-	dlg := IupDialog(IupSplit(toolbox, gl));
+	dlg := IupDialog(IupSplit(toolbox, IupVBox(gl, CreateAnimBox, nil)));
 	IupSetAttribute(dlg, 'TITLE', 'Model Editor');
 	IupSetAttributeHandle(dlg, 'MENU', menu);
 	IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
@@ -1735,8 +1898,9 @@ end;
 begin
 	IupOpen(nil, nil);
 	IupGLCanvasOpen;
-	
 	PHInitialize;
+	
+	LoadImages;
 
 	if ParamCount > 0 then
 		ResourcesPath := ParamStr(1)
@@ -1750,12 +1914,14 @@ begin
 	textureQuality := 2048;
 
 	CreateDialog;
+	
+	if ParamCount > 1 then
+		ModelLoad(ParamStr(2));
+	
 	IupMainLoop();
 
 	ModelUnload;
-	
 	FinalizeEngine;
 	PHFinalize;
-
 	IupClose;
 end.

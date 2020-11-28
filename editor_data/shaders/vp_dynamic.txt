@@ -1,24 +1,27 @@
 !!ARBvp1.0
 PARAM MVP[4] = { state.matrix.mvp };
 PARAM MV[4] = { state.matrix.modelview };
-PARAM v_scale = program.local[1];
+PARAM v_scale = program.local[0];
+PARAM skin_matrix[256] = { program.local[1..256] };
 
 PARAM env_sun_color  = program.env[0];
 PARAM env_sun_dir_v  = program.env[1];
 PARAM env_ambient    = program.env[2];
 PARAM env_hemi_color = program.env[3];
 
-ATTRIB vPos_compressed = vertex.attrib[0];
-ATTRIB vNrm = vertex.attrib[1];
-if(USE_BUMP) ATTRIB vT   = vertex.attrib[2];
-if(USE_BUMP) ATTRIB vB   = vertex.attrib[3];
-if(USE_TEXTURES) ATTRIB vTc0 = vertex.attrib[4];
+ATTRIB vPos_compressed       = vertex.attrib[0];
+ATTRIB vNrm                  = vertex.attrib[1];
+ATTRIB vSkinMatrix           = vertex.attrib[2];
+ATTRIB vSkinWeight           = vertex.attrib[3];
+if(USE_BUMP) ATTRIB vT       = vertex.attrib[4];
+if(USE_BUMP) ATTRIB vB       = vertex.attrib[5];
+if(USE_TEXTURES) ATTRIB vTc0 = vertex.attrib[6];
 
 OUTPUT oT = result.texcoord[1];
 OUTPUT oB = result.texcoord[2];
 OUTPUT oN = result.texcoord[3];
 
-TEMP Nm;
+TEMP Nm, Tm, Bm;
 TEMP Nv;
 TEMP vPos;
 TEMP Ldir_v;
@@ -26,8 +29,71 @@ TEMP C; # color
 TEMP Pv;
 TEMP tmp;
 
+TEMP skin_mat_0;
+TEMP skin_mat_1;
+TEMP skin_mat_2;
+TEMP skin_mat_3;
+
+ADDRESS addr;
+
 # scale vertex
 MUL vPos, vPos_compressed, v_scale;
+MOV vPos.w, 1;
+
+# unpack normal
+MAD Nm, vNrm.zyxw, 2, -1;
+MOV Nm.w, vNrm.w;
+
+# skin vertex
+#MUL tmp, vSkinMatrix, 0.33333333;
+#MUL tmp, tmp, 4;
+MOV tmp, vSkinMatrix;
+
+ARL addr.x, tmp.x;
+MUL skin_mat_0, skin_matrix[addr.x+0], vSkinWeight.x;
+MUL skin_mat_1, skin_matrix[addr.x+1], vSkinWeight.x;
+MUL skin_mat_2, skin_matrix[addr.x+2], vSkinWeight.x;
+#MUL skin_mat_3, skin_matrix[addr.x+3], vSkinWeight.x;
+
+ARL addr.x, tmp.y;
+MAD skin_mat_0, skin_matrix[addr.x+0], vSkinWeight.y, skin_mat_0;
+MAD skin_mat_1, skin_matrix[addr.x+1], vSkinWeight.y, skin_mat_1;
+MAD skin_mat_2, skin_matrix[addr.x+2], vSkinWeight.y, skin_mat_2;
+#MAD skin_mat_3, skin_matrix[addr.x+3], vSkinWeight.y, skin_mat_3;
+
+ARL addr.x, tmp.z;
+MAD skin_mat_0, skin_matrix[addr.x+0], vSkinWeight.z, skin_mat_0;
+MAD skin_mat_1, skin_matrix[addr.x+1], vSkinWeight.z, skin_mat_1;
+MAD skin_mat_2, skin_matrix[addr.x+2], vSkinWeight.z, skin_mat_2;
+#MAD skin_mat_3, skin_matrix[addr.x+3], vSkinWeight.z, skin_mat_3;
+
+ARL addr.x, tmp.w;
+MAD skin_mat_0, skin_matrix[addr.x+0], vSkinWeight.w, skin_mat_0;
+MAD skin_mat_1, skin_matrix[addr.x+1], vSkinWeight.w, skin_mat_1;
+MAD skin_mat_2, skin_matrix[addr.x+2], vSkinWeight.w, skin_mat_2;
+#MAD skin_mat_3, skin_matrix[addr.x+3], vSkinWeight.w, skin_mat_3;
+
+MOV tmp, vPos;
+DP4 vPos.x, skin_mat_0, tmp;
+DP4 vPos.y, skin_mat_1, tmp;
+DP4 vPos.z, skin_mat_2, tmp;
+#DP4 vPos.w, skin_mat_3, tmp;
+MOV vPos.w, 1;
+
+MOV tmp, Nm;
+DP3 Nm.x, skin_mat_0, tmp;
+DP3 Nm.y, skin_mat_1, tmp;
+DP3 Nm.z, skin_mat_2, tmp;
+
+if(USE_BUMP) MAD tmp, vT.zyxw, 2, -1;
+if(USE_BUMP) DP3 Tm.x, skin_mat_0, tmp;
+if(USE_BUMP) DP3 Tm.y, skin_mat_1, tmp;
+if(USE_BUMP) DP3 Tm.z, skin_mat_2, tmp;
+
+if(USE_BUMP) MAD tmp, vB.zyxw, 2, -1;
+if(USE_BUMP) DP3 Bm.x, skin_mat_0, tmp;
+if(USE_BUMP) DP3 Bm.y, skin_mat_1, tmp;
+if(USE_BUMP) DP3 Bm.z, skin_mat_2, tmp;
 
 # transform vertex
 DP4 result.position.x, MVP[0], vPos;
@@ -37,10 +103,6 @@ DP4 result.position.w, MVP[3], vPos;
 
 # unpack texcoord (mul by 1/2048)
 if(USE_TEXTURES) MUL result.texcoord, vTc0, { 0.00048828125, 0.00048828125, 0.00048828125, 1 };
-
-# unpack normal
-MAD Nm, vNrm.zyxw, 2, -1;
-MOV Nm.w, vNrm.w;
 
 # transform normal into view space
 DP3 Nv.x, Nm, MV[0];
@@ -76,9 +138,9 @@ if(SHOW_AO) MOV result.color, vNrm.wwww;
 
 MOV result.color.w, 1.0;
 
-# unpack tangent, binormal & pass TBN to fragment program
-if(USE_BUMP) MAD oT, vT.zyxw, 2, -1;
-if(USE_BUMP) MAD oB, vB.zyxw, 2, -1;
+# pass TBN to fragment program
+if(USE_BUMP) MOV oT, Tm;
+if(USE_BUMP) MOV oB, Bm;
 if(USE_BUMP) MOV oN, Nm; 
 
 #MOV result.color, vNrm.wwww;

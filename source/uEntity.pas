@@ -1,7 +1,7 @@
 unit uEntity;
 
 interface
-uses common, fouramdl, skeleton, vmath, PhysX, Konfig;
+uses common, fouramdl, skeleton, motion, vmath, PhysX, Konfig;
 
 type
 	TEntity = class
@@ -19,6 +19,7 @@ type
 		ph_shape : TPHShape;
 
 		model : TResModel;
+		motion : T4AMotion;
 		mtlset : Longint;
 		
 		FSelected : Boolean;
@@ -27,11 +28,13 @@ type
 		// служебное поле для рендера, хранит квадрат расстояния до камеры
 		// вроде-бы не должно здесь быть, но с другой стороны тут его разместить удобно
 		distance_sqr : Single;
+		
+		showAnimation : Boolean; static;
 
 		constructor Create(owner : TPHScene; data : TSection);
 		destructor Destroy; override;
 
-		procedure Draw(blended, distort : Boolean);
+		procedure Draw(blended, distort : Boolean; _fasthack : Boolean = False);
 		procedure DrawFlag;
 		procedure DrawShapes;
 		
@@ -59,6 +62,9 @@ type
 		procedure SetAttachOffset(const offset : TMatrix);
 		
 		procedure SetVisible(v : Boolean);
+		
+		function GetAnimation : String;
+		procedure SetAnimation(const m : String);
 
 		public
 		property ID : Word read GetID;
@@ -66,6 +72,7 @@ type
 		property Matrix : TMatrix read FMatrix write SetMatrix;
 		property Name : String read FName write SetName;
 		property VisualName : String read visual_name write SetVisual;
+		property Animation : String read GetAnimation write SetAnimation;
 		
 		property AttachBone : String read GetAttachBone write SetAttachBone;
 		property AttachOffset : TMatrix read GetAttachOffset write SetAttachOffset;
@@ -80,14 +87,12 @@ type
 	function GetCenter(arr : TEntityArray) : TVec3; overload;
 
 implementation
-uses GL, GLU, GLExt, PHGroups, sysutils, classes;
+uses GL, GLU, GLExt, PHGroups, sysutils, classes, Engine, Windows;
 
 constructor TEntity.Create(owner : TPHScene; data : TSection);
 var
 	param_name : TStringValue;
 	v : TSimpleValue;
-	m : TFloatArrayValue;
-
 	vn : String;
 begin
 	inherited Create;
@@ -120,6 +125,14 @@ begin
 	end else
 		VisualName := '';
 		
+	v := data.GetParam('startup_animation', 'stringz');
+	if v <> nil then
+	begin
+		vn := (v as TStringValue).str;
+		Animation := vn;
+	end else
+		Animation := '';
+		
 	FSelected := False;
 	FVisible := True;
 end;
@@ -131,35 +144,63 @@ begin
 
 	if model <> nil then
 		FreeModel(model);
+		
+	motion.Free;
 
 	inherited Destroy;
 end;
 
-procedure TEntity.Draw(blended, distort : Boolean);
+procedure TEntity.Draw(blended, distort : Boolean; _fasthack : Boolean);
+var
+	maler : IMaler;
+	time : Single;
 begin
 	glPushMatrix;
 	glMultMatrixf(@FMatrix);
 
 	if Assigned(model) then
 	begin
+		//WriteLn('Rendering ... ', model.name);
+		
 		if (model.maler_lod0 <> nil) and (distance_sqr > 30*30) then
-			model.maler_lod0.Draw(mtlset, self.selected, blended, distort)
+			maler := model.maler_lod0
 		else if (model.maler_lod1 <> nil) and (distance_sqr > 10*10) then
-			model.maler_lod1.Draw(mtlset, self.selected, blended, distort)
-		else if model.maler <> nil then
-			model.maler.Draw(mtlset, self.selected, blended, distort);
+			maler := model.maler_lod1
+		else
+			maler := model.maler;
+			
+		if maler <> nil then
+		begin
+		
+			if maler is TSkeletonModelMaler then
+			begin
+				if Assigned(motion) and showAnimation then
+				begin
+					time := (GetTickCount() div 33) mod motion.frame_count / motion.frame_count;
+					TSkeletonModelMaler(maler).MotionTransform(motion, time)
+				end else
+					TSkeletonModelMaler(maler).ResetTransform;
+			end;
+		
+			if _fasthack then
+				maler.Draw2(mtlset, self.selected, blended, distort)
+			else
+				maler.Draw(mtlset, self.selected, blended, distort);
+		end;
 	end;
 
 	glPopMatrix;
 end;
 
 procedure TEntity.DrawFlag;
+{
 var
 	I : Longint;
 	light_bone : String;
 	ltype : Byte;
 	angle : Single;
 	range : Single;
+}
 begin
 	glPushMatrix;
 	glMultMatrixf(@FMatrix);
@@ -511,7 +552,6 @@ begin
 	ph_matrix[3,3] := ph_matrix[3,3] / scale.z;
 	
 	// Triangle mesh
-	
 	if (model <> nil) and (model.ph <> nil) and (model.ph.Count > 0) then
 	begin
 		SetLength(descs, model.ph.Count);
@@ -528,7 +568,6 @@ begin
 	end;
 	
 	// Default box if we hasn't model
-	
 	if ph = nil then
 	begin
 		dim.x := 0.05; dim.y := 0.25; dim.z := 0.125; // scale ?
@@ -738,6 +777,55 @@ begin
 		end;
 	
 		FVisible := v;
+	end;
+end;
+
+function TEntity.GetAnimation : String;
+var
+	anm : TStringValue;
+begin
+	anm := data.GetParam('startup_animation', 'stringz') as TStringValue;
+	if anm <> nil then
+		GetAnimation := anm.str
+	else
+		GetAnimation := '';
+end;
+
+procedure TEntity.SetAnimation(const m : String);
+var
+	I : Longint;
+	fn : String;
+	s : T4ASkeleton;
+	l : TStringList;
+	anm : TStringValue;
+begin
+	anm := data.GetParam('startup_animation', 'stringz') as TStringValue;
+	if anm <> nil then
+		anm.str := m;
+
+	FreeAndNil(motion);
+	s := GetSkeleton;
+	
+	if (m <> '') and (s <> nil) then
+	begin
+		l := TStringList.Create;
+		l.CommaText := s.anim_path;
+		
+		for I := 0 to l.Count-1 do
+		begin
+			fn := ResourcesPath + '\motions\' + l[I] + '\' + m + '.motion';
+			if FileExists(fn) then
+			begin
+				try
+					motion := T4AMotion.CreateAndLoad(fn);
+				except
+					on E: Exception do
+						WriteLn('Cannot set animtion to ''' + l[I] + ''', error ' + E.ClassName + ': ' + E.Message);
+				end;
+				
+				Break;
+			end;
+		end;
 	end;
 end;
 

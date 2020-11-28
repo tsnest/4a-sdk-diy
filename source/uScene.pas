@@ -327,7 +327,7 @@ begin
 	if progress then
 	 IupDestroy(dlg);
 	
-	UpdateAttaches;  
+	//UpdateAttaches;  
 end;
 
 procedure TScene.UnloadEntities;
@@ -458,14 +458,7 @@ begin
 		E := TEntity(visible[I]);
 		
 		if Assigned(E.model) and E.model.b_softbody then
-		begin
-			glPushMatrix;
-			glMultMatrixf(@E.FMatrix);
-		
-			TSoftbodyModelMaler(E.model.maler).Draw(E.mtlset, E.Selected, False, False);
-			
-			glPopMatrix;
-		end;
+			E.Draw(False, False, True);
 	end;
 
 	// static
@@ -475,14 +468,7 @@ begin
 	if useBump then glEnableVertexAttribArrayARB(2);
 	if useBump then glEnableVertexAttribArrayARB(3);
 	if useTextures then glEnableVertexAttribArrayARB(4);
-
-{
-	//testtesttest
-	glEnableVertexAttribArrayARB(0);
-	glEnableVertexAttribArrayARB(1);
-	glEnableVertexAttribArrayARB(2);
-	//testtesttest
-}	
+	
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_STATIC]);
 
@@ -491,35 +477,8 @@ begin
 		E := TEntity(visible[I]);
 		
 		if Assigned(E.model) and E.model.b_static then
-		begin
-			glPushMatrix;
-			glMultMatrixf(@E.FMatrix);
-			
-
-		
-		if not showAO then
-		begin
-		
-			if (E.model.maler_lod0 <> nil) and (E.distance_sqr > 30*30) then
-				TStaticModelMaler(E.model.maler_lod0).Draw2(E.mtlset, E.Selected, False, False)
-			else if (E.model.maler_lod1 <> nil) and (E.distance_sqr > 10*10) then
-				TStaticModelMaler(E.model.maler_lod1).Draw2(E.mtlset, E.Selected, False, False)
-			else
-				TStaticModelMaler(E.model.maler).Draw2(E.mtlset, E.Selected, False, False);
-				
-		end else
-			TStaticModelMaler(E.model.maler).Draw2(E.mtlset, E.Selected, False, False);
-			
-			glPopMatrix;
-		end;
+			E.Draw(False, False, True);
 	end;
-{	
-	//testtesttest
-	glDisableVertexAttribArrayARB(0);
-	glDisableVertexAttribArrayARB(1);
-	glDisableVertexAttribArrayARB(2);
-	//testtesttest
-}	
 	
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
 	glDisable(GL_VERTEX_PROGRAM_ARB);
@@ -533,9 +492,11 @@ begin
 	// dynamic
 	glEnableVertexAttribArrayARB(0);
 	glEnableVertexAttribArrayARB(1);
-	if useBump then glEnableVertexAttribArrayARB(2);
-	if useBump then glEnableVertexAttribArrayARB(3);
-	if useTextures then glEnableVertexAttribArrayARB(4);
+	glEnableVertexAttribArrayARB(2);
+	glEnableVertexAttribArrayARB(3);
+	if useBump then glEnableVertexAttribArrayARB(4);
+	if useBump then glEnableVertexAttribArrayARB(5);
+	if useTextures then glEnableVertexAttribArrayARB(6);
 
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_DYNAMIC]);
@@ -545,19 +506,7 @@ begin
 		E := TEntity(visible[I]);	
 		
 		if Assigned(E.model) and E.model.b_dynamic then
-		begin
-			glPushMatrix;
-			glMultMatrixf(@E.FMatrix);
-
-			if (E.model.maler_lod0 <> nil) and (E.distance_sqr > 30*30) then
-				TSkeletonModelMaler(E.model.maler_lod0).Draw2(E.mtlset, E.Selected, False, False)
-			else if (E.model.maler_lod1 <> nil) and (E.distance_sqr > 10*10) then
-				TSkeletonModelMaler(E.model.maler_lod1).Draw2(E.mtlset, E.Selected, False, False)
-			else
-				TSkeletonModelMaler(E.model.maler).Draw2(E.mtlset, E.Selected, False, False);
-				
-			glPopMatrix;
-		end;
+			E.Draw(False, False, True);
 	end;
 	
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
@@ -565,9 +514,11 @@ begin
 	
 	glDisableVertexAttribArrayARB(0);
 	glDisableVertexAttribArrayARB(1);
-	if useBump then glDisableVertexAttribArrayARB(2);
-	if useBump then glDisableVertexAttribArrayARB(3);
-	if useTextures then glDisableVertexAttribArrayARB(4);
+	glDisableVertexAttribArrayARB(2);
+	glDisableVertexAttribArrayARB(3);
+	if useBump then glDisableVertexAttribArrayARB(4);
+	if useBump then glDisableVertexAttribArrayARB(5);
+	if useTextures then glDisableVertexAttribArrayARB(6);
 end;
 
 procedure TScene.RenderBlended;
@@ -871,7 +822,9 @@ var
 	att_bone : String;
 	att_mat, base_mat : TMatrix;
 begin
-
+	if not Assigned(entities) then
+		Exit;
+		
 	for I := 0 to entities.Count-1 do
 	begin
 		e := TEntity(entities[I]);

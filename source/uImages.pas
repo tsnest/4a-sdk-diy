@@ -72,6 +72,9 @@ begin
 	
 	LoadImage('ICON_DISKETTE', 'editor_data\icons\diskette.png');
 	LoadImage('ICON_TRASHCAN', 'editor_data\icons\trashcan.png');
+	
+	LoadImage('ICON_PLAY', 'editor_data\icons\play.png');
+	LoadImage('ICON_PAUSE', 'editor_data\icons\pause.png');
 end;
 
 end.

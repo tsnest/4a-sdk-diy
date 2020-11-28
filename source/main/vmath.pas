@@ -76,12 +76,20 @@ procedure Invert43(var mat : TMatrix); overload;
 procedure Invert43(out mat : TMatrix; const m : TMatrix); overload;
 procedure RotateAxis(out m : TMatrix; const axis : TVec3; angle : Single); overload;
 procedure RotateAxis(out m : TMatrix; ax, ay, az, angle : Single); overload;
+procedure RotateQuaternion(out m : TMatrix; const q : TVec4); overload;
+procedure RotateQuaternion(out m : TMatrix; qx, qy, qz, qw : Single); overload;
+procedure Transpose(var m : TMatrix); overload;
+procedure Transpose(out m : TMatrix; const s : TMatrix); overload;
 
 procedure PerspectiveLH(out m : TMatrix; fov, aspect, znear, zfar : Single);
 procedure LookAtLH(out m : TMatrix; const eye, center, up : TVec3); overload;
 procedure LookAtLH(out m : TMatrix; eyex, eyey, eyez, centerx, centery, centerz, upx, upy, upz : Single); overload;
 
 procedure Decompose(const m : TMatrix; out translate, rot, scale : TVec3);
+
+procedure QuatRotateAxis(out q : TVec4; const axis : TVec3; angle : Single); overload;
+procedure QuatRotateAxis(out q : TVec4; x, y, z, angle : Single); overload;
+procedure QuatMul(var q : TVec4; const q2 : TVec4);
 
 implementation
 uses Math;
@@ -533,6 +541,59 @@ begin
 	RotateAxis(m, axis, angle);
 end;
 
+procedure RotateQuaternion(out m : TMatrix; const q : TVec4);
+var
+	tx, ty, tz : Single;
+	twx, twy, twz : Single;
+	txx, txy, txz : Single;
+	tyy, tyz, tzz : Single;
+begin
+	tx  := q.x + q.x;
+	ty  := q.y + q.y;
+	tz  := q.z + q.z;
+	twx := tx * q.w;
+	twy := ty * q.w;
+	twz := tz * q.w;
+	txx := tx * q.x;
+	txy := ty * q.x;
+	txz := tz * q.x;
+	tyy := ty * q.y;
+	tyz := tz * q.y;
+	tzz := tz * q.z;
+	
+	m[1,1] := 1.0 - (tyy + tzz); m[1,2] := txy - twz; m[1,3] := txz + twy; m[1,4] := 0.0;
+	m[2,1] := txy + twz; m[2,2] := 1.0 - (txx + tzz); m[2,3] := tyz - twx; m[2,4] := 0.0;
+	m[3,1] := txz - twy; m[3,2] := tyz + twx; m[3,3] := 1.0 - (txx + tyy); m[3,4] := 0.0;
+	m[4,1] := 0.0; m[4,2] := 0.0; m[4,3] := 0.0; m[4,4] := 1.0;
+end;
+
+procedure RotateQuaternion(out m : TMatrix; qx, qy, qz, qw : Single);
+var
+	q : TVec4;
+begin
+	q.x := qx;
+	q.y := qy;
+	q.z := qz;
+	q.w := qw;
+	RotateQuaternion(m, q);
+end;
+
+procedure Transpose(var m : TMatrix); overload;
+var
+	c : TMatrix;
+begin
+	c := m;
+	Transpose(m, c);
+end;
+
+procedure Transpose(out m : TMatrix; const s : TMatrix); overload;
+begin
+	m[1,1] := s[1,1]; m[1,2] := s[2,1]; m[1,3] := s[3,1]; m[1,4] := s[4,1];
+	m[2,1] := s[1,2]; m[2,2] := s[2,2]; m[2,3] := s[3,2]; m[2,4] := s[4,2];
+	m[3,1] := s[1,3]; m[3,2] := s[2,3]; m[3,3] := s[3,3]; m[3,4] := s[4,3];
+	m[4,1] := s[1,4]; m[4,2] := s[2,4]; m[4,3] := s[3,4]; m[4,4] := s[4,4];
+end;
+
 procedure PerspectiveLH(out m : TMatrix; fov, aspect, znear, zfar : Single);
 var
 	t : Single;
@@ -649,6 +710,51 @@ begin
 	translate.x := m[4,1];
 	translate.y := m[4,2];
 	translate.z := m[4,3];
+end;
+
+procedure QuatRotateAxis(out q : TVec4; const axis : TVec3; angle : Single); overload;
+var
+	a2 : Single;
+	sine : Single;
+begin
+	a2 := angle * 0.5;
+	sine := Sin(a2);
+	q.x := axis.x * sine;
+	q.y := axis.y * sine;
+	q.z := axis.z * sine;
+	q.w := Cos(a2);
+end;
+
+procedure QuatRotateAxis(out q : TVec4; x, y, z, angle : Single); overload;
+var
+	a2 : Single;
+	sine : Single;
+begin
+	a2 := angle * 0.5;
+	sine := Sin(a2);
+	q.x := x * sine;
+	q.y := y * sine;
+	q.z := z * sine;
+	q.w := Cos(a2);
+end;
+
+procedure QuatMul(var q : TVec4; const q2 : TVec4);
+var
+	q1 : TVec4;
+begin
+	q1 := q;
+	
+	q.w := q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z;
+	q.x := q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y;
+	q.y := q1.w * q2.y + q1.y * q2.w + q1.z * q2.x - q1.x * q2.z;
+	q.z := q1.w * q2.z + q1.z * q2.w + q1.x * q2.y - q1.y * q2.x;
+	
+	{
+				ret[3] = q1[3] * q2[3] - q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2];
+				ret[0] = q1[3] * q2[0] + q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1];
+				ret[1] = q1[3] * q2[1] + q1[1] * q2[3] + q1[2] * q2[0] - q1[0] * q2[2];
+				ret[2] = q1[3] * q2[2] + q1[2] * q2[3] + q1[0] * q2[1] - q1[1] * q2[0];
+	}
 end;
 
 end.
