@@ -2,7 +2,7 @@
 PARAM MVP[4] = { state.matrix.mvp };
 PARAM MV[4] = { state.matrix.modelview };
 PARAM v_scale = program.local[0];
-PARAM skin_matrix[256] = { program.local[1..256] };
+PARAM skin_matrix[237] = { program.local[1..237] };
 
 PARAM env_sun_color  = program.env[0];
 PARAM env_sun_dir_v  = program.env[1];
