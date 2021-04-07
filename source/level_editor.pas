@@ -312,7 +312,10 @@ begin
 	glEnable(GL_CULL_FACE);
 	glAlphaFunc(GL_GEQUAL, 0.5);
 	glFrontFace(GL_CW);
-	glClearColor(0.4, 0.7, 0.8, 0.0);
+
+	bkg_color.x := 0.4;
+	bkg_color.y := 0.7;
+	bkg_color.z := 0.8;
 	
 	//glShadeModel(GL_FLAT);
 
@@ -379,11 +382,11 @@ function gl_redraw_cb(ih : Ihandle; x, y : Single) : Longint; cdecl;
 var
 //	sinx, cosx : Single;
 //	siny, cosy : Single;
-	clear_color : TVec4;
 	m : TMatrix;
 begin
 	IupGLMakeCurrent(ih);
 
+	glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
 	glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 
 //	sinx := Sin(anglex * (PI/180));
@@ -446,13 +449,10 @@ begin
 	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, rt_width, rt_height, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	
-	glGetFloatv(GL_COLOR_CLEAR_VALUE, @clear_color);
 	glClearColor(0.5, 0.5, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	Scene.RenderDistort;
-	
-	glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 	
 	glReadBuffer(GL_BACK_LEFT);
 	glBindTexture(GL_TEXTURE_2D, rt_distort);
@@ -460,16 +460,10 @@ begin
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 ////
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, rt_color);
-
-	glActiveTexture(GL_TEXTURE1);
-	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, rt_distort);
-////
 	glDisable(GL_DEPTH_TEST);
+////
 	
+	// begin 2d drawing
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix;
 	glLoadIdentity;
@@ -478,10 +472,18 @@ begin
 	glPushMatrix;
 	glLoadIdentity;
 	
+	// draw screen image with distort
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, rt_color);
+
+	glActiveTexture(GL_TEXTURE1);
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, rt_distort);
+	
 	glEnable(GL_FRAGMENT_PROGRAM_ARB);
 	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SCREEN_IMAGE]);
 	
-	glLineWidth(1);
 	glBegin(GL_QUADS);
 	
 	glTexCoord2f(0.0, 1.0);
@@ -498,10 +500,16 @@ begin
 	glDisable(GL_FRAGMENT_PROGRAM_ARB);
 	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
 	
-	// selection rect
+	glActiveTexture(GL_TEXTURE1);
+	glDisable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glActiveTexture(GL_TEXTURE0);
+	glDisable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	
+	// draw selection rect
 	if (mouse_x <> lclick_x) and (mouse_y <> lclick_y) and selection_rect then
 	begin
-		glLineWidth(1);
 		glBegin(GL_LINE_LOOP);
 		glVertex3f(lclick_x / viewport[2], lclick_y / viewport[3], 0);
 		glVertex3f(mouse_x / viewport[2], lclick_y / viewport[3], 0);
@@ -510,26 +518,20 @@ begin
 		glEnd;
 	end;
 	
+	// end 2d drawing
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix;
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix;
-	
-	glActiveTexture(GL_TEXTURE1);
-	glDisable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glActiveTexture(GL_TEXTURE0);
-	glDisable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, 0);
-////
 
+	// draw manipulator (if any)
 	if m_t <> nil then
-	begin
 		m_t.Draw;
-	end;
 	
+//
 	glEnable(GL_DEPTH_TEST);
-	
+//
+
 	IupGLSwapBuffers(ih);
 	Result := IUP_DEFAULT;
 end;
@@ -588,26 +590,6 @@ begin
 	shape := PHRaycastClosestShape(Scene.ph_scene, @p, @dir, dist, @point, @normal, nil, group);
 
 	Result := shape <> nil;
-end;
-
-function RaycastManipulator(const p, dir : TVec3; dist : Single; out shape : Pointer) : TManipulator;
-var
-	group : Longword;
-	actor : TPHActor;
-	sel : TObject;
-begin
-	group := PH_GROUP_MANIPULATOR_MASK;
-	shape := PHRaycastClosestShape(Scene.ph_scene, @p, @dir, dist, nil, nil, nil, group);
-	if shape <> nil then
-	begin
-		actor := PHGetActor(shape);
-		sel := TObject(PHGetUserdata(actor));
-
-		if sel is TManipulator then
-			Result := TManipulator(sel)
-		else
-			Result := nil;
-	end;
 end;
 
 function RaycastEntity(const p, dir : TVec3; dist : Single; out shape : Pointer) : TEntity;
@@ -952,11 +934,8 @@ begin
 		if pressed = 1 then
 		begin
 			// try raycast manipulator first
-			if RaycastManipulator(p, dir, RAYCAST_DIST, shape) <> nil then
-			begin
-				m_t.Activate(shape, x, y);
+			if (m_t <> nil) and m_t.Activate(x, y) then
 				m_used := True;
-			end;
 
 			if not m_used then
 			begin
@@ -1812,18 +1791,13 @@ end;
 
 function menu_render_setbkcolor(ih : Ihandle) : Longint; cdecl;
 var
-	clr : TVec4;
 	gl : Ihandle;
 begin
 	gl := IupGetDialogChild(ih, 'GL_CANVAS');
 	IupGLMakeCurrent(gl);
 
-	glGetFloatv(GL_COLOR_CLEAR_VALUE, @clr);
-	if SelectColor(clr) then
-	begin
-		glClearColor(clr.x, clr.y, clr.z, 1.0);
+	if SelectColor(bkg_color) then
 		Redisplay;
-	end;
 
 	Result := IUP_DEFAULT;
 end;

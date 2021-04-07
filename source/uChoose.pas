@@ -118,7 +118,7 @@ begin
     glAlphaFunc(GL_GEQUAL, 0.5);
     glFrontFace(GL_CW);
     
-    glClearColor(0.4, 0.7, 0.8, 0.0);
+    glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
     
     width := IupGetInt(ih, 'PREVIEWWIDTH');

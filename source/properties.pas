@@ -14,7 +14,7 @@ procedure SetupProperties(tree : Ihandle; data : TSection);
 implementation
 uses 
 	sysutils,
-	uScene, uEntity, vmath, common, 
+	uScene, uEntity, vmath, uEditorUtils,
 	matrix_editor,
 	uChoose, uChooseTexture, uChooseColoranim;
 

@@ -44,8 +44,8 @@
 	'camera attach' = begin
 		clsid : stringz = 'actions/camera attach';
 		
-		in_names : stringz = 'activate,deactivate';
-		out_names : stringz = 'entity,unk,camera';
+		in_names : stringz = 'activate,deactivate,use_rot_on,use_rot_off';
+		out_names : stringz = 'entity,finish,camera,attach_finished,detach_finished';
 		
 		properties = begin
 			owner : 'entity_link, uobject_link' = 65535;
@@ -151,11 +151,25 @@
 	
 	end;
 	
+	'goto_target' = begin
+		clsid : stringz = 'actions/goto_target';
+	
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'target,entity,success,failed';
+	
+		properties = begin
+			target_range : fp32 = -1;
+			movement_type : u8 = 255;
+			arrival_type : u8 = 255;
+			do_not_unlock_cover : bool = False;
+		end;
+	end;
+	
 	'hit' = begin
 		clsid : stringz = 'actions/hit';
 		
 		in_names : stringz = 'in';
-		out_names : stringz = 'entity';
+		out_names : stringz = 'entity,finish,initiator';
 		
 		properties = begin
 			initiator : 'entity_link, uobject_link' = 65535;
@@ -177,6 +191,19 @@
 			destination_bone : stringz = 'bone_crane_root';
 			source_bone : bone_str;
 			source_bone : stringz = 'bone_crane_root';
+		end;
+	end;
+	
+	'monster' = begin
+		'set_lurkers_state' = begin
+			clsid : stringz = 'actions/monster/set_lurkers_state';
+			
+			in_names : stringz = 'in';
+			out_names : stringz = 'entity';
+			
+			properties = begin
+				state : u8 = 0;
+			end;
 		end;
 	end;
 	
@@ -370,7 +397,7 @@
 		clsid : stringz = 'actions/set enemy';
 		
 		in_names : stringz = 'in';
-		out_names : stringz = 'entity';
+		out_names : stringz = 'entity,unk2,enemy';
 		
 		properties = begin
 			enemy : 'entity_link, uobject_link' = 65535;
@@ -554,6 +581,20 @@ end;
 		end;
 	end;
 	
+	'die' = begin
+		clsid : stringz = 'triggers/die';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'on_die,entity';
+		
+		properties = begin
+			active : bool = True;
+			entity : 'entity_link, uobject_link' = 65535;
+			initiator : 'entity_link, uobject_link' = 65535;
+			player : bool = True;
+		end;
+	end;
+	
 	'engine/signal' = begin
 		clsid : stringz = 'triggers/engine/signal';
 		
@@ -595,6 +636,22 @@ end;
 			entity : 'entity_link, uobject_link' = 65535;
 			initiator : 'entity_link, uobject_link' = 65535;
 			player : bool = True;
+		end;
+	end;
+	
+	'npc enemy is close' = begin
+		clsid : stringz = 'triggers/npc enemy is close';
+		
+		in_names : stringz = 'enable,disable';
+		out_names : stringz = 'Close,entity,Far';
+		
+		properties = begin
+			active : bool = True;
+			entity : 'entity_link, uobject_link' = 65535;
+			initiator : 'entity_link, uobject_link' = 65535;
+			player : bool = True;
+			distance : fp32 = 2.0;
+			distance_far : fp32 = 5.0;
 		end;
 	end;
 	
@@ -675,8 +732,8 @@ end;
 	'drezina goto target' = begin
 		clsid : stringz = 'trolley/drezina goto target';
 		
-		in_names : stringz = 'in';
-		out_names : stringz = 'drezina,target';
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'drezina,target,finished,approached,acceling,deceling';
 		
 		properties = begin
 			accel : fp32 = 0.150000006;

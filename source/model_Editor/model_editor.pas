@@ -644,12 +644,14 @@ var
 begin
 	IupGLMakeCurrent(ih);
 
-	glClearColor(0.4, 0.7, 0.8, 0.0);
-
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
 	glAlphaFunc(GL_GEQUAL, 0.5);
+	
+	bkg_color.x := 0.4;
+	bkg_color.y := 0.7;
+	bkg_color.z := 0.8;
 
 	InitializeRender;
 
@@ -691,6 +693,8 @@ var
 	I, J : Longint;
 begin
 	IupGLMakeCurrent(ih);
+	
+	glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
 	glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 
 	sinx := Sin(anglex * (PI/180));
@@ -1658,14 +1662,13 @@ end;
 
 function menu_render_setbkcolor(ih : Ihandle) : Longint; cdecl;
 var
-	clr : TVec4;
+	gl : Ihandle;
 begin
-	glGetFloatv(GL_COLOR_CLEAR_VALUE, @clr);
-	if SelectColor(clr) then
-	begin
-		glClearColor(clr.x, clr.y, clr.z, 1.0);
+	gl := IupGetDialogChild(ih, 'GL_CANVAS');
+	IupGLMakeCurrent(gl);
+
+	if SelectColor(bkg_color) then
 		Redisplay;
-	end;
 
 	Result := IUP_DEFAULT;
 end;

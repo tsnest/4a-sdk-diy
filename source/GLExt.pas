@@ -172,10 +172,43 @@ const
   GL_CLAMP_TO_BORDER                = $812D;
   
 type
-  PFNGLACTIVETEXTURE            = procedure(texture : GLenum); stdcall;
+  PFNGLACTIVETEXTUREPROC        = procedure(texture : GLenum); stdcall;
+  PFNGLCLIENTACTIVETEXTUREPROC  = procedure(texture : GLenum); stdcall;
   PFNGLCOMPRESSEDTEXIMAGE3DPROC = procedure(target : GLenum; level : GLint; internalformat : GLenum; width, height, depth : GLsizei; border : GLint; imagesize : GLsizei; data : Pointer); stdcall;
   PFNGLCOMPRESSEDTEXIMAGE2DPROC = procedure(target : GLenum; level : GLint; internalformat : GLenum; width, height : GLsizei; border : GLint; imagesize : GLsizei; data : Pointer); stdcall;
   PFNGLCOMPRESSEDTEXIMAGE1DPROC = procedure(target : GLenum; level : GLint; internalformat : GLenum; width : GLsizei; border : GLint; imagesize : GLsizei; data : Pointer); stdcall;
+  PFNGLMULTITEXCOORD1DPROC      = procedure(target : GLenum; s : GLdouble);
+  PFNGLMULTITEXCOORD1DVPROC     = procedure(target : GLenum; v : PGLdouble);
+  PFNGLMULTITEXCOORD1FPROC      = procedure(target : GLenum; s : GLfloat);
+  PFNGLMULTITEXCOORD1FVPROC     = procedure(target : GLenum; v : PGLfloat);
+  PFNGLMULTITEXCOORD1IPROC      = procedure(target : GLenum; s : GLint);
+  PFNGLMULTITEXCOORD1IVPROC     = procedure(target : GLenum; v : PGLint);
+  PFNGLMULTITEXCOORD1SPROC      = procedure(target : GLenum; s : GLshort);
+  PFNGLMULTITEXCOORD1SVPROC     = procedure(target : GLenum; v : PGLshort);
+  PFNGLMULTITEXCOORD2DPROC      = procedure(target : GLenum; s, t : GLdouble);
+  PFNGLMULTITEXCOORD2DVPROC     = procedure(target : GLenum; v : PGLdouble);
+  PFNGLMULTITEXCOORD2FPROC      = procedure(target : GLenum; s, t : GLfloat);
+  PFNGLMULTITEXCOORD2FVPROC     = procedure(target : GLenum; v : PGLfloat);
+  PFNGLMULTITEXCOORD2IPROC      = procedure(target : GLenum; s, t : GLint);
+  PFNGLMULTITEXCOORD2IVPROC     = procedure(target : GLenum; v : PGLint);
+  PFNGLMULTITEXCOORD2SPROC      = procedure(target : GLenum; s, t : GLshort);
+  PFNGLMULTITEXCOORD2SVPROC     = procedure(target : GLenum; v : PGLshort);
+  PFNGLMULTITEXCOORD3DPROC      = procedure(target : GLenum; s, t, r : GLdouble);
+  PFNGLMULTITEXCOORD3DVPROC     = procedure(target : GLenum; v : PGLdouble);
+  PFNGLMULTITEXCOORD3FPROC      = procedure(target : GLenum; s, t, r : GLfloat);
+  PFNGLMULTITEXCOORD3FVPROC     = procedure(target : GLenum; v : PGLfloat);
+  PFNGLMULTITEXCOORD3IPROC      = procedure(target : GLenum; s, t, r : GLint);
+  PFNGLMULTITEXCOORD3IVPROC     = procedure(target : GLenum; v : PGLint);
+  PFNGLMULTITEXCOORD3SPROC      = procedure(target : GLenum; s, t, r : GLshort);
+  PFNGLMULTITEXCOORD3SVPROC     = procedure(target : GLenum; v : PGLshort);
+  PFNGLMULTITEXCOORD4DPROC      = procedure(target : GLenum; s, t, r, q : GLdouble);
+  PFNGLMULTITEXCOORD4DVPROC     = procedure(target : GLenum; v : PGLdouble);
+  PFNGLMULTITEXCOORD4FPROC      = procedure(target : GLenum; s, t, r, q : GLfloat);
+  PFNGLMULTITEXCOORD4FVPROC     = procedure(target : GLenum; v : PGLfloat);
+  PFNGLMULTITEXCOORD4IPROC      = procedure(target : GLenum; s, t, r, q : GLint);
+  PFNGLMULTITEXCOORD4IVPROC     = procedure(target : GLenum; v : PGLint);
+  PFNGLMULTITEXCOORD4SPROC      = procedure(target : GLenum; s, t, r, q : GLshort);
+  PFNGLMULTITEXCOORD4SVPROC     = procedure(target : GLenum; v : PGLshort);
 
 // OpenGL 1.5
 const
@@ -455,10 +488,43 @@ type
 
 ///////////////////
 var
-  glActiveTexture        : PFNGLACTIVETEXTURE;
-  glCompressedTexImage3D : PFNGLCOMPRESSEDTEXIMAGE3DPROC;
-  glCompressedTexImage2D : PFNGLCOMPRESSEDTEXIMAGE2DPROC;
-  glCompressedTexImage1D : PFNGLCOMPRESSEDTEXIMAGE1DPROC;
+  glActiveTexture         : PFNGLACTIVETEXTUREPROC;
+  glClientActiveTexture   : PFNGLCLIENTACTIVETEXTUREPROC;
+  glCompressedTexImage3D  : PFNGLCOMPRESSEDTEXIMAGE3DPROC;
+  glCompressedTexImage2D  : PFNGLCOMPRESSEDTEXIMAGE2DPROC;
+  glCompressedTexImage1D  : PFNGLCOMPRESSEDTEXIMAGE1DPROC;
+  glMultiTexCoord1d       : PFNGLMULTITEXCOORD1DPROC;
+  glMultiTexCoord1dv      : PFNGLMULTITEXCOORD1DVPROC;
+  glMultiTexCoord1f       : PFNGLMULTITEXCOORD1FPROC;
+  glMultiTexCoord1fv      : PFNGLMULTITEXCOORD1FVPROC;
+  glMultiTexCoord1i       : PFNGLMULTITEXCOORD1IPROC;
+  glMultiTexCoord1iv      : PFNGLMULTITEXCOORD1IVPROC;
+  glMultiTexCoord1s       : PFNGLMULTITEXCOORD1SPROC;
+  glMultiTexCoord1sv      : PFNGLMULTITEXCOORD1SVPROC;
+  glMultiTexCoord2d       : PFNGLMULTITEXCOORD2DPROC;
+  glMultiTexCoord2dv      : PFNGLMULTITEXCOORD2DVPROC;
+  glMultiTexCoord2f       : PFNGLMULTITEXCOORD2FPROC;
+  glMultiTexCoord2fv      : PFNGLMULTITEXCOORD2FVPROC;
+  glMultiTexCoord2i       : PFNGLMULTITEXCOORD2IPROC;
+  glMultiTexCoord2iv      : PFNGLMULTITEXCOORD2IVPROC;
+  glMultiTexCoord2s       : PFNGLMULTITEXCOORD2SPROC;
+  glMultiTexCoord2sv      : PFNGLMULTITEXCOORD2SVPROC;
+  glMultiTexCoord3d       : PFNGLMULTITEXCOORD3DPROC;
+  glMultiTexCoord3dv      : PFNGLMULTITEXCOORD3DVPROC;
+  glMultiTexCoord3f       : PFNGLMULTITEXCOORD3FPROC;
+  glMultiTexCoord3fv      : PFNGLMULTITEXCOORD3FVPROC;
+  glMultiTexCoord3i       : PFNGLMULTITEXCOORD3IPROC;
+  glMultiTexCoord3iv      : PFNGLMULTITEXCOORD3IVPROC;
+  glMultiTexCoord3s       : PFNGLMULTITEXCOORD3SPROC;
+  glMultiTexCoord3sv      : PFNGLMULTITEXCOORD3SVPROC;
+  glMultiTexCoord4d       : PFNGLMULTITEXCOORD4DPROC;
+  glMultiTexCoord4dv      : PFNGLMULTITEXCOORD4DVPROC;
+  glMultiTexCoord4f       : PFNGLMULTITEXCOORD4FPROC;
+  glMultiTexCoord4fv      : PFNGLMULTITEXCOORD4FVPROC;
+  glMultiTexCoord4i       : PFNGLMULTITEXCOORD4IPROC;
+  glMultiTexCoord4iv      : PFNGLMULTITEXCOORD4IVPROC;
+  glMultiTexCoord4s       : PFNGLMULTITEXCOORD4SPROC;
+  glMultiTexCoord4sv      : PFNGLMULTITEXCOORD4SVPROC;
   
   glGenQueries           : PFNGLGENQUERIESPROC;
   glDeleteQueries        : PFNGLDELETEQUERIESPROC;
@@ -480,27 +546,27 @@ var
   glGetBufferParameteriv : PFNGLGETBUFFERPARAMETERIVPROC;
   glGetBufferPointerv    : PFNGLGETBUFFERPOINTERVPROC;
 
-	glVertexAttrib1dARB            : PFNGLVERTEXATTRIB1DARBPROC;
-	glVertexAttrib1dvARB           : PFNGLVERTEXATTRIB1DVARBPROC;
-	glVertexAttrib1fARB            : PFNGLVERTEXATTRIB1FARBPROC;
-	glVertexAttrib1fvARB           : PFNGLVERTEXATTRIB1FVARBPROC;
-	glVertexAttrib1sARB            : PFNGLVERTEXATTRIB1SARBPROC;
-	glVertexAttrib1svARB           : PFNGLVERTEXATTRIB1SVARBPROC;
-	glVertexAttrib2dARB            : PFNGLVERTEXATTRIB2DARBPROC;
-	glVertexAttrib2dvARB           : PFNGLVERTEXATTRIB2DVARBPROC;
-	glVertexAttrib2fARB            : PFNGLVERTEXATTRIB2FARBPROC;
-	glVertexAttrib2fvARB           : PFNGLVERTEXATTRIB2FVARBPROC;
-	glVertexAttrib2sARB            : PFNGLVERTEXATTRIB2SARBPROC;
-	glVertexAttrib2svARB           : PFNGLVERTEXATTRIB2SVARBPROC;
-	glVertexAttrib3dARB            : PFNGLVERTEXATTRIB3DARBPROC;
-	glVertexAttrib3dvARB           : PFNGLVERTEXATTRIB3DVARBPROC;
-	glVertexAttrib3fARB            : PFNGLVERTEXATTRIB3FARBPROC;
-	glVertexAttrib3fvARB           : PFNGLVERTEXATTRIB3FVARBPROC;
-	glVertexAttrib3sARB            : PFNGLVERTEXATTRIB3SARBPROC;
-	glVertexAttrib3svARB           : PFNGLVERTEXATTRIB3SVARBPROC;
-	glVertexAttrib4NbvARB          : PFNGLVERTEXATTRIB4NBVARBPROC;
-	glVertexAttrib4NivARB          : PFNGLVERTEXATTRIB4NIVARBPROC;
-	glVertexAttrib4NsvARB          : PFNGLVERTEXATTRIB4NSVARBPROC;
+  glVertexAttrib1dARB            : PFNGLVERTEXATTRIB1DARBPROC;
+  glVertexAttrib1dvARB           : PFNGLVERTEXATTRIB1DVARBPROC;
+  glVertexAttrib1fARB            : PFNGLVERTEXATTRIB1FARBPROC;
+  glVertexAttrib1fvARB           : PFNGLVERTEXATTRIB1FVARBPROC;
+  glVertexAttrib1sARB            : PFNGLVERTEXATTRIB1SARBPROC;
+  glVertexAttrib1svARB           : PFNGLVERTEXATTRIB1SVARBPROC;
+  glVertexAttrib2dARB            : PFNGLVERTEXATTRIB2DARBPROC;
+  glVertexAttrib2dvARB           : PFNGLVERTEXATTRIB2DVARBPROC;
+  glVertexAttrib2fARB            : PFNGLVERTEXATTRIB2FARBPROC;
+  glVertexAttrib2fvARB           : PFNGLVERTEXATTRIB2FVARBPROC;
+  glVertexAttrib2sARB            : PFNGLVERTEXATTRIB2SARBPROC;
+  glVertexAttrib2svARB           : PFNGLVERTEXATTRIB2SVARBPROC;
+  glVertexAttrib3dARB            : PFNGLVERTEXATTRIB3DARBPROC;
+  glVertexAttrib3dvARB           : PFNGLVERTEXATTRIB3DVARBPROC;
+  glVertexAttrib3fARB            : PFNGLVERTEXATTRIB3FARBPROC;
+  glVertexAttrib3fvARB           : PFNGLVERTEXATTRIB3FVARBPROC;
+  glVertexAttrib3sARB            : PFNGLVERTEXATTRIB3SARBPROC;
+  glVertexAttrib3svARB           : PFNGLVERTEXATTRIB3SVARBPROC;
+  glVertexAttrib4NbvARB          : PFNGLVERTEXATTRIB4NBVARBPROC;
+  glVertexAttrib4NivARB          : PFNGLVERTEXATTRIB4NIVARBPROC;
+  glVertexAttrib4NsvARB          : PFNGLVERTEXATTRIB4NSVARBPROC;
   glVertexAttrib4NubARB          : PFNGLVERTEXATTRIB4NUBARBPROC;
   glVertexAttrib4NubvARB         : PFNGLVERTEXATTRIB4NUBVARBPROC;
   glVertexAttrib4NuivARB         : PFNGLVERTEXATTRIB4NUIVARBPROC;
@@ -552,18 +618,51 @@ uses Windows;
 
 procedure InitializeGLExtensions;
 
-	function wglGetProcAddress(name : PAnsiChar) : Pointer;
-	begin
-		Result := Windows.wglGetProcAddress(name);
-		if Result = nil then WriteLn('!! ', name, ' = nil');
-	end;
+  function wglGetProcAddress(name : PAnsiChar) : Pointer;
+  begin
+    Result := Windows.wglGetProcAddress(name);
+    if Result = nil then WriteLn('!! ', name, ' = nil');
+  end;
 
 begin
   // OpenGL 1.3
   glActiveTexture        := wglGetProcAddress('glActiveTexture');
+  glClientActiveTexture  := wglGetProcAddress('glClientActiveTexture');
   glCompressedTexImage1D := wglGetProcAddress('glCompressedTexImage1D');
   glCompressedTexImage2D := wglGetProcAddress('glCompressedTexImage2D');
   glCompressedTexImage3D := wglGetProcAddress('glCompressedTexImage3D');
+  glMultiTexCoord1d      := wglGetProcAddress('glMultiTexCoord1d');
+  glMultiTexCoord1dv     := wglGetProcAddress('glMultiTexCoord1dv');
+  glMultiTexCoord1f      := wglGetProcAddress('glMultiTexCoord1f');
+  glMultiTexCoord1fv     := wglGetProcAddress('glMultiTexCoord1fv');
+  glMultiTexCoord1i      := wglGetProcAddress('glMultiTexCoord1i');
+  glMultiTexCoord1iv     := wglGetProcAddress('glMultiTexCoord1iv');
+  glMultiTexCoord1s      := wglGetProcAddress('glMultiTexCoord1s');
+  glMultiTexCoord1sv     := wglGetProcAddress('glMultiTexCoord1sv');
+  glMultiTexCoord2d      := wglGetProcAddress('glMultiTexCoord2d');
+  glMultiTexCoord2dv     := wglGetProcAddress('glMultiTexCoord2dv');
+  glMultiTexCoord2f      := wglGetProcAddress('glMultiTexCoord2f');
+  glMultiTexCoord2fv     := wglGetProcAddress('glMultiTexCoord2fv');
+  glMultiTexCoord2i      := wglGetProcAddress('glMultiTexCoord2i');
+  glMultiTexCoord2iv     := wglGetProcAddress('glMultiTexCoord2iv');
+  glMultiTexCoord2s      := wglGetProcAddress('glMultiTexCoord2s');
+  glMultiTexCoord2sv     := wglGetProcAddress('glMultiTexCoord2sv');
+  glMultiTexCoord3d      := wglGetProcAddress('glMultiTexCoord3d');
+  glMultiTexCoord3dv     := wglGetProcAddress('glMultiTexCoord3dv');
+  glMultiTexCoord3f      := wglGetProcAddress('glMultiTexCoord3f');
+  glMultiTexCoord3fv     := wglGetProcAddress('glMultiTexCoord3fv');
+  glMultiTexCoord3i      := wglGetProcAddress('glMultiTexCoord3i');
+  glMultiTexCoord3iv     := wglGetProcAddress('glMultiTexCoord3iv');
+  glMultiTexCoord3s      := wglGetProcAddress('glMultiTexCoord3s');
+  glMultiTexCoord3sv     := wglGetProcAddress('glMultiTexCoord3sv');
+  glMultiTexCoord4d      := wglGetProcAddress('glMultiTexCoord4d');
+  glMultiTexCoord4dv     := wglGetProcAddress('glMultiTexCoord4dv');
+  glMultiTexCoord4f      := wglGetProcAddress('glMultiTexCoord4f');
+  glMultiTexCoord4fv     := wglGetProcAddress('glMultiTexCoord4fv');
+  glMultiTexCoord4i      := wglGetProcAddress('glMultiTexCoord4i');
+  glMultiTexCoord4iv     := wglGetProcAddress('glMultiTexCoord4iv');
+  glMultiTexCoord4s      := wglGetProcAddress('glMultiTexCoord4s');
+  glMultiTexCoord4sv     := wglGetProcAddress('glMultiTexCoord4sv');
   
   // OpenGL 1.5
   glGenQueries           := wglGetProcAddress('glGenQueries');
@@ -586,25 +685,25 @@ begin
   glGetBufferParameteriv := wglGetProcAddress('glGetBufferParameteriv');
   glGetBufferPointerv    := wglGetProcAddress('glGetBufferPointerv');
 
-	// GL_ARB_vertex_program
-	glVertexAttrib1dARB            := wglGetProcAddress('glVertexAttrib1dARB');
-	glVertexAttrib1dvARB           := wglGetProcAddress('glVertexAttrib1dvARB');
-	glVertexAttrib1fARB            := wglGetProcAddress('glVertexAttrib1fARB');
-	glVertexAttrib1fvARB           := wglGetProcAddress('glVertexAttrib1fvARB');
-	glVertexAttrib1sARB            := wglGetProcAddress('glVertexAttrib1sARB');
-	glVertexAttrib1svARB           := wglGetProcAddress('glVertexAttrib1svARB');
-	glVertexAttrib2dARB            := wglGetProcAddress('glVertexAttrib2dARB');
-	glVertexAttrib2dvARB           := wglGetProcAddress('glVertexAttrib2dvARB');
-	glVertexAttrib2fARB            := wglGetProcAddress('glVertexAttrib2fARB');
-	glVertexAttrib2fvARB           := wglGetProcAddress('glVertexAttrib2fvARB');
-	glVertexAttrib2sARB            := wglGetProcAddress('glVertexAttrib2sARB');
-	glVertexAttrib2svARB           := wglGetProcAddress('glVertexAttrib2svARB');
-	glVertexAttrib3dARB            := wglGetProcAddress('glVertexAttrib3dARB');
-	glVertexAttrib3dvARB           := wglGetProcAddress('glVertexAttrib3dvARB');
-	glVertexAttrib3fARB            := wglGetProcAddress('glVertexAttrib3fARB');
-	glVertexAttrib3fvARB           := wglGetProcAddress('glVertexAttrib3fvARB');
-	glVertexAttrib3sARB            := wglGetProcAddress('glVertexAttrib3sARB');
-	glVertexAttrib3svARB           := wglGetProcAddress('glVertexAttrib3svARB');
+  // GL_ARB_vertex_program
+  glVertexAttrib1dARB            := wglGetProcAddress('glVertexAttrib1dARB');
+  glVertexAttrib1dvARB           := wglGetProcAddress('glVertexAttrib1dvARB');
+  glVertexAttrib1fARB            := wglGetProcAddress('glVertexAttrib1fARB');
+  glVertexAttrib1fvARB           := wglGetProcAddress('glVertexAttrib1fvARB');
+  glVertexAttrib1sARB            := wglGetProcAddress('glVertexAttrib1sARB');
+  glVertexAttrib1svARB           := wglGetProcAddress('glVertexAttrib1svARB');
+  glVertexAttrib2dARB            := wglGetProcAddress('glVertexAttrib2dARB');
+  glVertexAttrib2dvARB           := wglGetProcAddress('glVertexAttrib2dvARB');
+  glVertexAttrib2fARB            := wglGetProcAddress('glVertexAttrib2fARB');
+  glVertexAttrib2fvARB           := wglGetProcAddress('glVertexAttrib2fvARB');
+  glVertexAttrib2sARB            := wglGetProcAddress('glVertexAttrib2sARB');
+  glVertexAttrib2svARB           := wglGetProcAddress('glVertexAttrib2svARB');
+  glVertexAttrib3dARB            := wglGetProcAddress('glVertexAttrib3dARB');
+  glVertexAttrib3dvARB           := wglGetProcAddress('glVertexAttrib3dvARB');
+  glVertexAttrib3fARB            := wglGetProcAddress('glVertexAttrib3fARB');
+  glVertexAttrib3fvARB           := wglGetProcAddress('glVertexAttrib3fvARB');
+  glVertexAttrib3sARB            := wglGetProcAddress('glVertexAttrib3sARB');
+  glVertexAttrib3svARB           := wglGetProcAddress('glVertexAttrib3svARB');
   glVertexAttrib4NbvARB          := wglGetProcAddress('glVertexAttrib4NbvARB');
   glVertexAttrib4NivARB          := wglGetProcAddress('glVertexAttrib4NivARB');
   glVertexAttrib4NsvARB          := wglGetProcAddress('glVertexAttrib4NsvARB');

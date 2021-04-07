@@ -36,6 +36,7 @@ var
 	useWeather : Boolean = False;
 	showAO : Boolean = False;
 	
+	bkg_color : TVec4;
 	prog : array[1..16] of GLuint;
 	
 	camera_pos : TVec3;
@@ -230,7 +231,6 @@ procedure RenderDefault;
 procedure RenderWireframe;
 
 // utility functions
-function SelectColor(var clr : TVec4; alpha : Boolean = False) : Boolean;
 procedure LoadMeshes(model : T4AModelSkeleton; const path : String);
 procedure LoadSkeleton(model : T4AModelSkeleton);
 procedure UpdateBBox(model : T4AModelSkeleton);
@@ -1184,12 +1184,6 @@ begin
 		if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), vpos+20);
 		if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+24);
 
-{
-		glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+0);
-		glVertexAttribPointerARB(1, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+12);
-		glVertexAttribPointerARB(2, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+20);
-}
-
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
 			if useTextures then
@@ -1876,51 +1870,6 @@ begin
 		sublevels[I].Draw;
 end;
 
-function SelectColor(var clr : TVec4; alpha : Boolean) : Boolean;
-var
-	str : String;
-	I, E : Integer;
-	dlg : Ihandle;
-begin
-	dlg := IupColorDlg;
-
-	str := IntToStr(Trunc(clr.x * 255)) + ' ' + IntToStr(Trunc(clr.y * 255)) + ' ' + IntToStr(Trunc(clr.z * 255));
-	IupSetStrAttribute(dlg, 'VALUE', PAnsiChar(str));
-
-	if alpha then
-	begin
-		str := IntToStr(Trunc(clr.w * 255));
-		IupSetStrAttribute(dlg, 'ALPHA', PAnsiChar(str));
-		IupSetAttribute(dlg, 'SHOWALPHA', 'YES');
-	end;
-
-	IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
-
-	if IupGetInt(dlg, 'STATUS') = 1 then
-	begin
-		str := IupGetAttribute(dlg, 'VALUE');
-		I := 1; E := 1;
-		while str[E] <> ' ' do Inc(E);
-		clr.x := StrToInt(Copy(str, I, E-I)) / 255;
-		I := E+1; E := E+1;
-		while str[E] <> ' ' do Inc(E);
-		clr.y := StrToInt(Copy(str, I, E-I)) / 255;
-		I := E+1; E := E+1;
-		while (E <= Length(str)) and (str[E] <> ' ') do Inc(E); 
-		clr.z := StrToInt(Copy(str, I, E-I)) / 255;
-
-		if alpha then
-		begin
-			clr.w := IupGetInt(dlg, 'ALPHA') / 255;
-		end;
-
-		Result := True;
-	end else
-		Result := False;
-
-	IupDestroy(dlg);
-end;
-
 var
 	program_options : String = '';
 	
@@ -2045,6 +1994,37 @@ var
 
 // must be called after MakeCurrent
 procedure InitializeRender;
+
+	procedure ShowInfo;
+	var
+		maxVertexAttribs,
+		maxLocalParams,
+		maxEnvParams,
+		maxMatrices,
+		maxTemporaries,
+		maxParams : Longint;
+	begin
+		WriteLn('OpenGL Vendor, Renderer, Version strings:');
+		WriteLn(#9, glGetString(GL_VENDOR));
+		WriteLn(#9, glGetString(GL_RENDERER));
+		WriteLn(#9, glGetString(GL_VERSION));
+		WriteLn;
+	
+		glGetIntegerv(GL_MAX_VERTEX_ATTRIBS_ARB, @maxVertexAttribs);
+		glGetIntegerv(GL_MAX_PROGRAM_MATRICES_ARB, @maxMatrices);
+		glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_LOCAL_PARAMETERS_ARB, @maxLocalParams);
+		glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_ENV_PARAMETERS_ARB,   @maxEnvParams);
+		glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_TEMPORARIES_ARB,      @maxTemporaries);
+		glGetProgramivARB(GL_VERTEX_PROGRAM_ARB, GL_MAX_PROGRAM_PARAMETERS_ARB,       @maxParams);
+		
+		WriteLn ( 'Max vertex attributes  : ', maxVertexAttribs );
+		WriteLn ( 'Max local parameters   : ', maxLocalParams   );
+		WriteLn ( 'Max env. parameters    : ', maxEnvParams     );
+		WriteLn ( 'Max program matrices   : ', maxMatrices      );
+		WriteLn ( 'Max program temporaries: ', maxTemporaries   );
+		WriteLn ( 'Max parameters         : ', maxParams        );
+	end;
+	
 begin
 	InitializeGLExtensions;
 
@@ -2081,6 +2061,8 @@ begin
 	glEnd;
 	glColor3f(1, 1, 1);
 	glEndList; 
+	
+	ShowInfo;
 end;
 
 procedure DrawFlag(clr : TFlagColor);

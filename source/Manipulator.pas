@@ -20,7 +20,7 @@ type
 
 		procedure Draw; virtual;
 
-		procedure Activate(shape : TPHShape; x, y : Longint);
+		function Activate(x, y : Longint) : Boolean;
 		procedure Deactivate;
 		function	IsActive : Boolean;
 
@@ -77,7 +77,27 @@ type
 	end;
 
 implementation
-uses common, GL, PHGroups;
+uses common, GL, GLU, PHGroups;
+
+function RaycastManipulator(scene : TPHScene; const p, dir : TVec3; dist : Single; out shape : Pointer) : TManipulator;
+var
+	group : Longword;
+	actor : TPHActor;
+	sel : TObject;
+begin
+	group := PH_GROUP_MANIPULATOR_MASK;
+	shape := PHRaycastClosestShape(scene, @p, @dir, dist, nil, nil, nil, group);
+	if shape <> nil then
+	begin
+		actor := PHGetActor(shape);
+		sel := TObject(PHGetUserdata(actor));
+
+		if sel is TManipulator then
+			Result := TManipulator(sel)
+		else
+			Result := nil;
+	end;
+end;
 
 constructor TManipulator.Create(scene : TPHScene; isworld : Boolean; line_width : Longint);
 var
@@ -172,15 +192,41 @@ begin
 	glVertex3f(d.x+c.x, d.y+c.y, d.z+c.z);
 
 	glEnd;
+	
+	glLineWidth(1.0);
 end;
 
-procedure TManipulator.Activate(shape: TPHShape; x: Integer; y: Integer);
+function TManipulator.Activate(x: Integer; y: Integer) : Boolean;
+var
+	shape : Pointer;
+	p1, p2 : array[1..3] of GLdouble;
+	p, dir : TVec3;
+const
+	RAYCAST_DIST = 500.0;
 begin
-	start_x := x;
-	start_y := y;
-	active := shape;
+	// in OpenGL origin of window coordinates is a left-bottom corner. That's why viewport[3]-y
+	gluUnProject(x, viewport[3]-y, 0.1, @modelview_d, @proj_d, @viewport, @p1[1], @p1[2], @p1[3]);
+	gluUnProject(x, viewport[3]-y, 0.9, @modelview_d, @proj_d, @viewport, @p2[1], @p2[2], @p2[3]);
 
-	OnActivate;
+	p.x := p1[1];
+	p.y := p1[2];
+	p.z := p1[3];
+
+	dir.x := p2[1]-p1[1];
+	dir.y := p2[2]-p1[2];
+	dir.z := p2[3]-p1[3];
+	Normalize(dir);
+
+	if RaycastManipulator(phscene, p, dir, RAYCAST_DIST, shape) = self then
+	begin
+		start_x := x;
+		start_y := y;
+		active := shape;
+	
+		OnActivate;
+		Activate := True
+	end else
+		Activate := False
 end;
 
 procedure TManipulator.Deactivate;
