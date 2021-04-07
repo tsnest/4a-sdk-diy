@@ -41,6 +41,7 @@ type
 		showEnvZones : Boolean;
 		showDecals : Boolean;
 		showEGeoms : Boolean;
+		showWays : Boolean;
 		
 		ph_scene : TPHScene;
 		ph_meshes : array of TPHTriMesh;
@@ -65,6 +66,7 @@ type
 		procedure RenderDistort;
 		
 		procedure RenderEnvZones;
+		procedure RenderWays;
 		
 		procedure AddEntity(e : TEntity);
 		procedure RemoveEntity(e : TEntity);
@@ -594,6 +596,48 @@ begin
 	glDisable(GL_BLEND);
 end;
 
+procedure TScene.RenderWays;
+var
+	I, J : Longint;
+	E : TEntity;
+	L : TEntity;
+	V1 : TVec3;
+	V2 : TVec3;
+begin
+	glColor3f(0.0, 1.0, 0.0);	
+	glBegin(GL_LINES);
+	
+	if entities = nil then
+		Exit;
+	
+	for I := 0 to entities.Count - 1 do
+	begin
+		E := TEntity(entities[I]);
+		
+		if E.isWay then
+		begin
+			for J := 0 to 3 do
+			begin
+				L := EntityById(E.way_link[J].num);
+				if L <> nil then
+				begin
+					V1.x := 0.0; V1.y := 0.5; V1.z := 0.0;
+					V2.x := 0.0; V2.y := 0.5; V2.z := 0.0;
+					
+					Transform(V1, E.FMatrix);
+					Transform(V2, L.FMatrix);
+					
+					glVertex3fv(@V1.x);
+					glVertex3fv(@V2.x);
+				end;
+			end;
+		end;
+	end;
+	
+	glEnd;
+	glColor3f(1.0, 1.0, 1.0);	
+end;
+
 procedure TScene.AddEntity(e : TEntity);
 begin
 	entities.Add(e);
@@ -603,6 +647,9 @@ end;
 procedure TScene.RemoveEntity(e : TEntity);
 var
 	idx : Longint;
+	
+	I : Longint;
+	W : TEntity;
 begin
 	idx := konf_entities.items.IndexOf(e.data);
 	if idx <> -1 then
@@ -617,8 +664,26 @@ begin
 			raise Exception.Create('entity doesn''t belong to level.bin nor level.add.bin');
 	end;
 	
-	e.data.Free;
 	entities.Remove(e);
+	
+	for I := 0 to entities.Count - 1 do
+	begin
+		W := TEntity(entities[I]);
+		
+		if W.isWay then
+		begin
+			if W.way_link[0].num = e.ID then
+				W.way_link[0].num := 65535;
+			if W.way_link[1].num = e.ID then
+				W.way_link[1].num := 65535;
+			if W.way_link[2].num = e.ID then
+				W.way_link[2].num := 65535;
+			if W.way_link[3].num = e.ID then
+				W.way_link[3].num := 65535;
+		end;
+	end;
+	
+	e.data.Free;
 	e.Free;
 end;
 

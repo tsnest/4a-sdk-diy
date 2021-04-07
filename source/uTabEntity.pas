@@ -435,6 +435,21 @@ begin
 		ent.AddInt('entity', victim.ID, 'entity_link, uobject_link');
 	end;
 end;
+
+procedure LinkSelectionToWay(way : TEntity);
+var
+	selected : TEntityArray;
+begin
+	selected := Scene.GetSelected;
+	
+	if 
+		(length(selected) = 1) and 
+		(way.classname = selected[0].classname) and
+		selected[0].isWay and
+		way.isWay
+	then
+		selected[0].way_link[0].num := way.ID;
+end;
 	
 procedure CreateEntity(const hit_pos, hit_nrm : TVec3);
 var
@@ -521,6 +536,8 @@ begin
 	
 	if (Length(e) = 1) and (e[0].classname = 'PROXY') then
 		ProxyFromSelection(e[0]);
+	if (Length(e) = 1) and (e[0].isWay) then
+		LinkSelectionToWay(e[0]);
 		
 	if select_created then
 	begin

@@ -30,6 +30,16 @@ type
 		distance_sqr : Single;
 		
 		showAnimation : Boolean; static;
+		
+		isLight : Boolean;
+		light_type : TIntegerValue;
+		light_bone : TStringValue;
+		light_angle : TSingleValue;
+		light_range : TSingleValue;
+		light_color : TFloatArrayValue;
+		
+		isWay : Boolean;
+		way_link : array[0..3] of TIntegerValue;
 
 		constructor Create(owner : TPHScene; data : TSection);
 		destructor Destroy; override;
@@ -94,6 +104,8 @@ var
 	param_name : TStringValue;
 	v : TSimpleValue;
 	vn : String;
+	
+	link : TSection;
 begin
 	inherited Create;
 
@@ -133,6 +145,46 @@ begin
 	end else
 		Animation := '';
 		
+	// light params
+	if classname = 'o_hlamp' then
+	begin
+		light_type := data.GetParam('ltype', 'u8') as TIntegerValue;
+		light_bone := data.GetParam('light_main_bone', 'stringz') as TStringValue;
+		light_angle := data.GetParam('spot_cone_angle', 'angle, fp32') as TSingleValue;
+		light_range := data.GetParam('range', 'fp32') as TSingleValue;
+		light_color := data.GetParam('color', 'color, vec4f') as TFloatArrayValue;
+		
+		isLight := 
+			(light_type <> nil) and
+			(light_bone <> nil) and
+			(light_angle <> nil) and
+			(light_range <> nil) and
+			(light_color <> nil);		
+	end;
+	
+	// way params
+	if (classname = 'O_AIPOINT') or (classname = 'PATROL_POINT') then
+	begin
+		link := data.GetSect('link_0', False);
+		if link <> nil then
+			way_link[0] := link.GetParam('object', 'entity_link, uobject_link') as TIntegerValue;
+		link := data.GetSect('link_1', False);
+		if link <> nil then
+			way_link[1] := link.GetParam('object', 'entity_link, uobject_link') as TIntegerValue;
+		link := data.GetSect('link_2', False);
+		if link <> nil then
+			way_link[2] := link.GetParam('object', 'entity_link, uobject_link') as TIntegerValue;
+		link := data.GetSect('link_3', False);
+		if link <> nil then
+			way_link[3] := link.GetParam('object', 'entity_link, uobject_link') as TIntegerValue;
+			
+		isWay :=
+			(way_link[0] <> nil) and
+			(way_link[1] <> nil) and
+			(way_link[2] <> nil) and
+			(way_link[3] <> nil);
+	end;
+	
 	FSelected := False;
 	FVisible := True;
 end;
@@ -193,14 +245,15 @@ begin
 end;
 
 procedure TEntity.DrawFlag;
-{
+
 var
 	I : Longint;
-	light_bone : String;
+	m : TMatrix;
 	ltype : Byte;
 	angle : Single;
 	range : Single;
-}
+	q : PGLUquadric;
+
 begin
 	glPushMatrix;
 	glMultMatrixf(@FMatrix);
@@ -209,21 +262,44 @@ begin
 		common.DrawFlag(fclYellow)
 	else
 		common.DrawFlag(fclWhite);
-{		
-	if selected and (classname = 'o_hlamp') then
+		
+	glPopMatrix;
+	
+	if selected and isLight then
 	begin
-		ltype := data.GetInt('ltype', 'u8');
-		angle := data.GetFloat('spot_cone_angle', 'angle, fp32');
-		range := data.GetFloat('range');
+		ltype := light_type.num;
+		angle := light_angle.num;
+		range := light_range.num;
+		
+		// transform
+		glPushMatrix;
+		if (light_bone.str <> '') and GetBoneTransform(light_bone.str, m) then
+			glMultMatrixf(@m)
+		else
+			glMultMatrixf(@FMatrix);
+			
+		// color
+		glColor4fv(@light_color.data[0]);
+		
+		// polygon mode
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		
+		if ltype in [1,2,3] then // point
+		begin
+			q := gluNewQuadric;
+			gluSphere(q, light_range.num, 10, 10);
+			gluDeleteQuadric(q);
+		end;
 		
 		if ltype in [4,5,6,7,8,9] then // spot or quad
 		begin
-			glBegin(GL_LINES);
+			glBegin(GL_TRIANGLE_FAN);
+			
+			glVertex3f(0, 0, 0);
+			
 			for I := 1 to 25 do
-			begin
-				glVertex3f(0, 0, 0);
 				glVertex3f(Sin(angle/2) * Cos(I/25*PI*2) * range, Cos(angle/2) * range, Sin(angle/2) * -Sin(I/25*PI*2) * range);
-			end;
+
 			glEnd;
 		end;
 		
@@ -261,9 +337,11 @@ begin
 
 			glEnd;
 		end;
+		
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glColor4f(1,1,1,1);
+		glPopMatrix;
 	end;
-}
-	glPopMatrix;
 end;
 
 procedure TEntity.DrawShapes;

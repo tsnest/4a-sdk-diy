@@ -42,6 +42,11 @@ var
 	rt_width, rt_height : GLuint;
 	rt_color, rt_distort : GLuint;
 	
+	camera_move_sens      : Single = 0.2;
+	camera_rotate_sens    : Single = 1.0;
+	camera_fly_speed      : Single = 1.0;
+	camera_fly_speed_fast : Single = 5.0;
+	
 var
 	context_menu : Ihandle;
 	
@@ -435,6 +440,9 @@ begin
 	
 	Scene.RenderOpaqueFast;
 	
+	if Scene.showWays then
+		Scene.RenderWays;
+	
 	glDepthMask(GL_FALSE);
 	Scene.RenderBlended;
 	glDepthMask(GL_TRUE);
@@ -540,15 +548,27 @@ function gl_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longin
 var
 	mousexy : Ihandle;
 	pos : String;
+	
+	sinh, cosh : Single;
+	
+	alt : Boolean;
+	btn1 : Boolean;
+	btn2 : Boolean;
+	btn3 : Boolean;
 begin
 	pos := IntToStr(x) + ', ' + IntToStr(y);
 	mousexy := IupGetDialogChild(ih, 'MOUSEXY');
 	IupSetStrAttribute(mousexy, 'TITLE', PAnsiChar(pos));
 
-	if status[4] = '3' then
+	alt := iup_isalt(status);
+	btn1 := iup_isbutton1(status);
+	btn2 := iup_isbutton2(status);
+	btn3 := iup_isbutton3(status);
+
+	if (alt and btn1 and btn3) or (not alt and btn3) then // крутить
 	begin
-		anglex := anglex - (y - mouse_y);
-		angley := angley - (x - mouse_x);
+		anglex := anglex - camera_rotate_sens * (y - mouse_y);
+		angley := angley - camera_rotate_sens * (x - mouse_x);
 
 		if anglex >= 90.0 then
 			anglex := 90.0;
@@ -561,7 +581,22 @@ begin
 
 		IupRedraw(ih, 0);
 	end else
-	if status[3] = '2' then
+	if alt and btn1 then // перемещать в плоскости XZ
+	begin
+		sinh := Sin(angley*(PI/180));
+		cosh := Cos(angley*(PI/180));
+		
+		position.x := position.x + (camera_move_sens * (y - mouse_y)) * sinh;
+		position.z := position.z + (camera_move_sens * (y - mouse_y)) * -cosh;
+		
+		position.x := position.x + (camera_move_sens * (x - mouse_x)) * cosh;
+		position.z := position.z + (camera_move_sens * (x - mouse_x)) * sinh;			
+	end else
+	if alt and btn3 then // перемещать по оси Y
+	begin
+		position.y := position.y - (camera_move_sens * (y - mouse_y));
+	end else
+	if btn2 then
 	begin
 		distance := distance + ((y - mouse_y) / 8);
 		IupRedraw(ih, 0);
@@ -916,6 +951,10 @@ begin
 
 	m_used := False;
 	
+	if iup_isalt(status) then
+	begin
+		// этот случай заревервирован для мышиного управления камерой, ничего не делать
+	end else
 	if button = Ord('3') then
 	begin
 		if pressed = 1 then
@@ -1157,10 +1196,15 @@ begin
 
 	if (GetASyncKeyState(VK_SHIFT) and $8000) <> 0 then
 	begin
-		m.x := m.x * 5;
-		m.y := m.y * 5;
-		m.z := m.z * 5;
-	end;
+		m.x := m.x * camera_fly_speed_fast;
+		m.y := m.y * camera_fly_speed_fast;
+		m.z := m.z * camera_fly_speed_fast;
+	end else
+	begin
+		m.x := m.x * camera_fly_speed;
+		m.y := m.y * camera_fly_speed;
+		m.z := m.z * camera_fly_speed;
+	end;		
 
 	position.x := position.x + m.x;
 	position.y := position.y + m.y;
@@ -1582,6 +1626,7 @@ begin
 	if title = 'Environment zones' then DoIt(Scene.showEnvZones);
 	if title = 'Decals' then DoIt(Scene.showDecals);
 	if title = 'EGeoms' then DoIt(Scene.showEGeoms);
+	if title = 'Ways' then DoIt(Scene.showWays);
 	
 	if title = 'Animation' then
 	begin
@@ -1712,6 +1757,14 @@ begin
 	IupShow(IupSetAttributes(dlg_i, 'TITLE="Settings Editor", SIZE=128x64'));
 	
 	Result := IUP_DEFAULT;
+end;
+
+function menu_settings_customize_camera(ih : Ihandle) : Longint; cdecl;
+begin
+	IupGetParam('Customize camera', nil, nil, 
+		'Move sens: %r'#10'Rotate sens: %r'#10'Fly speed: %r'#10'Fast fly speed: %r'#10,
+		@camera_move_sens, @camera_rotate_sens, @camera_fly_speed, @camera_fly_speed_fast
+	);
 end;
 
 function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
@@ -2127,6 +2180,7 @@ begin
 			iup.MenuItem('Environment zones', @menu_show_cb, Scene.showEnvZones),
 			iup.MenuItem('Decals', @menu_show_cb, Scene.showDecals),
 			iup.MenuItem('EGeoms', @menu_show_cb, Scene.showEGeoms),
+			iup.MenuItem('Ways', @menu_show_cb, Scene.showWays),
 			nil
 		)
 	);
@@ -2161,6 +2215,7 @@ begin
 	sm_settings := IupSubmenu('Settings',
 		IupMenu(
 			iup.MenuItem('Customize manipulator', @menu_settings_custom_manipulator),
+			iup.MenuItem('Customize camera', @menu_settings_customize_camera),
 			nil
 		)
 	);
