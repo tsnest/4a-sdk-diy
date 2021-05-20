@@ -42,25 +42,20 @@ begin
 			for I := 0 to 1024 - 1 do
 			begin
 				src := FreeImage_GetScanLine(dib, 1023-I);
+				offset := ((id div 4) * (1024*1024*4)) + (I*4096) + ((id mod 4) * 1024);
 				
 				for J := 0 to 1024 - 1 do
-				begin		
-					offset := id*(1024*1024*4) + I*1024*4 + J*4;
-					
+				begin
+						
 					if soc_version then
 					begin
 						// SoC version
-						data[offset + 0] := ScaleAO((src+0)^);
-						data[offset + 1] := ScaleAO((src+1)^);
-						data[offset + 2] := ScaleAO((src+2)^);
-						data[offset + 3] := ScaleAO((src+0)^);
+						data[offset + J] := ScaleAO( ((src+0)^ + (src+1)^ + (src+2)^) div 3 ); 
+						// в лайтмапах из Тени Чернобыля AO хранится в RGB, поэтому возьмём среднее арифметическое из всех трёх каналов
 					end else
 					begin
 						// CS/CoP version
-						data[offset + 0] := ScaleAO((src+3)^);
-						data[offset + 1] := ScaleAO((src+3)^);
-						data[offset + 2] := ScaleAO((src+3)^);
-						data[offset + 3] := ScaleAO((src+3)^);
+						data[offset + J] := ScaleAO( (src+3)^ ); // в Чистом Небе и Зове Припяти AO хранится в альфе, берём как есть
 					end;
 					
 					Inc(src, 4);
@@ -77,20 +72,21 @@ end;
 
 procedure ConvertLightMap(const path, outf : String);
 var
+	I : Longint;
+	name : String;
+	
 	data : array of Byte;
 	f : File;
 begin
-	SetLength(data, 4*1024*1024*4);
+	SetLength(data, 4096*4096);
 	FillChar(data[0], Length(data), #0);
 	
-	if FileExists(path + '\lmap#1_2.dds') then
-		LoadLMap(data, 0, path + '\lmap#1_2.dds');
-	if FileExists(path + '\lmap#2_2.dds') then
-		LoadLMap(data, 1, path + '\lmap#2_2.dds');
-	if FileExists(path + '\lmap#3_2.dds') then
-		LoadLMap(data, 2, path + '\lmap#3_2.dds');
-	if FileExists(path + '\lmap#4_2.dds') then
-		LoadLMap(data, 3, path + '\lmap#4_2.dds');
+	for I := 1 to 16 do
+	begin
+		name := path + '\lmap#' + IntToStr(I) + '_2.dds';
+		if FileExists(name) then
+			LoadLMap(data, I-1, name);	
+	end;
 		
 	Assign(f, outf);
 	Rewrite(f,1);

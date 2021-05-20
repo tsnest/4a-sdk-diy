@@ -201,6 +201,10 @@ end;
 procedure CopyVertices(src : TD3DVertexBuffer; dest : P4AVertLevel; count : Longword; lmap_id : Shortint); overload;
 var
 	tc : TVec2;
+	
+	// lightmap
+	offset : TVec2;
+	scale  : TVec2;
 begin
 	while count > 0 do
 	begin
@@ -213,10 +217,16 @@ begin
 		dest^.tc.y := Trunc(tc.y * 1024.0);
 		if lmap_id > 0 then
 		begin
+			offset.x := ((lmap_id-1) mod 4) * 0.25;
+			offset.y := ((lmap_id-1) div 4) * 0.25;
+			scale.x := 0.25;
+			scale.y := 0.25;
+			
 			src.GetTexcoord2(tc);
 			//WriteLn('U: ', tc.x:3:3, ' V: ', tc.y:3:3);
-			dest^.lm.x := Trunc(tc.x * 32768.0);
-			dest^.lm.y := Trunc((0.25*(lmap_id-1) + tc.y / 4) * 32768.0);
+			
+			dest^.lm.x := Trunc(((tc.x * scale.x) + offset.x) * 32768.0);
+			dest^.lm.y := Trunc(((tc.y * scale.y) + offset.y) * 32768.0);
 		end;
 
 		if src.ntype <> 4 then
@@ -387,7 +397,7 @@ begin
 				
 				//WriteLn('lmap_id = ', lmap_id);
 				
-				if not (lfUseLMap in params) or (lmap_id > 4) then
+				if not (lfUseLMap in params) or (lmap_id > 16) then
 					lmap_id := -1;
 				
 				texture := Copy(texture, 1, comma-1);
@@ -499,8 +509,6 @@ var
 
 	points : array of TVec3;
 	faces : array of Longint;
-
-	p1, p2, p3 : TVec3;
 	
 	function AddPoint(const p : TVec3) : Longint;
 	var
