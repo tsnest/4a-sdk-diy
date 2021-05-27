@@ -4,8 +4,8 @@ uses common, Iup,
 		 sysutils, classes, chunkedFile, vmath, PhysX, fouramdl,
 		 Engine, Texture,
 		 //uAO, 
-		 uImportStatic, uImportDynamic, uImportMotion,
-		 uExportScene, uXRayExport,
+		 uImport, uImportStatic, uImportDynamic, uImportMotion,
+		 uExportScene, {$IFDEF HAZ_LWOEXPORT} uXRayExport, {$ENDIF}
 		 skeleton, motion, cform_utils, nxcform, uDrawUtils,
 		 KonfigLibrary, uChoose, uChooseMaterial, uChooseTexture,
 		 uEditorUtils, uImages;
@@ -1341,9 +1341,8 @@ begin
 			
 			try
 				if model.version >= MODEL_VER_REDUX then
-					raise Exception.Create('not implemented')
-				else
-				if model.version >= MODEL_VER_LL then
+					cf.SaveRedux(w)
+				else if model.version >= MODEL_VER_LL then
 					cf.SaveLL(w)
 				else
 					cf.Save(w);
@@ -1371,9 +1370,13 @@ var
 	fn : String;
 	
 	mdl : T4AModel;
+	extfilter : String;
 begin
 	dlg := IupFileDlg;
 	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
+
+	ListImportFormats(extfilter);
+	IupSetAttribute(dlg, 'EXTFILTER', PAnsiChar(extfilter));
 
 	IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -1514,19 +1517,26 @@ var
 begin
 	dlg := IupFileDlg;
 	IupSetAttribute(dlg, 'DIALOGTYPE', 'SAVE');
+	
+{$IFDEF HAZ_LWOEXPORT}
 	IupSetAttribute(dlg, 'EXTFILTER', 'FBX|*.fbx|3DS|*.3ds|OBJ|*.obj|LWO|*.lwo|');
+{$ELSE}
+	IupSetAttribute(dlg, 'EXTFILTER', 'FBX|*.fbx|3DS|*.3ds|OBJ|*.obj|');
+{$ENDIF}
 
 	IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
 	if IupGetInt(dlg, 'STATUS') <> -1 then
 	begin
 		fn := IupGetAttribute(dlg, 'VALUE');
-		
+	
+{$IFDEF HAZ_LWOEXPORT}	
 		if IupGetInt(dlg, 'FILTERUSED') = 4 then
 		begin
 			if model is T4AModelHierrarhy then
 				ExportObject(fn, T4AModelHierrarhy(model));
 		end else
+{$ENDIF}
 		begin
 			scene := TExportScene.Create;
 			Identity(matrix);

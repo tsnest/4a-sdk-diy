@@ -177,7 +177,7 @@ class MyNxErrorStream
 
 void MyNxErrorStream::reportError(NxErrorCode code, const char * message, const char * file, int line)
 {
-//	printf("[PhysX] ERROR %s:%d %s\n", file, line, message);
+	printf("[PhysX] ERROR %s:%d %s\n", file, line, message);
 }
 
 NxAssertResponse MyNxErrorStream::reportAssertViolation(const char * message, const char * file, int line)
@@ -235,6 +235,31 @@ int __stdcall CloseCooking(void)
 	}
 	else
 		return 0;
+}
+
+#pragma comment(linker, "/export:SetCookingParams@12=SetCookingParams")
+int __stdcall SetCookingParams(int platform, float skinWidth, int hintCollisionSpeed)
+{
+	NxCookingParams params;
+
+	params.targetPlatform = (NxPlatform)platform;
+	params.skinWidth = skinWidth;
+	params.hintCollisionSpeed = hintCollisionSpeed;
+
+	if(nxcooking->NxSetCookingParams(params))
+		return 1;
+	else
+		return 0;
+}
+
+#pragma comment(linker, "/export:GetCookingParams@12=GetCookingParams")
+void __stdcall GetCookingParams(int *platform, float *skinWidth, int *hintCollisionSpeed)
+{
+	NxCookingParams params = nxcooking->NxGetCookingParams();
+
+	*platform = params.targetPlatform;
+	*skinWidth = params.skinWidth;
+	*hintCollisionSpeed = params.hintCollisionSpeed;
 }
 
 #pragma comment(linker, "/export:CookTriangleMesh@36=CookTriangleMesh")

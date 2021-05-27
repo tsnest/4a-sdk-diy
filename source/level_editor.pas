@@ -258,7 +258,11 @@ begin
 end;
 
 procedure LoadMap(const dir : String);
+var
+	old_scene_ver : TSceneVersion;
 begin
+	old_scene_ver := Scene.GetVersion;
+
 	DestroyManipulator;
 	Scene.LevelUnload;
 	
@@ -274,12 +278,16 @@ begin
 	
 	// load templates
 	SaveTemplates;
-	case Scene.GetVersion of
-		sceneVer2033:			LoadTemplates('editor_data\templates.txt');
-		sceneVerLL:				LoadTemplates('editor_data\templates_ll.txt');
-		sceneVerRedux:		LoadTemplates('editor_data\templates_redux.txt');
-		sceneVerArktika1:	LoadTemplates('editor_data\templates_a1.txt');
-		sceneVerExodus:		LoadTemplates('editor_data\templates_exodus.txt');
+		
+	if Scene.GetVersion <> old_scene_ver then
+	begin
+		case Scene.GetVersion of
+			sceneVer2033:			LoadTemplates('editor_data\templates.txt');
+			sceneVerLL:				LoadTemplates('editor_data\templates_ll.txt');
+			sceneVerRedux:		LoadTemplates('editor_data\templates_redux.txt');
+			sceneVerArktika1:	LoadTemplates('editor_data\templates_a1.txt');
+			sceneVerExodus:		LoadTemplates('editor_data\templates_exodus.txt');
+		end;
 	end;
 	
 	//
@@ -802,7 +810,7 @@ begin
 	
 	FrustumFromMatrix(frustum, matrix1);
 	
-	DeselectAll;
+	if not iup_isshift(status) then DeselectAll;
 	list := TList.Create;
 	
 	case edit_mode of

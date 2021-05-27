@@ -13,6 +13,8 @@ procedure UpdateTemplates(ih : Ihandle);
 procedure NewTemplate(const path : String; entities : TList; pivot : TEntity);
 procedure DeleteTemplate(t : TSection);
 
+function  IsFolder(t : TSection) : Boolean;
+
 // w/ transform
 function CreateEntities(template : TSection; const transform : TMatrix) : TEntityArray; overload;
 // no transform
@@ -36,8 +38,13 @@ end;
 
 procedure SaveTemplates;
 begin
-	if Assigned(templates) then
-		templates.SaveToFile(templates_fn);
+	try
+		if Assigned(templates) then
+			templates.SaveToFile(templates_fn);
+	except
+		on E: Exception do
+			ShowError('Saving templates failed!'#10 + E.ClassName + ': ' + E.Message);
+	end;
 end;
 
 procedure UnloadTemplates;
@@ -64,7 +71,7 @@ begin
 		if TSimpleValue(t.items[I]) is TSection then
 		begin
 			s := TSection(t.items[I]);
-			if (s.GetParam('id', 'u16') = nil) and not s.GetBool('is_group', False) then
+			if IsFolder(s) then
 				_SortTemplates(s);
 		end;
 			
@@ -82,9 +89,7 @@ begin
 	begin
 		v := TSimpleValue(sect.items[I]);
 
-		if (v is TSection) 
-		   and(TSection(v).GetParam('id', 'u16') = nil) 
-		   and not TSection(v).GetBool('is_group', False) then
+		if (v is TSection) and IsFolder(TSection(v)) then
 		begin		
 			IupSetAttribute(tree, PAnsiChar('ADDBRANCH' + IntToStr(ref)), PAnsiChar(v.name));
 			nid := IupGetInt(tree, 'LASTADDNODE');
@@ -218,8 +223,8 @@ begin
 	s := templates.root;
 	for I := 0 to sl.Count - 2 do
 	begin
-		ss := s.GetSect(sl[I], False); // TODO verify if it's template
-		if ss = nil then
+		ss := s.GetSect(sl[I], False);
+		if (ss = nil) or not IsFolder(ss) then
 			ss := s.AddSect(sl[I]);
 		
 		s := ss;
@@ -244,7 +249,7 @@ procedure DeleteTemplate(t : TSection);
 	var
 		I : Longint;
 	begin
-		if (s.GetParam('id', 'u16') <> nil) or s.GetBool('is_group', False) then
+		if not IsFolder(s) then
 			Exit;
 	
 		for I := 0 to s.items.Count - 1 do
@@ -262,6 +267,11 @@ procedure DeleteTemplate(t : TSection);
 begin
 	if Assigned(templates) then
 		_Recurs(templates.root, t);
+end;
+
+function IsFolder(t : TSection) : Boolean;
+begin
+	IsFolder := (t.GetParam('id', 'u16') = nil) and (t.GetBool('is_group', False) = False);
 end;
 
 function _IsNameFree(const name : String) : Boolean;

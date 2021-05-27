@@ -3,9 +3,10 @@ unit uImport;
 interface
 uses vmath, aiScene, aiMaterial, aiMesh;
 
-function GetTextureName(mat : PAIMaterial) : String;
+function  GetTextureName(mat : PAIMaterial) : String;
 procedure VerifyMesh(mesh : PAIMesh);
-function GetExt(const path : String) : String;
+function  GetExt(const path : String) : String;
+procedure ListImportFormats(out extfilter : String);
 
 // >.<
 type
@@ -75,6 +76,24 @@ end;
 function GetExt(const path : String) : String;
 begin
 	GetExt := LowerCase(ExtractFileExt(path));
+end;
+
+procedure ListImportFormats(out extfilter : String);
+var
+	I : Longint;
+	d : PaiImporterDesc;
+	s : String;
+begin
+	extfilter := 'All Files (*.*)|*.*|';
+	
+	for I := 0 to aiGetImportFormatCount - 1 do
+	begin
+		d := aiGetImportFormatDescription(I);
+		s := '*.' + StringReplace(d.mFileExtensions, ' ', ';*.', [rfReplaceAll]);
+		extfilter := extfilter + d.mName + ' (' + s + ')' + '|' + s + '|';
+	end;
+	
+	extfilter := extfilter + 'X-Ray Open Graphics Format (*.ogf)|*.ogf|';
 end;
 
 function ImportAIScene(const path : String; out cflags : TConvFlags) : PAIScene;

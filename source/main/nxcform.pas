@@ -25,6 +25,7 @@ type
 
 		procedure Save(w : TMemoryWriter);
 		procedure SaveLL(w : TMemoryWriter);
+		procedure SaveRedux(w : TMemoryWriter);
 	end;
 
 implementation
@@ -205,6 +206,7 @@ var
 	I, res : Integer;
 	
 	isLE : Boolean;
+	version : Longint;
 	
 	function SW(src : Word) : Word;
 	begin
@@ -225,12 +227,17 @@ begin
 	if InitCooking = 0 then
 		raise Exception.Create('InitCooking failed!');
 	
+	//SetCookingParams(NX_PLATFORM_XENON, 0.025, 1);
+	
 	try	
 		isLE := False;
+		
+		if level then version := 11
+		else version := 8;
 	
 		w.WriteByte(Byte(isLE));
 		w.WriteLongword(LW($00001FDF));
-		w.WriteLongword(LW(8)); // version (probably)
+		w.WriteLongword(LW(version)); // version (probably)
 		w.WriteLongword(LW($44BB8000)); // checksum
 		w.WriteLongword(LW(Length(surfaces)));
 		for I := 0 to Length(surfaces) - 1 do
@@ -245,12 +252,28 @@ begin
 				w.WriteLongword(LW(Length(surfaces[I].material)+1));
 				w.WriteStringZ(surfaces[I].material);
 
-				// unknown (last light)
-				w.WriteByte($FF);
-				w.WriteByte($FF);
-				w.WriteByte(0);
-				w.WriteByte(0);
-				w.WriteByte(1);
+				// unknown (last light)	
+				case version of
+					// такая версия используется для статических моделей 
+					8: begin
+						w.WriteWord(SW($FFFF));
+						w.WriteWord(SW($0000));
+						w.WriteByte(1);
+					end;
+					
+					// такая версия используется для уровней в билде за декабрь 2012-ого. Работает и в релизе.
+					9: begin
+						w.WriteWord(SW($0000)); // подозреваю что это номер сектора...
+					end;
+					
+					// такая версия используется для уровней в релизе.
+					11: begin
+						w.WriteWord(SW($0000));
+						w.WriteWord(SW($0000));
+						w.WriteByte(1);
+					end;
+				end;
+				
 			end else
 			begin
 				w.WriteByte(1);
@@ -271,6 +294,98 @@ begin
 		end;
 	finally
 		CloseCooking;
+	end;
+end;
+
+procedure TNxCform.SaveRedux(w : TMemoryWriter);
+var
+	data : Pointer;
+	size : Longword;
+
+	I, res : Integer;
+	
+	isLE : Boolean;
+	version : Longint;
+	
+	function SW(src : Word) : Word;
+	begin
+		if isLE then
+			SW := NtoLE(src)
+		else
+			SW := NtoBE(src)
+	end;
+	
+	function LW(src : Longword) : Longword;
+	begin
+		if isLE then
+			LW := NtoLE(src)
+		else
+			LW := NtoBE(src)
+	end;
+begin
+	if InitCooking3 = 0 then
+		raise Exception.Create('InitCooking3 failed!');
+
+	try
+		isLE := True;
+		
+		if level then version := 13
+		else version := 8;
+	
+		w.WriteByte(Byte(isLE));
+		w.WriteLongword(LW($00001BDF));
+		w.WriteLongword(LW(version)); // version (probably)
+		w.WriteLongword(LW($44BB8000)); // checksum
+		w.WriteLongword(LW(Length(surfaces)));
+		for I := 0 to Length(surfaces) - 1 do
+		begin
+			if True {not level} then
+			begin
+				w.WriteByte(0);
+				w.WriteLongword(LW(Length(surfaces[I].shader)+1));
+				w.WriteStringZ(surfaces[I].shader);
+				w.WriteLongword(LW(Length(surfaces[I].texture)+1));
+				w.WriteStringZ(surfaces[I].texture);
+				w.WriteLongword(LW(Length(surfaces[I].material)+1));
+				w.WriteStringZ(surfaces[I].material);
+	
+				// unknown 
+				case version of
+					// такая версия используется для статических моделей 
+					8: begin
+						w.WriteWord(SW($FFFF));
+						w.WriteWord(SW($0000));
+						w.WriteByte(1);
+					end;
+					
+					// такая версия используется для уровней.
+					13: begin
+						w.WriteWord(SW($0000));
+						w.WriteWord(SW($0000));
+						w.WriteByte(1);
+					end;
+				end;
+				
+			end else
+			begin
+				w.WriteByte(1);
+				w.WriteWord(SW(surfaces[I].materialid));
+			end;
+	
+			res := CookTriangleMesh3(
+			Length(surfaces[I].points), Length(surfaces[I].indices) div 3,
+			Pointer(surfaces[I].points), Pointer(surfaces[I].indices),
+			Sizeof(TVec3), Sizeof(LongWord)*3,
+			NX_MF_HARDWARE_MESH, @data, @size);
+	
+			if res = 0 then
+				raise Exception.Create('CookTriangleMesh3 failed, texture: ' + surfaces[I].texture);
+	
+			w.WriteLongword(LW(size));
+			w.Write(data^, size);
+		end;
+	finally
+		CloseCooking3;
 	end;
 end;
 

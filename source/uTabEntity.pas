@@ -43,7 +43,29 @@ var
 	pivot : Longint;
 	
 	selected : TList;
+	
+	pref : String;
+	full_path : Longint;
 begin
+	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
+	
+	// get prefix
+	I := IupGetInt(t, 'VALUE');
+	if I >= 0 then
+	begin
+		if IupGetAttribute(t, PAnsiChar('KIND'+IntToStr(I))) = 'BRANCH' then
+			pref := IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(I))) + '\';
+	
+		while IupGetAttribute(t, PAnsiChar('PARENT' + IntToStr(I))) <> nil do
+		begin
+			I := IupGetInt(t, PAnsiChar('PARENT' + IntToStr(I)));
+			
+			if IupGetAttribute(t, PAnsiChar('KIND'+IntToStr(I))) = 'BRANCH' then
+				pref := IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(I))) + '\' + pref;
+		end;
+	end else
+		pref := '';
+	
 	selected := Scene.GetSelectedList;
 
 	if selected.Count > 0 then
@@ -51,7 +73,10 @@ begin
 		StrPCopy(@name, TEntity(selected[0]).Name);
 		pivot := 0;
 		
+		full_path := 0;
+		
 		format := 'Name: %s'#10;
+		format := format + 'Full path: %b'#10;
 		if selected.Count > 1 then
 		begin
 			format := format + 'Pivot: %l|<center>|';
@@ -60,16 +85,18 @@ begin
 			format := format + #10;
 		end;
 		
-		if IupGetParam('Add template', nil, nil, PAnsiChar(format), @name, @pivot) = 1 then
+		if IupGetParam('Add template', nil, nil, PAnsiChar(format), @name, @full_path, @pivot) = 1 then
 		begin
+			if full_path <> 0 then
+				pref := '';
+			
 			if name[0] <> #0 then
 			begin
 				if pivot = 0 then
-					NewTemplate(name, selected, nil)
+					NewTemplate(pref + name, selected, nil)
 				else
-					NewTemplate(name, selected, TEntity(selected[pivot-1]));
+					NewTemplate(pref + name, selected, TEntity(selected[pivot-1]));
 	
-				t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
 				UpdateTemplates(t);
 			end;
 		end;
@@ -86,14 +113,50 @@ var
 	t : Ihandle;
 	id : Longint;
 	v : TSection;
+	
+	msg : String;
+begin
+	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
+	id := IupGetInt(t, 'VALUE');
+	if id >= 0 then
+	begin
+		msg := 'Are you sure to remove ''' + IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(id))) + '''?';
+	
+		if IupMessageAlarm(MainDialog, 'Remove template', PAnsiChar(msg), 'YESNO') = 1 then
+		begin
+			v := TSection(IupGetAttribute(t, PAnsiChar('USERDATA'+IntToStr(id))));
+			DeleteTemplate(v);
+			
+			//UpdateTemplates(t);
+			IupSetAttribute(t, PAnsiChar('DELNODE'+IntToStr(id)), 'SELECTED');
+		end;
+	end;
+
+	Result := IUP_DEFAULT;
+end;
+
+function btn_rename_template_cb(ih : Ihandle) : Longint; cdecl;
+var
+	t : Ihandle;
+	id : Longint;
+	v : TSection;
+	
+	name : array[0..255] of Char;
 begin
 	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
 	id := IupGetInt(t, 'VALUE');
 	if id >= 0 then
 	begin
 		v := TSection(IupGetAttribute(t, PAnsiChar('USERDATA'+IntToStr(id))));
-		DeleteTemplate(v);
-		UpdateTemplates(t);
+		
+		StrPCopy(@name, v.name);
+		if IupGetParam('Rename template', nil, nil, 'Name: %s'#10, @name) = 1 then
+		begin
+			v.name := StrPas(@name[0]);
+			
+			//UpdateTemplates(t);
+			IupSetAttribute(t, PAnsiChar('TITLE'+IntToStr(id)), @name);
+		end;
 	end;
 
 	Result := IUP_DEFAULT;
@@ -345,7 +408,7 @@ var
 	tree_templates : Ihandle;
 	list_transform : Ihandle;
 	tg_select_new : Ihandle;
-	btn_add, btn_remove : Ihandle;
+	btn_add, btn_remove, btn_rename_template : Ihandle;
 
 	fr_entity : Ihandle;
 	btn_rename, btn_delete, btn_script : Ihandle;
@@ -364,11 +427,12 @@ begin
 
 	btn_add := iup.Button('Add', @btn_add_template_cb);
 	btn_remove := iup.Button('Remove', @btn_remove_template_cb);
+	btn_rename_template := iup.Button('Rename', @btn_rename_template_cb);
 
 	fr_create := IupFrame(
 		IupVBox(
 			tree_templates,
-			IupSetAttributes(IupHBox(btn_add, btn_remove, nil), 'MARGIN=0x0'),
+			IupSetAttributes(IupHBox(btn_add, btn_remove, btn_rename_template, nil), 'MARGIN=0x0'),
 			IupSetAttributes(IupHBox(list_transform, tg_select_new, nil), 'MARGIN=0x0'), 
 			nil
 		)
@@ -481,7 +545,7 @@ begin
 	transform := IupGetInt(l_transform, 'VALUE');
 						
 	// verify if it's template, not folder
-	if (template.GetParam('id', 'u16') = nil) and not (template.GetBool('is_group', False)) then
+	if IsFolder(template) then
 		Exit;
 
 	v3 := hit_nrm;

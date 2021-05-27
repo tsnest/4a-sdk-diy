@@ -111,6 +111,7 @@ class MyPxMemWriter
 	MyPxMemWriter();
 	virtual ~MyPxMemWriter();
 	
+	void clear();
 	virtual PxU32 write(const void *src, PxU32 count); 
 };
 
@@ -120,6 +121,11 @@ MyPxMemWriter::MyPxMemWriter()
 
 MyPxMemWriter::~MyPxMemWriter()
 {
+}
+
+void MyPxMemWriter::clear()
+{
+	data.clear();
 }
 
 PxU32 MyPxMemWriter::write(const void *src, PxU32 count)
@@ -164,6 +170,7 @@ PxQueryHitType::Enum MyPxQueryFilterGroup::postFilter(const PxFilterData &filter
 }
 
 // глобальные переменные
+UINT init_cooking3_counter = 0;
 BOOL initialized = FALSE;
 
 HMODULE hPhysX3;
@@ -180,15 +187,12 @@ PxTolerancesScale tolerancesScale;
 
 PxMaterial *default_material;
 
-#pragma comment(linker, "/export:PHInitialize@0=PHInitialize")
-int __stdcall PHInitialize(void)
+#pragma comment(linker, "/export:InitCooking3@0=InitCooking3")
+int __stdcall InitCooking3(void)
 {
-	if(!initialized)
+	if(init_cooking3_counter == 0)
 	{
 		//
-		hPhysX3 = LoadLibrary("PhysX3" DLL_SUFFIX ".dll");
-		printptr(hPhysX3);
-		
 		hPhysX3Common = LoadLibrary("PhysX3Common" DLL_SUFFIX ".dll");
 		printptr(hPhysX3Common);
 		
@@ -196,32 +200,114 @@ int __stdcall PHInitialize(void)
 		printptr(hPhysX3Cooking);
 		
 		//
-		FARPROC p1 = GetProcAddress(hPhysX3, "PxCreateBasePhysics");
+		FARPROC p1 = GetProcAddress(hPhysX3Common, "PxCreateFoundation");
 		printptr(p1);
 		
-		FARPROC p2 = GetProcAddress(hPhysX3Common, "PxCreateFoundation");
+		FARPROC p2 = GetProcAddress(hPhysX3Cooking, "PxCreateCooking");
 		printptr(p2);
 		
-		FARPROC p3 = GetProcAddress(hPhysX3Cooking, "PxCreateCooking");
-		printptr(p3);
-		
 		//
-		LPFNPXCREATEFOUNDATIONPROC PxCreateFoundation = (LPFNPXCREATEFOUNDATIONPROC)p2;
-		LPFNPXCREATEBASEPHYSICSPROC PxCreateBasePhysics = (LPFNPXCREATEBASEPHYSICSPROC)p1;
-		LPFNPXCREATECOOKINGPROC PxCreateCooking = (LPFNPXCREATECOOKINGPROC)p3;
+		LPFNPXCREATEFOUNDATIONPROC PxCreateFoundation = (LPFNPXCREATEFOUNDATIONPROC)p1;
+		LPFNPXCREATECOOKINGPROC PxCreateCooking = (LPFNPXCREATECOOKINGPROC)p2;
 		
 		allocator = MyPxAllocator();
 		error = MyPxError();
-		tolerancesScale = PxTolerancesScale();
 		
 		foundation = PxCreateFoundation(PX_PHYSICS_VERSION, allocator, error);
 		printptr(foundation);
 		
-		physics = PxCreateBasePhysics(PX_PHYSICS_VERSION, *foundation, tolerancesScale, false, NULL);
-		printptr(physics);
-		
 		cooking = PxCreateCooking(PX_PHYSICS_VERSION, *foundation, PxCookingParams(tolerancesScale));
 		printptr(cooking);
+	}
+	
+	init_cooking3_counter++;
+
+	return 1;
+}
+
+#pragma comment(linker, "/export:CloseCooking3@0=CloseCooking3")
+void __stdcall CloseCooking3(void)
+{
+	if(init_cooking3_counter > 0)
+		init_cooking3_counter--;
+		
+	if(init_cooking3_counter == 0)
+	{
+		//
+		cooking->release();
+		foundation->release();
+		
+		//
+		FreeLibrary(hPhysX3Common);
+		FreeLibrary(hPhysX3Cooking);
+			
+		//
+		cooking = NULL;
+		foundation = NULL;
+		
+		hPhysX3Common = NULL;
+		hPhysX3Cooking = NULL;
+	}
+}
+
+#pragma comment(linker, "/export:CookTriangleMesh3@36=CookTriangleMesh3")
+int __stdcall CookTriangleMesh3(int numVerts, int numTriangles, void *pVerts,
+	void *pTris, int vertStride, int triangleStride, int flags, void **ptr, int *sz)
+{
+	if(init_cooking3_counter == 0)
+		return 0;
+	
+	//	
+	PxTriangleMeshDesc desc;
+	
+	desc.points.stride = vertStride;
+	desc.points.data = pVerts;
+	desc.points.count = numVerts;
+	
+	desc.triangles.stride = triangleStride;
+	desc.triangles.data = pTris;
+	desc.triangles.count = numTriangles;
+	
+	desc.flags = PxMeshFlags(flags & 3); // hack - exclude NX_MF_HARDWARE_MESH
+	
+	if(!desc.isValid())
+		return 0;
+	
+	//
+	static MyPxMemWriter out;
+	out.clear();
+	
+	if(!cooking->cookTriangleMesh(desc, out))
+		return 0;
+	
+	*ptr = &out.data[0];
+	*sz = (int)out.data.size();
+			
+	return 1;
+}
+
+#pragma comment(linker, "/export:PHInitialize@0=PHInitialize")
+int __stdcall PHInitialize(void)
+{
+	if(!initialized)
+	{
+		if(!InitCooking3())
+			return 0;
+			
+		//
+		hPhysX3 = LoadLibrary("PhysX3" DLL_SUFFIX ".dll");
+		printptr(hPhysX3);
+		
+		//
+		FARPROC p1 = GetProcAddress(hPhysX3, "PxCreateBasePhysics");
+		printptr(p1);
+		
+		//
+		LPFNPXCREATEBASEPHYSICSPROC PxCreateBasePhysics = (LPFNPXCREATEBASEPHYSICSPROC)p1;
+		
+		tolerancesScale = PxTolerancesScale();
+		physics = PxCreateBasePhysics(PX_PHYSICS_VERSION, *foundation, tolerancesScale, false, NULL);
+		printptr(physics);
 		
 		default_material = physics->createMaterial(1.0, 1.0, 0.0);
 		printptr(default_material);
@@ -240,25 +326,18 @@ void __stdcall PHFinalize(void)
 		default_material->release();
 	
 		//
-		cooking->release();
 		physics->release();
-		foundation->release();
 		
 		//
 		FreeLibrary(hPhysX3);
-		FreeLibrary(hPhysX3Common);
-		FreeLibrary(hPhysX3Cooking);
 			
 		//
 		default_material = NULL;
-		
-		cooking = NULL;
 		physics = NULL;
-		foundation = NULL;
-		
 		hPhysX3 = NULL;
-		hPhysX3Common = NULL;
-		hPhysX3Cooking = NULL;
+		
+		//
+		CloseCooking3();
 		
 		initialized = FALSE;
 	}
@@ -563,8 +642,11 @@ PxRigidActor * __stdcall PHCreateActor(PxScene *scene, int isdynamic, int count,
 		return NULL;
 		
 	for(int i = 0; i < count; i++)
+	{
 		actor->attachShape(*shapes[i]);
-		
+		shapes[i]->release();
+	}
+	
 	//printf("shapes %d\n", actor->getNbShapes());
 		
 	scene->addActor(*actor);
@@ -576,7 +658,6 @@ void __stdcall PHRemoveActor(PxScene *scene, PxRigidActor* actor)
 {
 	if(actor)
 	{
-		// should we release all attached shapes here?
 		scene->removeActor(*actor);
 		actor->release();
 	}
@@ -628,6 +709,7 @@ PxShape* __stdcall PHGetShape(PxRigidActor *actor, int id)
 	{
 		PxShape *shape;
 		actor->getShapes(&shape, 1, id);
+		/// should we call shape->release() here ?
 		return shape;
 	}
 	else
@@ -640,6 +722,7 @@ PxShape * __stdcall PHAddShape(PxRigidActor *actor, PxShape *shape)
 	if(actor && shape)
 	{
 		actor->attachShape(*shape);
+		shape->release();
 		return shape;
 	}
 	else
@@ -652,7 +735,6 @@ void __stdcall PHRemoveShape(PxShape *shape)
 	if(shape)
 	{
 		shape->getActor()->detachShape(*shape);
-		shape->release();
 	}
 }
 

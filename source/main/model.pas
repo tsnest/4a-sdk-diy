@@ -3,7 +3,7 @@ uses chunkedFile, sysutils, classes, vmath, hashTable, fouramdl, OGF, windows,
 		 nxcform, OGFImport, LMap;
 
 type
-	TLevelFlags = set of (lfSkipMU, lfUseLMap, lfLastLight);
+	TLevelFlags = set of (lfSkipMU, lfUseLMap, lfLastLight, lfRedux);
 
 var
 	shaderbytexture, materialbytexture : THashTable;
@@ -288,7 +288,7 @@ begin
 	l.AddSector(l.AddVisual(s));
 end;
 
-procedure GenerateCform(l : T4ALevel; fn : String; ll : Boolean = False);
+procedure GenerateCform(l : T4ALevel; fn : String; target : Longint);
 var
 	cf : TNxCform;
 	mt : PAnsiString;
@@ -306,7 +306,11 @@ begin
 		end;
 
 	w := TMemoryWriter.Create;
-	if ll then cf.SaveLL(w) else cf.Save(w);
+	case target of
+		0: cf.Save(w);
+		1: cf.SaveLL(w);
+		2: cf.SaveRedux(w);
+	end;
 	w.SaveTo(fn);
 
 	w.Free;
@@ -337,11 +341,15 @@ begin
 
 	If lfLastLight in params then
 		l.visuals[l.sectors[0]].version := 21;
+	If lfRedux in params then
+		l.visuals[l.sectors[0]].version := 22;
 
-	If lfLastLight in params then
-		GenerateCform(l, destdir + '\level.nxcform_xbox', True)
+	if lfRedux in params then
+		GenerateCform(l, destdir + '\level.nxcform33x', 2)
+	else if lfLastLight in params then
+		GenerateCform(l, destdir + '\level.nxcform_xbox', 1)
 	else
-		GenerateCform(l, destdir + '\level.nxcform_pc');
+		GenerateCform(l, destdir + '\level.nxcform_pc', 0);
 
 	ScaleAO(l);
 
@@ -424,6 +432,9 @@ begin
 
 			if lfLastLight in params then
 				rm.version := 21;
+			if lfRedux in params then
+				rm.version := 22;
+				
 			rm.shaderid := l.AddMaterial(shader, texture, material, flags);
 			rm.bbox := m.bbox;
 			rm.bsphere := m.bsphere;
@@ -470,10 +481,12 @@ begin
 
 	// cform
 	WriteLn('generating nxcform...');
-	if lfLastLight in params then
-		GenerateCform(l, destdir + '\level.nxcform_xbox', True)
+	if lfRedux in params then
+		GenerateCform(l, destdir + '\level.nxcform33x', 2)
+	else if lfLastLight in params then
+		GenerateCform(l, destdir + '\level.nxcform_xbox', 1)
 	else
-		GenerateCform(l, destdir + '\level.nxcform_pc');
+		GenerateCform(l, destdir + '\level.nxcform_pc', 0);
 		
 	// lightmap
 	if lfUseLMap in params then
@@ -485,8 +498,11 @@ begin
 	// save level
 	ScaleAO(l);
 	CreateSector(l);
+	
 	if lfLastLight in params then
 		l.visuals[l.sectors[0]].version := 21;
+	if lfRedux in params then
+		l.visuals[l.sectors[0]].version := 22;
 
 	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
 	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
@@ -667,6 +683,12 @@ begin
 		Include(flags, lfLastLight);
 		Inc(I);
 	end;
+	
+	if ParamStr(I) = '-redux' then
+	begin
+		Include(flags, lfRedux);
+		Inc(I);
+	end;	
 
 	if ParamCount-(I-1) >= 3 then
 	begin
@@ -701,11 +723,13 @@ begin
 		WriteLn(#9'model -ogf2model infile outfile');
 		WriteLn(#9'model -model2ogf infile outfile');
 		WriteLn(#9'model -model2nxcform_pc infile outfile');
-		WriteLn(#9'model -model2level model1 model2 .. modelN leveldir');
-		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] -level2level xrleveldir leveldir');
+		WriteLn(#9'model [-ll] [-redux] -model2level model1 model2 .. modelN leveldir');
+		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] [-ll] [-redux] -level2level xrleveldir leveldir');
 		WriteLn('Options:');
 		WriteLn(#9'-nomu : skip Multiple Usage models');
 		WriteLn(#9'-lmap : convert lightmaps (CS/CoP version) to level.lmap_pc');
 		WriteLn(#9'-lmap_soc : convert lightmaps (SoC version) to level.lmap_pc');
+		WriteLn(#9'-ll : target Metro Last Light (2013)');
+		WriteLn(#9'-redux : target Metro Redux');
 	end;
 end.

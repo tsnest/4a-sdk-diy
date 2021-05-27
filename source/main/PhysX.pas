@@ -10,6 +10,13 @@ const
 	NX_MF_16_BIT_INDICES = $2;
 	NX_MF_HARDWARE_MESH	 = $4;
 	
+const
+	NX_PLATFORM_PC           = 0;
+	NX_PLATFORM_XENON        = 1;
+	NX_PLATFORM_PLAYSTATION3 = 2;
+	NX_PLATFORM_GAMECUBE     = 3;
+	NX_PLATFORM_WII          = 4;
+	
 type
 	TPHScene = Pointer;
 	TPHActor = Pointer;
@@ -20,6 +27,17 @@ type
 function  InitCooking : Longint; stdcall; external PH_DLL;
 function  CloseCooking : Longint; stdcall; external PH_DLL;
 function  CookTriangleMesh(
+	numVertices, numTriangles : Longint; points, tris : Pointer;
+	pointstride, trianglestride : Longint; flags : Longint;
+	data : Pointer; size : PLongword) : Integer; stdcall; external PH_DLL;
+	
+function  SetCookingParams(platform : Longint; skinWidth : Single; hintCollisionSpeed : Longint) : Longint; stdcall; external PH_DLL;
+procedure GetCookingParams(platform : PLongint; skinWidth : PSingle; hintCollisionSpeed : PLongint); stdcall; external PH_DLL;
+
+function  InitCooking3 : Longint; stdcall; external PH_DLL;
+function  CloseCooking3 : Longint; stdcall; external PH_DLL;
+
+function  CookTriangleMesh3(
 	numVertices, numTriangles : Longint; points, tris : Pointer;
 	pointstride, trianglestride : Longint; flags : Longint;
 	data : Pointer; size : PLongword) : Integer; stdcall; external PH_DLL;
