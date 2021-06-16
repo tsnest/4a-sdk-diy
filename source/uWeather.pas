@@ -151,6 +151,36 @@ begin
 	end;
 end;
 
+procedure _ListWeathers(list : TStringList; const dir : String);
+var
+	sr : TSearchRec;
+	str : String;
+begin
+	if FindFirst(dir + '\*', faDirectory, sr) = 0 then
+	begin
+		repeat
+			if not ((sr.Name = '.') or (sr.Name = '..')) then
+				_ListWeathers(list, dir + '\' + sr.Name)
+		until FindNext(sr) <> 0;
+		FindClose(sr);
+	end;
+
+	if FindFirst(dir + '\*.bin', faAnyFile xor faDirectory, sr) = 0 then
+	begin
+		repeat
+			// 1. full path
+			str := dir + '\' + sr.Name;
+			// 2. cut path to environments directory
+			str := StringReplace(str, ResourcesPath+'\environments\', '', []);
+			// 3. cut extension		
+			str := StringReplace(str, ExtractFileExt(str), '', []);
+			
+			list.Add(str);
+		until FindNext(sr) <> 0;
+		FindClose(sr);
+	end;
+end;
+
 function GetWeathersList : TStringList;
 var
 	sect_descs : TSection;
@@ -160,7 +190,7 @@ begin
 	
 	if Engine.version = eVerRedux then
 	begin
-		// TODO
+		_ListWeathers(Result, ResourcesPath + '\environments');
 	end else
 	begin
 		sect_descs := k_env.root.GetSect('descriptions');
