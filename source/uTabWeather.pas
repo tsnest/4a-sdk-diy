@@ -96,6 +96,7 @@ begin
 	list_weathers := IupList(nil);
 	IupSetAttribute(list_weathers, 'NAME', 'LIST_WEATHERS');
 	IupSetAttribute(list_weathers, 'EXPAND', 'YES');
+	IupSetAttribute(list_weathers, 'VISIBLELINES', '15');
 	IupSetCallback(list_weathers, 'ACTION', @list_weathers_cb);
 	
 	btn_apply := iup.Button('Apply!', @btn_apply_cb);
