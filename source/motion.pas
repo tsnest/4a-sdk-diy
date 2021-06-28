@@ -149,8 +149,7 @@ var
 	end;
 	
 	function GetCRC_BE(data : array of Smallint) : Longint;
-	var 
-		buffer : String; 
+	var
 		data_be : array of Smallint;
 		I : Longint;
 	begin

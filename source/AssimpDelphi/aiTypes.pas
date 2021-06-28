@@ -1,17 +1,12 @@
+{$POINTERMATH ON}
 unit aiTypes;
 
 interface
 
-const
-	_AI_MAX_ARRAY = $ffffffff;
-
 //added for Delphi interface
 type
-   TCardinalArray = array [0.._AI_MAX_ARRAY] of Cardinal;
-   PCardinalArray = ^TCardinalArray;
-
-   TSingleArray = array[0.._AI_MAX_ARRAY] of Single;
-   PSingleArray = ^TSingleArray; 
+   PCardinalArray = ^Cardinal;
+   PSingleArray = ^Single; 
 
 type aiString = record
 //{$IFDEF WIN64}

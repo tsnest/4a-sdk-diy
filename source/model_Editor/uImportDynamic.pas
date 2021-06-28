@@ -65,7 +65,7 @@ begin
 
 	for I := 0 to mesh^.mNumBones - 1 do
 	begin
-		b := mesh^.mBones^[I];
+		b := mesh^.mBones[I];
 		
 		name := aiStringToDelphiString(b^.mName);
 		id := s.GetBoneID(name);
@@ -83,12 +83,12 @@ begin
 				
 			for J := 0 to b^.mNumWeights - 1 do
 			begin		
-				K := b^.mWeights^[J].mVertexId;
+				K := b^.mWeights[J].mVertexId;
 				
 				L := Length(map[K]);
 				SetLength(map[K], L+1);
 				map[K,L].bone_id := mesh_id;
-				map[K,L].weight := b^.mWeights^[J].mWeight;
+				map[K,L].weight := b^.mWeights[J].mWeight;
 			end;
 		end;
 		
@@ -277,7 +277,7 @@ begin
 	try
 		for I := 0 to Length(import) - 1 do
 		begin
-			src := scene^.mMeshes^[import[I].mesh];
+			src := scene^.mMeshes[import[I].mesh];
 			matrix :=  import[I].transform;
 			VerifyMesh(src);
 			
@@ -287,7 +287,7 @@ begin
 			model.meshes[I] := mesh;
 			
 			mesh.name := aiStringToDelphiString(src^.mName);
-			mesh.texture := GetTextureName(scene^.mMaterials^[src^.mMaterialIndex]);
+			mesh.texture := GetTextureName(scene^.mMaterials[src^.mMaterialIndex]);
 			mesh.shader := 'geometry\default';
 			mesh.material := 'materials\wood';
 			
@@ -312,7 +312,7 @@ begin
 			SetLength(mesh.vertices, src^.mNumVertices);
 			for J := 0 to src^.mNumVertices - 1 do
 			begin
-				p := ConvertVec3(src^.mVertices^[J]);
+				p := ConvertVec3(src^.mVertices[J]);
 				Transform(p, matrix);
 				
 				if J = 0 then begin
@@ -328,22 +328,22 @@ begin
 				
 				if src^.mColors[0] <> nil then
 				begin
-					with src^.mColors[0]^[J] do
+					with src^.mColors[0][J] do
 						ao := (r + g + b) / 3;
 				end else
 					ao := 0.5;
 				
-				n := ConvertVec3(src^.mNormals^[J]);
+				n := ConvertVec3(src^.mNormals[J]);
 				Transform33(n, matrix);
 				Normalize(n);
 	      mesh.vertices[J].normal := PackNormal(n) or (Trunc(ao * 255) shl 24);
 	
-				n := ConvertVec3(src^.mTangents^[J]);
+				n := ConvertVec3(src^.mTangents[J]);
 				Transform33(n, matrix);
 				Normalize(n);
 				mesh.vertices[J].tangent := PackNormal(n);    
 	
-				n := ConvertVec3(src^.mBitangents^[J]);
+				n := ConvertVec3(src^.mBitangents[J]);
 				n.x := n.x * -1.0; n.y := n.y * -1.0; n.z := n.z * -1.0;
 				Transform33(n, matrix);
 				Normalize(n);
@@ -397,8 +397,8 @@ begin
 					end;
 				end;
 	
-				mesh.vertices[J].tc.x := Trunc(src^.mTextureCoords[0]^[J].x * 2048);
-				mesh.vertices[J].tc.y := Trunc(src^.mTextureCoords[0]^[J].y * 2048);
+				mesh.vertices[J].tc.x := Trunc(src^.mTextureCoords[0][J].x * 2048);
+				mesh.vertices[J].tc.y := Trunc(src^.mTextureCoords[0][J].y * 2048);
 	    end;
 	
 			SetLength(mesh.indices, src^.mNumFaces * 3);
@@ -406,14 +406,14 @@ begin
 			begin
 				if (cfSwapYZ in flags) or (cfMirrorZ in flags) then
 				begin
-					mesh.indices[J*3  ] := src^.mFaces^[J].mIndices^[2];
-					mesh.indices[J*3+1] := src^.mFaces^[J].mIndices^[1];
-					mesh.indices[J*3+2] := src^.mFaces^[J].mIndices^[0];
+					mesh.indices[J*3  ] := src^.mFaces[J].mIndices[2];
+					mesh.indices[J*3+1] := src^.mFaces[J].mIndices[1];
+					mesh.indices[J*3+2] := src^.mFaces[J].mIndices[0];
 				end else
 				begin
-					mesh.indices[J*3  ] := src^.mFaces^[J].mIndices^[0];
-					mesh.indices[J*3+1] := src^.mFaces^[J].mIndices^[1];
-					mesh.indices[J*3+2] := src^.mFaces^[J].mIndices^[2];
+					mesh.indices[J*3  ] := src^.mFaces[J].mIndices[0];
+					mesh.indices[J*3+1] := src^.mFaces[J].mIndices[1];
+					mesh.indices[J*3+2] := src^.mFaces[J].mIndices[2];
 				end;
 			end;
 	

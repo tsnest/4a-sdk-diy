@@ -31,8 +31,7 @@ type
 		mSize: TaiVector2D;
 	end;
 	PaiLight = ^TaiLight;
-	PaiLightArray = array[0.._AI_MAX_ARRAY] of PaiLight;
-	PPaiLightArray = ^PaiLightArray;
+	PPaiLightArray = ^PaiLight;
 
 implementation
 

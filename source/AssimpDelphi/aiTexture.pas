@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiTexture;
 
 interface
@@ -7,8 +8,7 @@ type TaiTexel = packed record
    b, g, r, a: byte;
 end;
 PaiTexel = ^TaiTexel;
-TaiTexelArray = array[0.._AI_MAX_ARRAY] of TaiTexel;
-PaiTexelArray = ^TaiTexelArray;
+PaiTexelArray = ^TaiTexel;
 
 type TaiTexture = packed record
    mWidth: Cardinal; //width in pixels, OR total embedded file size if texture is a jpg/png/etc
@@ -17,8 +17,7 @@ type TaiTexture = packed record
    pcData: PaiTexelArray;
 end;
 PaiTexture = ^TaiTexture;
-PaiTextureArray = array [0.._AI_MAX_ARRAY] of PaiTexture;
-PPaiTextureArray = ^PaiTextureArray;
+PPaiTextureArray = ^PaiTexture;
 
 
 

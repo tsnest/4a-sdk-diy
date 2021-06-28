@@ -648,10 +648,6 @@ begin
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
 	glAlphaFunc(GL_GEQUAL, 0.5);
-	
-	bkg_color.x := 0.4;
-	bkg_color.y := 0.7;
-	bkg_color.z := 0.8;
 
 	InitializeRender;
 

@@ -1961,5 +1961,24 @@ var block_readers = {
 	"trolley/stop drezina hand": function(e)
 	{
 		e.ReadFP32("tormoznoy_put")
+	},
+	
+	// блоки для сетевой игры
+	// в официальных картах не встречаются
+	"triggers/game/spectator trigger": function(e)
+	{
+		e.ReadBool("active")
+		e.ReadU16("camera_team", "entity_link, uobject_link")
+		e.ReadU32("current_object")
+		var count = e.ReadU32("objects_count_pre")
+		for(var i = 0; i < count; i++)
+		{
+			e.ReadString("object_" + i + "_name")
+			e.ReadU16("object_" + i + "_link", "entity_link, uobject_link")
+			e.ReadU16("object_" + i + "_lamp", "entity_link, uobject_link")
+			e.ReadU16("object_" + i + "_camera", "entity_link, uobject_link")
+		}
+		e.ReadU32("objects_count")
+		e.ReadU8("team")
 	}
 }

@@ -26,13 +26,13 @@ var
 	I : Longint;
 begin
 	I := 0;
-	while (I < a.mNumChannels) and (name <> aiStringToDelphiString(a.mChannels^[I].mNodeName)) do
+	while (I < a.mNumChannels) and (name <> aiStringToDelphiString(a.mChannels[I].mNodeName)) do
 		Inc(I);
 		
 	if I >= a.mNumChannels then
 		raise Exception.Create('Bone ''' + name + ''' not found in animation ''' + aiStringToDelphiString(a.mName) + '''!');
 		
-	Result := a.mChannels^[I];
+	Result := a.mChannels[I];
 end;
 
 function EvalTranslation(n : PAINodeAnim; time : Double) : TAIVector3D;
@@ -41,16 +41,16 @@ var
 	t1, t2 : TAIVectorKey;
 begin
 	J := 0;
-	while (J < n.mNumPositionKeys) and (n.mPositionKeys^[J].mTime < time) do
+	while (J < n.mNumPositionKeys) and (n.mPositionKeys[J].mTime < time) do
 		Inc(J);
 		
 	if J = 0 then // just copy first key
-		Result := n.mPositionKeys^[0].mValue
+		Result := n.mPositionKeys[0].mValue
 	else if J >= n.mNumPositionKeys then // just copy last key
-		Result := n.mPositionKeys^[n.mNumPositionKeys-1].mValue
+		Result := n.mPositionKeys[n.mNumPositionKeys-1].mValue
 	else begin // interpolate
-		t1 := n.mPositionKeys^[J-1];
-		t2 := n.mPositionKeys^[J];
+		t1 := n.mPositionKeys[J-1];
+		t2 := n.mPositionKeys[J];
 		
 		Result := aiVector3D.Interpolate(t1.mValue, t2.mValue, (time - t1.mTime) / (t2.mTime - t1.mTime));
 	end;
@@ -63,25 +63,22 @@ var
 	q : TAIQuaternion;
 begin
 	J := 0;
-	while (J < n.mNumRotationKeys) and (n.mRotationKeys^[J].mTime < time) do
+	while (J < n.mNumRotationKeys) and (n.mRotationKeys[J].mTime < time) do
 		Inc(J);
 		
 	if J = 0 then // just copy first key
-		q := n.mRotationKeys^[0].mValue
+		q := n.mRotationKeys[0].mValue
 	else if J >= n.mNumPositionKeys then // just copy last key
-		q := n.mRotationKeys^[n.mNumRotationKeys-1].mValue
+		q := n.mRotationKeys[n.mNumRotationKeys-1].mValue
 	else begin // interpolate
-		k1 := n.mRotationKeys^[J-1];
-		k2 := n.mRotationKeys^[J];
+		k1 := n.mRotationKeys[J-1];
+		k2 := n.mRotationKeys[J];
 		
 		QNormalize(k1.mValue);
 		QNormalize(k2.mValue);
 		
 		q := aiQuaternion.Interpolate(k1.mValue, k2.mValue, (time - k1.mTime) / (k2.mTime - k1.mTime));
 	end;
-	
-	//if(aistringtodelphistring(n.mNodeName)='bip01_l_forearm')then
-	//WriteLn('X = ', q.x:1:3, 'Y = ', q.y:1:3, 'Z = ', q.z:1:3, 'W = ', q.w:1:3);
 	
 	// normalize
 	QNormalize(q);
@@ -192,7 +189,7 @@ var
 	
 	w : TMemoryWriter;
 begin
-	motion := scene.mAnimations^[motion_id];
+	motion := scene.mAnimations[motion_id];
 
 	WriteLN('mDuration = ', motion.mDuration);
 	WriteLN('mTicksPerSecond = ', motion.mTicksPerSecond);
@@ -245,10 +242,6 @@ begin
 		m.data[I].flags := flags;
 		
 		bone := FindBone(motion, s.bones[I].name);
-		
-		//for J := 0 to bone.mNumPositionKeys-1 do
-		//	with bone.mPositionKeys^[J] do
-		//		WriteLN('time ', mTime:3:3, ' X: ', mValue.x:3:3, ' Y: ', mValue.y:3:3, ' Z: ', mValue.z:3:3);
 		
 		// calculate rotation keys
 		if useRotation then

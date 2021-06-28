@@ -26032,54 +26032,6 @@ system = begin
 	end;
 end;
 temp = begin
-	chur_path1 = begin
-		version : u16 = 16;
-		class : stringz = 'PATROL_POINT';
-		static_data_key : stringz = '_G.config.entity.patrol_point';
-		id : u16 = 452;
-		parent_id : u16 = 65535;
-		att_bone_id : locator_str;
-		att_bone_id : stringz = '';
-		att_offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-		oflags : bool8 = 139;
-		'' : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-		name : name;
-		name : stringz = 'chur_path1';
-		visual : ref_model;
-		visual : stringz = '';
-		dao_val : fp32 = 0;
-		vss_ver_6 : array;
-		vss_ver_6 = begin
-			count : u32 = 0;
-		end;
-		link_0 = begin
-			object : 'entity_link, uobject_link' = -1;
-			weight : fp32 = 0;
-		end;
-		link_1 = begin
-			object : 'entity_link, uobject_link' = -1;
-			weight : fp32 = 0;
-		end;
-		link_2 = begin
-			object : 'entity_link, uobject_link' = -1;
-			weight : fp32 = 0;
-		end;
-		link_3 = begin
-			object : 'entity_link, uobject_link' = -1;
-			weight : fp32 = 0;
-		end;
-		min_wait_time : u32 = 0;
-		max_wait_time : u32 = 0;
-		body_state : stringz = '';
-		anim_state : stringz = '';
-		movement_type : stringz = '';
-		weapon_state : stringz = '';
-		action : stringz = '';
-		target : 'entity_link, uobject_link' = -1;
-		flags : flags32;
-		flags : u32 = 0;
-		anim_state_approach_speed : fp32 = 2;
-	end;
 	lurker_script = begin
 		version : u16 = 17;
 		class : stringz = 'LURKER';
@@ -26586,6 +26538,54 @@ temp = begin
 		commons_vs = begin
 			count : u32 = 0;
 		end;
+	end;
+	pathpathpath = begin
+		version : u16 = 16;
+		class : stringz = 'PATROL_POINT';
+		static_data_key : stringz = '_G.config.entity.patrol_point';
+		id : u16 = 452;
+		parent_id : u16 = 65535;
+		att_bone_id : locator_str;
+		att_bone_id : stringz = '';
+		att_offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+		oflags : bool8 = 139;
+		'' : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+		name : name;
+		name : stringz = 'chur_path1';
+		visual : ref_model;
+		visual : stringz = '';
+		dao_val : fp32 = 0;
+		vss_ver_6 : array;
+		vss_ver_6 = begin
+			count : u32 = 0;
+		end;
+		link_0 = begin
+			object : 'entity_link, uobject_link' = -1;
+			weight : fp32 = 0;
+		end;
+		link_1 = begin
+			object : 'entity_link, uobject_link' = -1;
+			weight : fp32 = 0;
+		end;
+		link_2 = begin
+			object : 'entity_link, uobject_link' = -1;
+			weight : fp32 = 0;
+		end;
+		link_3 = begin
+			object : 'entity_link, uobject_link' = -1;
+			weight : fp32 = 0;
+		end;
+		min_wait_time : u32 = 0;
+		max_wait_time : u32 = 0;
+		body_state : stringz = '';
+		anim_state : stringz = '';
+		movement_type : stringz = '';
+		weapon_state : stringz = '';
+		action : stringz = '';
+		target : 'entity_link, uobject_link' = -1;
+		flags : flags32;
+		flags : u32 = 0;
+		anim_state_approach_speed : fp32 = 2;
 	end;
 end;
 user = begin

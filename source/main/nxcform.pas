@@ -97,7 +97,7 @@ var
 	startvtx, startidx, S, I : Integer;
 begin
 	S := GetSurface(mdl.shaderid);
-	if S = -1 then
+	//if S = -1 then
 	begin
 		S := Length(surfaces);
 		SetLength(surfaces, Length(surfaces)+1);

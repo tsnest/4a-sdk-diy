@@ -409,7 +409,6 @@ end;
 function TKonfigReader.ReadString(const nm : String; const tp : String) : String;
 var
 	I : String;
-	index : Longword;
 begin
 	_ReadDebugInfo(nm, tp);
 	I := _ReadString;

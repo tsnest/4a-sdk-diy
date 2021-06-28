@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiMaterial;
 
 interface
@@ -106,8 +107,7 @@ type TaiMaterialProperty = record
    mData: PChar;
 end;
 type PaiMaterialProperty = ^TaiMaterialProperty;
-type PaiMaterialPropertyArray = array[0.._AI_MAX_ARRAY] of PaiMaterialProperty;
-type PPaiMaterialPropertyArray = ^PaiMaterialPropertyArray;
+type PPaiMaterialPropertyArray = ^PaiMaterialProperty;
 
 type TaiMaterial = record
    mProperties: PPaiMaterialPropertyArray;
@@ -115,8 +115,7 @@ type TaiMaterial = record
    mNumAllocated: Cardinal;
 end;
 type PaiMaterial = ^TaiMaterial;
-type PaiMaterialArray = array[0.._AI_MAX_ARRAY] of PaiMaterial;
-type PPaiMaterialArray = ^PaiMaterialArray;
+type PPaiMaterialArray = ^PaiMaterial;
 
 const AI_MATKEY_NAME = '?mat.name';
 const AI_MATKEY_TWOSIDED = '$mat.twosided';

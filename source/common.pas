@@ -36,7 +36,7 @@ var
 	useWeather : Boolean = False;
 	showAO : Boolean = False;
 	
-	bkg_color : TVec4;
+	bkg_color : TVec4 = (X: 0.4; Y: 0.7; Z: 0.8; W: 1.0);
 	prog : array[1..16] of GLuint;
 	
 	camera_pos : TVec3;
@@ -277,7 +277,7 @@ end;
 
 constructor TResModel.Create(const nm : String; m : T4AModel);
 var
-	model_path : String;
+	//model_path : String;
 	
 	m_static : T4AModelHierrarhy;
 	m_skeleton : T4AModelSkeleton;
@@ -1507,14 +1507,9 @@ procedure TSkinnedModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended
 var
 	I, J, K : Longint;
 	s : T4AModelSkinnedMesh;
-
 	vpos, ipos : PByte;
-	w, h : GLint;
-	
 	material : TMaterial;
-	
 	scale : Single;
-	
 	ms : TMaterialSet;
 begin
 	if mtlset = -1 then ms := materials
@@ -1707,8 +1702,6 @@ end;
 constructor TLevelMaler.Create(l : T4ALevel);
 var
 	I : Integer;
-
-	bump_name, det_name : String;
 begin
 	level := l;
 

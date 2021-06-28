@@ -160,6 +160,36 @@ type
 implementation
 uses uCrc, windows;
 
+function _IsHint(const vtype : String) : Boolean;
+begin
+	_IsHint := 
+	(vtype = 'array') or
+	(vtype = 'camera_track, str_shared') or
+	(vtype = 'texture, str_shared') or
+	(vtype = 'choose_array, str_shared') or
+	(vtype = 'particles_modifier, str_shared') or
+	(vtype = 'particles, str_shared') or
+	(vtype = 'vs_ref, str_shared') or
+	(vtype = 'material, str_shared') or
+	(vtype = 'shader, str_shared') or
+	(vtype = 'locator_str') or
+	(vtype = 'locator_id') or
+	(vtype = 'name') or
+	(vtype = 'ref_model') or
+	(vtype = 'animation_str') or
+	(vtype = 'part_id') or
+	(vtype = 'sound') or
+	(vtype = 'str_array') or
+	(vtype = 'str_array16') or
+	(vtype = 'str_array32') or
+	(vtype = 'bone_id') or
+	(vtype = 'ref_coloranim') or
+	(vtype = 'flags8') or
+	(vtype = 'flags32') or
+	(vtype = 'bone_str') or
+	(vtype = 'choose')
+end;
+
 type
 	TStringArray = array of String;
 
@@ -748,7 +778,7 @@ var
 begin
 	arr := TIntegerArrayValue.Create(name, vtype);
 	SetLength(arr.data, Length(data));
-	Move(data[0], arr.data[0], Length(data)*Sizeof(Int64));
+	Move(data[0], arr.data[0], Length(data)*Sizeof(Integer));
 
 	Result := arr;
 end;
@@ -1302,31 +1332,7 @@ begin
 				//WriteLn(vname, ' ', vtype);
 			end;
 
-			if (vtype = 'array') or
-				 (vtype = 'camera_track, str_shared') or
-				 (vtype = 'texture, str_shared') or
-				 (vtype = 'choose_array, str_shared') or
-				 (vtype = 'particles_modifier, str_shared') or
-				 (vtype = 'particles, str_shared') or
-				 (vtype = 'vs_ref, str_shared') or
-				 (vtype = 'material, str_shared') or
-				 (vtype = 'shader, str_shared') or
-				 (vtype = 'locator_str') or
-				 (vtype = 'locator_id') or
-				 (vtype = 'name') or
-				 (vtype = 'ref_model') or
-				 (vtype = 'animation_str') or
-				 (vtype = 'part_id') or
-				 (vtype = 'sound') or
-				 (vtype = 'str_array') or
-				 (vtype = 'str_array16') or
-				 (vtype = 'str_array32') or
-				 (vtype = 'bone_id') or
-				 (vtype = 'ref_coloranim') or
-				 (vtype = 'flags8') or
-				 (vtype = 'flags32') or
-				 (vtype = 'bone_str') or
-				 (vtype = 'choose') then
+			if _IsHint(vtype) then
 			begin
 				items.Add(TSimpleValue.Create(vname, vtype));
 			end else
@@ -1522,31 +1528,7 @@ begin
 		begin
 			parser.NextToken(t3); // type
 
-			if (t3 = 'array') or
-				 (t3 = 'camera_track, str_shared') or
-				 (t3 = 'particles, str_shared') or
-				 (t3 = 'texture, str_shared') or
-				 (t3 = 'choose_array, str_shared') or
-				 (t3 = 'particles_modifier, str_shared') or
-			 	 (t3 = 'vs_ref, str_shared') or
-			 	 (t3 = 'material, str_shared') or
-			 	 (t3 = 'shader, str_shared') or
-				 (t3 = 'locator_str') or
-				 (t3 = 'locator_id') or
-				 (t3 = 'name') or
-				 (t3 = 'ref_model') or
-				 (t3 = 'animation_str') or
-				 (t3 = 'part_id') or
-				 (t3 = 'sound') or
-				 (t3 = 'str_array') or
-				 (t3 = 'str_array16') or
-				 (t3 = 'str_array32') or
-				 (t3 = 'bone_id') or
-				 (t3 = 'ref_coloranim') or
-				 (t3 = 'flags8') or
-				 (t3 = 'flags32') or
-				 (t3 = 'bone_str') or
-				 (t3 = 'choose') then
+			if _IsHint(t3) then
 			begin
 				items.Add(TSimpleValue.Create(t1, t3))
 			end else

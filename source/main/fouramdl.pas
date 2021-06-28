@@ -1053,7 +1053,6 @@ procedure T4AModelSkeleton.Load(reader : TMemoryReader);
 var
   r, r2 : TMemoryReader;
   I : Longint;
-  count : Byte;
 
   procedure LoadMeshes(src : TMemoryReader; lod : Longint);
   var
@@ -1373,7 +1372,6 @@ var
   f, r, v : TMemoryReader;
 
   version : Word;
-  vcount, icount : Longint;
 begin
   f := TMemoryReader.CreateFromFile(path + '\' + filename);
 

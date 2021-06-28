@@ -79,13 +79,13 @@ begin
 		FreeMem(meshes[I].mNormals);
 		FreeMem(meshes[I].mTextureCoords[0]);
 		FreeMem(meshes[I].mColors[0]);
-		FreeMem(meshes[I].mFaces^[0].mIndices);
+		FreeMem(meshes[I].mFaces[0].mIndices);
 		FreeMem(meshes[I].mFaces);
 		
 		for J := 0 to meshes[I].mNumBones-1 do
 		begin
-			FreeMem(meshes[I].mBones^[J].mWeights);
-			Dispose(meshes[I].mBones^[J]);
+			FreeMem(meshes[I].mBones[J].mWeights);
+			Dispose(meshes[I].mBones[J]);
 		end;
 			
 		FreeMem(meshes[I].mBones);
@@ -98,8 +98,8 @@ var
 begin
 	for I := 0 to material.mNumProperties - 1 do
 	begin
-		FreeMem(material.mProperties^[I].mData);
-		Dispose(material.mProperties^[I]);
+		FreeMem(material.mProperties[I].mData);
+		Dispose(material.mProperties[I]);
 	end;
 	
 	FreeMem(material.mProperties);
@@ -119,8 +119,8 @@ var
 begin
 	for I := 0 to n^.mNumChildren - 1 do
 	begin
-		FreeNode(n^.mChildren^[I]);
-		Dispose(n^.mChildren^[I]);
+		FreeNode(n^.mChildren[I]);
+		Dispose(n^.mChildren[I]);
 	end;
 	
 	FreeMem(n^.mChildren);
@@ -207,9 +207,9 @@ begin
 		
 		
 		GetMem(pprop, 3*Sizeof(Pointer));
-		pprop^[0] := prop;
-		pprop^[1] := tex;
-		pprop^[2] := tflags;
+		pprop[0] := prop;
+		pprop[1] := tex;
+		pprop[2] := tflags;
 		
 		id := materials.Add(tex_name);
 		
@@ -288,21 +288,21 @@ begin
 		
 		for J := 0 to Length(m.vertices) - 1 do
 		begin
-			mesh.mVertices^[J].x := m.vertices[J].point.x * scale;
-			mesh.mVertices^[J].y := m.vertices[J].point.y * scale;
-			mesh.mVertices^[J].z := m.vertices[J].point.z * scale;
+			mesh.mVertices[J].x := m.vertices[J].point.x * scale;
+			mesh.mVertices[J].y := m.vertices[J].point.y * scale;
+			mesh.mVertices[J].z := m.vertices[J].point.z * scale;
 			
 			UnpackNormal(normal, m.vertices[J].normal);
-			mesh.mNormals^[J].x := normal.x;
-			mesh.mNormals^[J].y := normal.y;
-			mesh.mNormals^[J].z := normal.z;
+			mesh.mNormals[J].x := normal.x;
+			mesh.mNormals[J].y := normal.y;
+			mesh.mNormals[J].z := normal.z;
 			
-			mesh.mTextureCoords[0]^[J].x := m.vertices[J].tc.x / 2048;
-			mesh.mTextureCoords[0]^[J].y := m.vertices[J].tc.y / 2048;
-			mesh.mTextureCoords[0]^[J].z := 0;
+			mesh.mTextureCoords[0][J].x := m.vertices[J].tc.x / 2048;
+			mesh.mTextureCoords[0][J].y := m.vertices[J].tc.y / 2048;
+			mesh.mTextureCoords[0][J].z := 0;
 			
 			ao := ((m.vertices[J].normal and $FF000000) shr 24) / 255;
-			with mesh.mColors[0]^[J] do
+			with mesh.mColors[0][J] do
 			begin
 				r := ao;
 				g := ao;
@@ -311,19 +311,19 @@ begin
 			end;
 		end;
 		
-		GetMem(mesh.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
-		GetMem(mesh.mFaces^[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
+		GetMem(mesh^.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
+		GetMem(mesh^.mFaces[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
 		
 		for J := 0 to mesh^.mNumFaces - 1 do
 		begin
-			with mesh.mFaces^[J] do
+			with mesh.mFaces[J] do
 			begin
 				mNumIndicies := 3;
-				mIndices := PCardinalArray(@mesh.mFaces^[0].mIndices^[J*3]);
+				mIndices := PCardinalArray(@mesh.mFaces[0].mIndices[J*3]);
 				
-				mIndices^[0] := m.indices[J*3  ];
-				mIndices^[1] := m.indices[J*3+1];
-				mIndices^[2] := m.indices[J*3+2];
+				mIndices[0] := m.indices[J*3  ];
+				mIndices[1] := m.indices[J*3+1];
+				mIndices[2] := m.indices[J*3+2];
 			end;
 		end;
 		
@@ -334,7 +334,7 @@ begin
 		texture := model.GetTextureSubst(texture);
 		mesh.mMaterialIndex := AddMaterial(texture);
 		
-		if useSkeleton then
+		if useSkeleton and Assigned(model.skeleton) then
 			SetupBones(model.skeleton, m, mesh);
 	end;
 	
@@ -397,21 +397,21 @@ begin
 		
 		for J := 0 to Length(m.vertices) - 1 do
 		begin
-			mesh.mVertices^[J].x := m.vertices[J].point.x;
-			mesh.mVertices^[J].y := m.vertices[J].point.y;
-			mesh.mVertices^[J].z := m.vertices[J].point.z;
+			mesh.mVertices[J].x := m.vertices[J].point.x;
+			mesh.mVertices[J].y := m.vertices[J].point.y;
+			mesh.mVertices[J].z := m.vertices[J].point.z;
 			
 			UnpackNormal(normal, m.vertices[J].normal);
-			mesh.mNormals^[J].x := normal.x;
-			mesh.mNormals^[J].y := normal.y;
-			mesh.mNormals^[J].z := normal.z;
+			mesh.mNormals[J].x := normal.x;
+			mesh.mNormals[J].y := normal.y;
+			mesh.mNormals[J].z := normal.z;
 			
-			mesh.mTextureCoords[0]^[J].x := m.vertices[J].tc.x;
-			mesh.mTextureCoords[0]^[J].y := m.vertices[J].tc.y;
-			mesh.mTextureCoords[0]^[J].z := 0;
+			mesh.mTextureCoords[0][J].x := m.vertices[J].tc.x;
+			mesh.mTextureCoords[0][J].y := m.vertices[J].tc.y;
+			mesh.mTextureCoords[0][J].z := 0;
 			
 			ao := ((m.vertices[J].normal and $FF000000) shr 24) / 255;
-			with mesh.mColors[0]^[J] do
+			with mesh.mColors[0][J] do
 			begin
 				r := ao;
 				g := ao;
@@ -420,19 +420,19 @@ begin
 			end;
 		end;
 		
-		GetMem(mesh.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
-		GetMem(mesh.mFaces^[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
+		GetMem(mesh^.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
+		GetMem(mesh^.mFaces[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
 		
 		for J := 0 to mesh^.mNumFaces - 1 do
 		begin
-			with mesh.mFaces^[J] do
+			with mesh.mFaces[J] do
 			begin
 				mNumIndicies := 3;
-				mIndices := PCardinalArray(@mesh.mFaces^[0].mIndices^[J*3]);
+				mIndices := PCardinalArray(@mesh.mFaces[0].mIndices[J*3]);
 				
-				mIndices^[0] := m.indices[J*3  ];
-				mIndices^[1] := m.indices[J*3+1];
-				mIndices^[2] := m.indices[J*3+2];
+				mIndices[0] := m.indices[J*3  ];
+				mIndices[1] := m.indices[J*3+1];
+				mIndices[2] := m.indices[J*3+2];
 			end;
 		end;
 		
@@ -508,21 +508,21 @@ begin
 		for J := 0 to m.vertexcount - 1 do
 		begin
 			v := @level.vbuffer[m.vertexoffset+J];
-			mesh.mVertices^[J].x := v.point.x;
-			mesh.mVertices^[J].y := v.point.y;
-			mesh.mVertices^[J].z := v.point.z;
+			mesh.mVertices[J].x := v.point.x;
+			mesh.mVertices[J].y := v.point.y;
+			mesh.mVertices[J].z := v.point.z;
 			
 			UnpackNormal(normal, v.normal);
-			mesh.mNormals^[J].x := normal.x;
-			mesh.mNormals^[J].y := normal.y;
-			mesh.mNormals^[J].z := normal.z;
+			mesh.mNormals[J].x := normal.x;
+			mesh.mNormals[J].y := normal.y;
+			mesh.mNormals[J].z := normal.z;
 			
-			mesh.mTextureCoords[0]^[J].x := v.tc.x / 1024;
-			mesh.mTextureCoords[0]^[J].y := v.tc.y / 1024;
-			mesh.mTextureCoords[0]^[J].z := 0;
+			mesh.mTextureCoords[0][J].x := v.tc.x / 1024;
+			mesh.mTextureCoords[0][J].y := v.tc.y / 1024;
+			mesh.mTextureCoords[0][J].z := 0;
 			
 			ao := ((v.normal and $FF000000) shr 24) / 255;
-			with mesh.mColors[0]^[J] do
+			with mesh.mColors[0][J] do
 			begin
 				r := ao;
 				g := ao;
@@ -531,19 +531,19 @@ begin
 			end;
 		end;
 		
-		GetMem(mesh.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
-		GetMem(mesh.mFaces^[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
+		GetMem(mesh^.mFaces, (mesh^.mNumFaces * Sizeof(TAIFace)));
+		GetMem(mesh^.mFaces[0].mIndices, mesh^.mNumFaces * Sizeof(Cardinal) * 3);
 		
 		for J := 0 to mesh^.mNumFaces - 1 do
 		begin
-			with mesh.mFaces^[J] do
+			with mesh.mFaces[J] do
 			begin
 				mNumIndicies := 3;
-				mIndices := PCardinalArray(@mesh.mFaces^[0].mIndices^[J*3]);
+				mIndices := PCardinalArray(@mesh.mFaces[0].mIndices[J*3]);
 				
-				mIndices^[0] := level.ibuffer[m.indexoffset+J*3  ];
-				mIndices^[1] := level.ibuffer[m.indexoffset+J*3+1];
-				mIndices^[2] := level.ibuffer[m.indexoffset+J*3+2];
+				mIndices[0] := level.ibuffer[m.indexoffset+J*3  ];
+				mIndices[1] := level.ibuffer[m.indexoffset+J*3+1];
+				mIndices[2] := level.ibuffer[m.indexoffset+J*3+2];
 			end;
 		end;
 		
@@ -596,7 +596,7 @@ begin
 				
 		b^.mNumWeights := Length(w);
 		GetMem(b^.mWeights, b^.mNumWeights * Sizeof(TAIVertexWeight));
-		Move(w[0], b^.mWeights^[0], b^.mNumWeights * Sizeof(TAIVertexWeight));
+		Move(w[0], b^.mWeights[0], b^.mNumWeights * Sizeof(TAIVertexWeight));
 		
 		// Offset matrix
 		s.GetTransform(s.bones[I].name, mat);
@@ -606,7 +606,7 @@ begin
 		aiTransposeMatrix4(b^.mOffsetMatrix);
 		
 		//
-		d.mBones^[I] := b;
+		d.mBones[I] := b;
 	end;
 end;
 
@@ -715,8 +715,8 @@ begin
 	for I := 0 to Length(s.bones)-1 do
 		if s.bones[I].parent_name = b^.name then
 		begin
-			node^.mChildren^[J] := AddBone(s, @s.bones[I]);
-			node^.mChildren^[J]^.mParent := node;
+			node^.mChildren[J] := AddBone(s, @s.bones[I]);
+			node^.mChildren[J]^.mParent := node;
 			Inc(J);
 		end;
 		
@@ -813,7 +813,7 @@ begin
 			o.node.mNumMeshes := em.count;
 			GetMem(o.node.mMeshes, em.Count * Sizeof(Cardinal));
 			for J := 0 to em.Count - 1 do
-				o.node.mMeshes^[J] := em.start+J;
+				o.node.mMeshes[J] := em.start+J;
 		end;
 		
 		arr_objects[I] := @o.node;			

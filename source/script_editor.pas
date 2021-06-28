@@ -786,9 +786,9 @@ begin
 			//c2.x := inp.x - 150;
 			//c2.y := inp.y;
 			
-			c1.x := outp.x + Abs(outp.x - inp.x);
+			c1.x := outp.x + Min(200, Abs(outp.x - inp.x));
 			c1.y := outp.y;
-			c2.x := inp.x - Abs(outp.x - inp.x);
+			c2.x := inp.x - Min(200, Abs(outp.x - inp.x));
 			c2.y := inp.y;
 			
 			if outp.x > inp.x then
@@ -1074,8 +1074,6 @@ end;
 
 function TScriptEditor.gl_redraw_cb(ih : Ihandle; x, y : Longint) : Longint;
 var
-	str : String;
-	
 	viewport : array[0..3] of GLint;
 	select_buf : array[1..64] of GLuint;
 	hit_cnt : GLuint;

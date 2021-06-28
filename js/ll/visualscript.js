@@ -1185,7 +1185,7 @@ var block_readers = {
 	"entities/entity self": null,
 	"entities/entity user": function(e) // build 2012-12-03
 	{
-		e.ReadU8("unk_1byte_1")
+		e.ReadU8("team")
 	},
 	"entities/monster_enemy": null,
 	"entities/player_enemy": null,
@@ -1878,5 +1878,54 @@ var block_readers = {
 		e.ReadFP32("slope_threshold")
 		e.ReadFP32("slope_min_time")
 		e.ReadFP32("slope_cooldown")
+	},
+	
+	// блоки для сетевой игры
+	// в официальных картах не встречаются 
+	"actions/net/make_ready": function(e)
+	{
+		e.ReadBool("remove_from_team")
+	},
+	"actions/net/respawn": function(e)
+	{
+		e.ReadU32("cover_reuse_delay")
+		e.ReadU8("count")
+		e.ReadU16("source", "entity_link, uobject_link")
+		e.ReadU16("position", "entity_link, uobject_link")
+		e.ReadU8("team")
+		e.ReadU8("flags0", "bool8")
+	},
+	"actions/net/respawn_ex": function(e)
+	{
+		e.ReadU32("cover_reuse_delay")
+		e.ReadU8("count")
+		e.ReadU8("team")
+		e.ReadU8("flags0", "bool8")
+		e.ReadU32("sources_count")
+		e.ReadU8("ignore_mp_class_type")
+	},
+	"actions/net/ui_clone": function(e)
+	{
+		e.ReadU32("cover_reuse_delay")
+		e.ReadU8("count")
+		e.ReadU8("subtype")
+	},
+	"triggers/net/log_start_game": null,
+	"triggers/net/log_spawn": null,
+	"triggers/game/spectator trigger": function(e)
+	{
+		e.ReadBool("active")
+		e.ReadU16("camera_team", "entity_link, uobject_link")
+		e.ReadU32("current_object")
+		var count = e.ReadU32("objects_count_pre")
+		for(var i = 0; i < count; i++)
+		{
+			e.ReadString("object_" + i + "_name")
+			e.ReadU16("object_" + i + "_link", "entity_link, uobject_link")
+			e.ReadU16("object_" + i + "_lamp", "entity_link, uobject_link")
+			e.ReadU16("object_" + i + "_camera", "entity_link, uobject_link")
+		}
+		e.ReadU32("objects_count")
+		e.ReadU8("team")
 	}
 }

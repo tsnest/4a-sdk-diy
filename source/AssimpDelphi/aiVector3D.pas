@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiVector3D;
 
 interface
@@ -7,10 +8,8 @@ type TaiVector3D = packed record
    x, y, z: single;
 end;
 type PaiVector3D = ^TaiVector3D;
-type PaiVector3DArray = array [0.._AI_MAX_ARRAY] of PaiVector3D;
-
-type TaiVector3DArray = array[0.._AI_MAX_ARRAY] of TaiVector3D;
-type PTaiVector3DArray = ^TaiVector3DArray;
+type PaiVector3DArray = ^PaiVector3D;
+type PTaiVector3DArray = ^TaiVector3D;
 
 function Interpolate(const vStart, vEnd : TaiVector3D; factor : Single) : TaiVector3D;
 

@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiAnimation;
 
 interface
@@ -7,15 +8,13 @@ type TaiVectorKey = record
 	mTime: Double;
 	mValue: TaiVector3D;
 end;
-TaiVectorKeyArray = array[0.._AI_MAX_ARRAY] of TaiVectorKey;
-PaiVectorKeyArray = ^TaiVectorKeyArray;
+PaiVectorKeyArray = ^TaiVectorKey;
 
 type TaiQuatKey = record
 	mTime: Double;
 	mValue: TaiQuaternion;
 end;
-TaiQuatKeyArray = array[0.._AI_MAX_ARRAY] of TaiQuatKey;
-PaiQuatKeyArray = ^TaiQuatKeyArray;
+PaiQuatKeyArray = ^TaiQuatKey;
 
 {$Z4}
 type TaiAnimBehaviour = (
@@ -41,8 +40,7 @@ type TaiNodeAnim = record
 	mPostState: TaiAnimBehaviour;
 end;
 PaiNodeAnim = ^TaiNodeAnim;
-PaiNodeAnimArray = array[0.._AI_MAX_ARRAY] of PaiNodeAnim;
-PPaiNodeAnimArray = ^PaiNodeAnimArray;
+PPaiNodeAnimArray = ^PaiNodeAnim;
 
 type TaiAnimation = record
 	mName: aiString;
@@ -59,8 +57,7 @@ type TaiAnimation = record
 	mMorphMeshChannels: Pointer;
 end;
 PaiAnimation = ^TaiAnimation;
-PaiAnimationArray = array[0.._AI_MAX_ARRAY] of PaiAnimation;
-PPaiAnimationArray = ^PaiAnimationArray;
+PPaiAnimationArray = ^PaiAnimation;
 
 implementation
 

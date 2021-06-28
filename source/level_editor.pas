@@ -10,27 +10,17 @@ uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
 	uTabWeather, uTabEntity, uTabEnvZone,
 	uScene, uEntity, uEnvZone, uLevelUndo, uImages,
 	{$IFDEF HAZ_LEVELEXPORT} uLevelExport, uXRayExport, {$ENDIF}
-	uChoose, properties, uTemplates, uAttach;
+	uChoose, properties, uTemplates, uAttach, uLEOptions;
 	
 type
 	TEditMode = (emEntity, emEnvZone, emWeather);
+	
 var
 	edit_mode : TEditMode = emEntity;
-
-type
-  TManipulatorMode = (mmNone, mmMove, mmRotate, mmScale);
-	TManipulatorAxis = (maObject, maWorld, maGroup);
-var
-	m_mode : TManipulatorMode = mmNone;
-	m_move_axis : TManipulatorAxis = maObject;
-	m_rotate_axis : TManipulatorAxis = maObject;
-	m_uniform_scale : Boolean = False;
 	m_t : TManipulator;
 
 var
 	level_path : String;
-
-	lineWidth : Longint = 1;
 
 	cam_fov : Single = 70.0;
 	position : TVec3;
@@ -42,15 +32,8 @@ var
 	rt_width, rt_height : GLuint;
 	rt_color, rt_distort : GLuint;
 	
-	camera_move_sens      : Single = 0.2;
-	camera_rotate_sens    : Single = 1.0;
-	camera_fly_speed      : Single = 1.0;
-	camera_fly_speed_fast : Single = 5.0;
-	
 var
 	context_menu : Ihandle;
-	
-var
 	anim_timer : Ihandle;
 	
 function anim_timer_action_cb(ih : Ihandle) : Longint; cdecl;
@@ -68,7 +51,6 @@ end;
 	
 var
 	mouse_x, mouse_y : Longint;
-	wheel_up, wheel_down : Boolean;
 	
 	rclick_x, rclick_y : Longint;
 	lclick_x, lclick_y : Longint;
@@ -79,17 +61,17 @@ procedure CreateManipulator(const matrix : TMatrix);
 begin
 	if m_mode = mmMove then
 	begin
-		m_t := TMoveManipulator.Create(Scene.ph_scene, m_move_axis = maWorld, lineWidth);
+		m_t := TMoveManipulator.Create(m_move_axis = maWorld, lineWidth);
 		m_t.Matrix := matrix;
 	end;
 	if m_mode = mmRotate then
 	begin
-		m_t := TRotateManipulator.Create(Scene.ph_scene, (m_rotate_axis = maWorld) or (m_rotate_axis = maGroup), lineWidth);
+		m_t := TRotateManipulator.Create(m_rotate_axis in [maWorld,maGroup], lineWidth);
 		m_t.Matrix := matrix;
 	end;
 	if m_mode = mmScale then
 	begin
-		m_t := TScaleManipulator.Create(Scene.ph_scene, m_uniform_scale, lineWidth);
+		m_t := TScaleManipulator.Create(m_uniform_scale, lineWidth);
 		m_t.Matrix := matrix;
 	end;
 end;
@@ -325,10 +307,6 @@ begin
 	glEnable(GL_CULL_FACE);
 	glAlphaFunc(GL_GEQUAL, 0.5);
 	glFrontFace(GL_CW);
-
-	bkg_color.x := 0.4;
-	bkg_color.y := 0.7;
-	bkg_color.z := 0.8;
 	
 	//glShadeModel(GL_FLAT);
 
@@ -415,6 +393,8 @@ begin
 	glMatrixMode(GL_PROJECTION);
 	PerspectiveLH(m, cam_fov*(PI/180), viewport[2] / viewport[3], 0.25, far_plane);
 	glLoadMatrixf(@m);
+	//glLoadIdentity;
+	//gluPerspective(cam_fov, viewport[2] / viewport[3], 0.25, far_plane);
 	glMatrixMode(GL_MODELVIEW);
 //
 
@@ -552,6 +532,62 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+procedure ApplyManipulator(var dest : TMatrix; const c : TVec3);
+var
+	mat, mat2 : TMatrix;	
+	diff : TMatrix;	
+begin
+	if m_mode = mmMove then
+	begin
+		if m_move_axis = maObject then
+			Mul44(dest, m_t.Diff)
+		else begin
+			dest[4,1] := dest[4,1] + m_t.Diff[4,1];
+			dest[4,2] := dest[4,2] + m_t.Diff[4,2];
+			dest[4,3] := dest[4,3] + m_t.Diff[4,3];
+		end;
+	end;
+	
+	if m_mode = mmRotate then
+	begin
+		if m_rotate_axis = maGroup then
+		begin
+			mat := dest;
+			mat[4,1] := mat[4,1] - c.x;
+			mat[4,2] := mat[4,2] - c.y;
+			mat[4,3] := mat[4,3] - c.z;
+			diff := m_t.Diff;
+			//WriteMatrix(diff);
+			Mul44(diff, mat);
+			mat := diff;
+			mat[4,1] := mat[4,1] + c.x;
+			mat[4,2] := mat[4,2] + c.y;
+			mat[4,3] := mat[4,3] + c.z;
+			
+			dest := mat;
+		end else
+		if m_rotate_axis = maWorld then
+		begin
+			mat := dest;
+			mat2 := dest;
+			mat2[4,1] := 0.0; mat2[4,2] := 0.0; mat2[4,3] := 0.0;
+			
+			dest := m_t.Diff;
+			Mul44(dest, mat2);
+			
+			dest[4,1] := mat[4,1]; dest[4,2] := mat[4,2]; dest[4,3] := mat[4,3];
+		end else
+		begin
+			Mul44(dest, m_t.Diff);
+		end;
+	end;
+	
+	if m_mode = mmScale then
+	begin
+		Mul44(dest, m_t.Diff);
+	end;
+end;
+
 function gl_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 var
 	mousexy : Ihandle;
@@ -563,6 +599,13 @@ var
 	btn1 : Boolean;
 	btn2 : Boolean;
 	btn3 : Boolean;
+	
+	I : Longint;
+	selected : TEntityArray;
+	z : TEnvZoneArray;
+	c, cc : TVec3;
+	mat : TMatrix;
+	e : TEntity;
 begin
 	pos := IntToStr(x) + ', ' + IntToStr(y);
 	mousexy := IupGetDialogChild(ih, 'MOUSEXY');
@@ -613,9 +656,45 @@ begin
 	if selection_rect then
 		IupRedraw(ih, 0);
 
-	if (m_t <> nil) and (m_t.IsActive) then
+	if (m_t <> nil) {and (m_t.IsActive)} then
 	begin
 		m_t.Update(x, y);
+		
+		if m_t.IsActive then case edit_mode of
+			
+			emEntity: begin
+				selected := Scene.GetSelected;	
+				
+				//c := GetCenter(selected);
+				c.x := m_t.Matrix[4,1];
+				c.y := m_t.Matrix[4,2];
+				c.z := m_t.Matrix[4,3];
+					
+				for I := 0 to Length(selected)-1 do
+				begin
+					e := selected[I];
+					mat := e.Matrix;
+					ApplyManipulator(mat, c);
+					e.Matrix := mat;
+				end;
+			end;
+			
+			emEnvZone: begin
+				z := Scene.GetSelectedEZ;
+				c := GetCenter(z);
+				
+				For I := 0 to Length(z)-1 do
+				begin
+					z[I].GetCenter(cc);
+					Translate(mat, cc);
+					
+					ApplyManipulator(mat, c);
+					
+					z[I].Transform(mat);
+				end;	
+			end;
+		end;
+		
 		IupRedraw(ih, 0);
 	end;
 
@@ -843,81 +922,6 @@ begin
 	list.Free;
 end;
 
-procedure ApplyManipulator(var dest : TMatrix; const c : TVec3);
-var
-	mat : TMatrix;
-	l_offset : TVec3;
-	l_offset_m : TMatrix;
-	
-	diff : TMatrix;	
-begin
-	if m_mode = mmMove then
-	begin
-		// get local offset					
-		l_offset := TMoveManipulator(m_t).local_offset;		
-		//WriteLn('x = ', l_offset.x, ' y = ', l_offset.y, ' z = ', l_offset.z);
-		Translate(l_offset_m, l_offset);
-		
-		if m_move_axis = maObject then
-		begin
-			Mul44(dest, l_offset_m);
-		end;
-		if m_move_axis = maWorld then
-		begin
-			mat := l_offset_m;
-			Mul44(mat, dest);
-			dest := mat;
-		end;
-	end;
-	
-	if m_mode = mmRotate then
-	begin
-		if m_rotate_axis = maGroup then
-		begin
-			mat := dest;
-			mat[4,1] := mat[4,1] - c.x;
-			mat[4,2] := mat[4,2] - c.y;
-			mat[4,3] := mat[4,3] - c.z;
-			diff := m_t.Diff;
-			//WriteMatrix(diff);
-			Mul44(diff, mat);
-			mat := diff;
-			mat[4,1] := mat[4,1] + c.x;
-			mat[4,2] := mat[4,2] + c.y;
-			mat[4,3] := mat[4,3] + c.z;
-			
-			dest := mat;
-		end else
-		begin
-			// multiply difference by current rotation
-			mat[1,1] := m_t.Diff[1,1]*dest[1,1] + m_t.Diff[2,1]*dest[1,2] + m_t.Diff[3,1]*dest[1,3];
-			mat[1,2] := m_t.Diff[1,2]*dest[1,1] + m_t.Diff[2,2]*dest[1,2] + m_t.Diff[3,2]*dest[1,3];
-			mat[1,3] := m_t.Diff[1,3]*dest[1,1] + m_t.Diff[2,3]*dest[1,2] + m_t.Diff[3,3]*dest[1,3];
-		
-			mat[2,1] := m_t.Diff[1,1]*dest[2,1] + m_t.Diff[2,1]*dest[2,2] + m_t.Diff[3,1]*dest[2,3];
-			mat[2,2] := m_t.Diff[1,2]*dest[2,1] + m_t.Diff[2,2]*dest[2,2] + m_t.Diff[3,2]*dest[2,3];
-			mat[2,3] := m_t.Diff[1,3]*dest[2,1] + m_t.Diff[2,3]*dest[2,2] + m_t.Diff[3,3]*dest[2,3];
-		
-			mat[3,1] := m_t.Diff[1,1]*dest[3,1] + m_t.Diff[2,1]*dest[3,2] + m_t.Diff[3,1]*dest[3,3];
-			mat[3,2] := m_t.Diff[1,2]*dest[3,1] + m_t.Diff[2,2]*dest[3,2] + m_t.Diff[3,2]*dest[3,3];
-			mat[3,3] := m_t.Diff[1,3]*dest[3,1] + m_t.Diff[2,3]*dest[3,2] + m_t.Diff[3,3]*dest[3,3];
-		
-			// copy translation & etc
-			mat[1,4] := dest[1,4];
-			mat[2,4] := dest[2,4];
-			mat[3,4] := dest[3,4];
-			mat[4,1] := dest[4,1]; mat[4,2] := dest[4,2]; mat[4,3] := dest[4,3]; mat[4,4] := dest[4,4];
-		
-			dest := mat;
-		end;
-	end;
-	
-	if m_mode = mmScale then
-	begin
-		Mul44(dest, m_t.Diff);
-	end;
-end;
-
 function gl_button_cb(ih : Ihandle; button, pressed : Longint; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 const
 	RAYCAST_DIST = 500.0;
@@ -930,13 +934,8 @@ var
 	shape : TPHShape;
 	m_used : Boolean;
 	
-	I : Longint;
-	selected : TEntityArray;
 	z : TEnvZoneArray;
 	e : TEntity;
-	
-	mat : TMatrix;
-	c, cc : TVec3;
 begin	
 	if not Assigned(Scene.ph_scene) then
 	begin
@@ -980,10 +979,13 @@ begin
 	begin
 		if pressed = 1 then
 		begin
-			// try raycast manipulator first
 			if (m_t <> nil) and m_t.Activate(x, y) then
+			begin
+				UndoSave;
 				m_used := True;
-
+			end;
+			
+			// если не трогали манипулятор то начать выделение рамочкой
 			if not m_used then
 			begin
 				lclick_x := x;
@@ -997,39 +999,6 @@ begin
 			if (m_t <> nil) and m_t.IsActive then
 			begin
 				m_t.Deactivate;
-				UndoSave;
-				
-				case edit_mode of
-					
-					emEntity: begin
-						selected := Scene.GetSelected;	
-						c := GetCenter(selected);
-							
-						for I := 0 to Length(selected)-1 do
-						begin
-							e := selected[I];
-							mat := e.Matrix;
-							ApplyManipulator(mat, c);
-							e.Matrix := mat;
-						end;
-					end;
-					
-					emEnvZone: begin
-						z := Scene.GetSelectedEZ;
-						c := GetCenter(z);
-						
-						For I := 0 to Length(z)-1 do
-						begin
-							z[I].GetCenter(cc);
-							Translate(mat, cc);
-							
-							ApplyManipulator(mat, c);
-							
-							z[I].Transform(mat);
-						end;	
-					end;
-				end;
-				
 				m_used := True;
 			end;
 			
@@ -1721,8 +1690,6 @@ begin
 end;
 
 function set_width(ih: Ihandle; state: Longint) : Longint; cdecl;
-var
-	value: PAnsiChar;
 begin
 	lineWidth := IupGetInt(
 		IupGetDialogChild(ih, 'Linerange'),
@@ -1773,6 +1740,8 @@ begin
 		'Move sens: %r'#10'Rotate sens: %r'#10'Fly speed: %r'#10'Fast fly speed: %r'#10,
 		@camera_move_sens, @camera_rotate_sens, @camera_fly_speed, @camera_fly_speed_fast
 	);
+	
+	Result := IUP_DEFAULT;
 end;
 
 function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
@@ -2092,6 +2061,11 @@ begin
 	IupSetAttribute(r_tool_move, 'VISIBLE', 'NO');
 	IupSetAttribute(r_tool_move, 'FLOATING', 'YES');
 	
+	case m_move_axis of
+		maObject: IupSetAttributeHandle(r_tool_move, 'VALUE', tg_object);
+		maWorld: IupSetAttributeHandle(r_tool_move, 'VALUE', tg_world);
+	end;
+	
 	tg_object := iup.Toggle('Object', @tg_axis_cb);
 	tg_world := iup.Toggle('World', @tg_axis_cb);
 	tg_group := iup.Toggle('Group', @tg_axis_cb);
@@ -2101,7 +2075,13 @@ begin
 	IupSetAttribute(r_tool_rotate, 'VISIBLE', 'NO');
 	IupSetAttribute(r_tool_rotate, 'FLOATING', 'YES');
 	
-	tg_uniform := iup.Toggle('Uniform', @tg_uniform_scale_cb);
+	case m_rotate_axis of
+		maObject: IupSetAttributeHandle(r_tool_rotate, 'VALUE', tg_object);
+		maWorld: IupSetAttributeHandle(r_tool_rotate, 'VALUE', tg_world);
+		maGroup: IupSetAttributeHandle(r_tool_rotate, 'VALUE', tg_group);
+	end;
+	
+	tg_uniform := iup.Toggle('Uniform', @tg_uniform_scale_cb, m_uniform_scale);
 	
 	r_tool_scale := IupHBox(tg_uniform, IupFill, nil);
 	IupSetAttribute(r_tool_scale, 'NAME', 'R_TOOL_SCALE');

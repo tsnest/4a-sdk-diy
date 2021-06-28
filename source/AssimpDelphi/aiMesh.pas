@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiMesh;
 
 interface
@@ -13,17 +14,14 @@ type TaiFace = record
    mIndices: PCardinalArray;
 end;
 type PaiFace = ^TaiFace;
-type PaiFaceArray = array [0.._AI_MAX_ARRAY] of PaiFace;
-
-type TaiFaceArray = array [0.._AI_MAX_ARRAY] of TaiFace;
-type PTaiFaceArray = ^TaiFaceArray;
+type PaiFaceArray = ^PaiFace;
+type PTaiFaceArray = ^TaiFace;
 
 type TaiVertexWeight = record
    mVertexId: cardinal;
    mWeight: single;
 end;
-type TaiVertexWeightArray = array [0.._AI_MAX_ARRAY] of TaiVertexWeight;
-type PTaiVertexWeightArray = ^TaiVertexWeightArray;
+type PTaiVertexWeightArray = ^TaiVertexWeight;
 
 type TaiBone = record
    mName: aiString;
@@ -34,8 +32,7 @@ type TaiBone = record
    mOffsetMatrix: TaiMatrix4x4;
 end;
 type PaiBone = ^TaiBone;
-type PaiBoneArray = array [0.._AI_MAX_ARRAY] of PaiBone;
-type PPaiBoneArray = ^PaiBoneArray;
+type PPaiBoneArray = ^PaiBone;
 
 const
 	aiPrimitiveType_POINT       = $1;
@@ -65,8 +62,7 @@ type TaiMesh = record
 end;
 type PaiMesh = ^TaiMesh;
 type PPaiMesh = ^PaiMesh;
-type PaiMeshArray = array [0.._AI_MAX_ARRAY] of PaiMesh;
-type PPaiMeshArray = ^PaiMeshArray;
+type PPaiMeshArray = ^PaiMesh;
 
 
 

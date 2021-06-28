@@ -184,6 +184,8 @@ var
 	driven_bones_arr, drb : TKonfigReader;
 	dynamic_bones_arr, dnb : TKonfigReader;
 	partitions_arr, p : TKonfigReader;
+	
+	procedural : TKonfigReader;
 begin
 	reader := TKonfigReader.Create(k, nil);
 	try
@@ -259,47 +261,57 @@ begin
 				finally
 					aux_bones_arr.Free;
 				end;
-				
-				driven_bones_arr := skeleton.ReadArray('driven_bones', @count);
-				try
-					for I := 0 to count-1 do
-					begin
-						drb := driven_bones_arr.ReadSection('', False);
-						try
-							drb.ReadHintStr('bone', 'choose');
-							drb.ReadHintStr('driver', 'choose');
-							drb.ReadHintStr('driver_parent', 'choose');
-							drb.ReadU8('component');
-							drb.ReadString('twister');
-							drb.ReadFP32('value_min');
-							drb.ReadFP32('value_max');
-						finally
-							drb.Free;
-						end;
-					end;
-				finally
-					driven_bones_arr.Free;
-				end;
 			end;
 			
-			if version >= 8 then
+			if version >= 11 then // Arktika.1
 			begin
-				dynamic_bones_arr := skeleton.ReadArray('dynamic_bones', @count);
-				try
-					for I := 0 to count-1 do
-					begin
-						dnb := dynamic_bones_arr.ReadSection('', False);
-						try
-							dnb.ReadHintStr('bone', 'choose');
-							dnb.ReadFP32('inertia');
-							dnb.ReadFP32('damping');
-							dnb.ReadVec3('contraints');
-						finally
-							dnb.Free;
+				procedural := skeleton.ReadSection('procedural');
+				procedural.Free;
+			end else // Redux
+			begin
+				if version >= 7 then
+				begin
+					driven_bones_arr := skeleton.ReadArray('driven_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							drb := driven_bones_arr.ReadSection('', False);
+							try
+								drb.ReadHintStr('bone', 'choose');
+								drb.ReadHintStr('driver', 'choose');
+								drb.ReadHintStr('driver_parent', 'choose');
+								drb.ReadU8('component');
+								drb.ReadString('twister');
+								drb.ReadFP32('value_min');
+								drb.ReadFP32('value_max');
+							finally
+								drb.Free;
+							end;
 						end;
+					finally
+						driven_bones_arr.Free;
 					end;
-				finally
-					dynamic_bones_arr.Free;
+				end;
+			
+				if version >= 8 then
+				begin
+					dynamic_bones_arr := skeleton.ReadArray('dynamic_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							dnb := dynamic_bones_arr.ReadSection('', False);
+							try
+								dnb.ReadHintStr('bone', 'choose');
+								dnb.ReadFP32('inertia');
+								dnb.ReadFP32('damping');
+								dnb.ReadVec3('contraints');
+							finally
+								dnb.Free;
+							end;
+						end;
+					finally
+						dynamic_bones_arr.Free;
+					end;
 				end;
 			end;
 			

@@ -396,7 +396,16 @@ begin
 			end else
 				Result := 0;
 		end;
-	end;  
+	end;
+	
+	if (prop.vtype = 'flags8') and (prop.name = 'faces') then
+	begin
+		v := sect.GetParam(prop.name, 'u8') as TIntegerValue;
+		if properties.EditBool8(v, 'Down,Up,Front,Back,Right,Left') then
+			Result := 2
+		else
+			Result := 0;
+	end;
 	
 	if Result <> 0 then
 	 	UndoSave;

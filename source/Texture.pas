@@ -302,6 +302,8 @@ function LoadImageRaw(const path : String) : TByteArray;
 var
   f : TFileStream;
 begin
+	SetLength(Result, 0);
+
   f := TFileStream.Create(path, fmOpenRead);
   try
     SetLength(Result, f.Size);
@@ -318,6 +320,8 @@ var
   ptr : Pointer;
   size : Longint;
 begin
+	SetLength(Result, 0);
+	
   f := TFileStream.Create(path, fmOpenRead);
   try
     SetLength(buffer, f.Size);

@@ -135,7 +135,7 @@ begin
 	  begin
 	    for I := 0 to scene^.mNumMeshes - 1 do
 	    begin
-	      m := scene^.mMeshes^[I];
+	      m := scene^.mMeshes[I];
 	      WriteLn('mesh #', I, ' vertex count: ', m^.mNumVertices, ' face count: ', m^.mNumFaces);
 	    end;    
 	  
@@ -159,7 +159,7 @@ begin
 		
 		for I := 0 to node^.mNumMeshes-1 do
 		begin
-			arr[len+I].mesh := node^.mMeshes^[I];
+			arr[len+I].mesh := node^.mMeshes[I];
 			transform := node^.mTransformation;
 			aiTransposeMatrix4(transform);
 			Move(transform, arr[len+I].transform, Sizeof(TMatrix));
@@ -167,7 +167,7 @@ begin
 	end;
 	
 	for I := 0 to node^.mNumChildren - 1 do
-		_CollectModelNodes(node^.mChildren^[I], arr);
+		_CollectModelNodes(node^.mChildren[I], arr);
 end;
 
 procedure CollectModelsForImport(scene : PAIScene; var arr : TImportModelArray);

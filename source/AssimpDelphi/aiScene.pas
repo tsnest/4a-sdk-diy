@@ -1,3 +1,4 @@
+{$POINTERMATH ON}
 unit aiScene;
 
 interface
@@ -8,8 +9,7 @@ uses aiTypes, aiMatrix4x4, aiAnimation, aiLight, aiMesh, aiMaterial, aiTexture;
 type
 	PaiNode = ^TaiNode;
 	PPaiNode = ^PaiNode;
-	PaiNodeArray = array[0.._AI_MAX_ARRAY] of PaiNode;
-	PPaiNodeArray = ^PaiNodeArray;
+	PPaiNodeArray = ^PaiNode;
 
 	PaiMetadata = Pointer;
 
@@ -28,7 +28,7 @@ type
 		mFlags: cardinal;
 		mRootNode: PaiNode;
 		mNumMeshes: Cardinal;
-		mMeshes: PPaiMeshArray; //?
+		mMeshes: PPaiMeshArray;
 		mNumMaterials: Cardinal;
 		mMaterials: PPaiMaterialArray;
 		mNumAnimations: Cardinal;

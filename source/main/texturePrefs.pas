@@ -293,9 +293,9 @@ end;
 
 function TTexturesBin2.Load(const fn: String) : Boolean;
 var
-  r, r2, kr : TMemoryReader;
+  r, r2 : TMemoryReader;
   k : TKonfig;
-  tk : TTextKonfig;
+  //tk : TTextKonfig;
   e : TKonfigReader;
 
   hdr : Longint; // signature AVER or count of configs

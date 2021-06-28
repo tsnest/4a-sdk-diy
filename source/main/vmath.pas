@@ -360,7 +360,7 @@ end;
 function AABBVisible(const frustum : array of TPlane; const box : TAABB) : Boolean;
 var
 	I : Integer;
-	n, p : TVec3;
+	{n,} p : TVec3;
 begin
 	Result := True;
 	

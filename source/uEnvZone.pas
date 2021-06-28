@@ -165,7 +165,6 @@ end;
 function TEnvZone.GetLayer(const name : String) : TSection;
 var
 	layers : TSection;
-	item : TSection;
 begin
 	layers := data.GetSect('layers');
 	Result := layers.GetSect(name, False);

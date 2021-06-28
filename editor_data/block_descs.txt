@@ -360,6 +360,13 @@
 			end;
 		end;
 		
+		'hide hands' = begin
+			clsid : stringz = 'actions/player/hide hands';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'finished';
+		end;
+		
 		'hide subj' = begin
 			clsid : stringz = 'actions/player/hide subj';
 			
@@ -377,6 +384,13 @@
 			
 			in_names : stringz = 'activate,deactivate';
 			out_names : stringz = 'entity';
+		end;
+		
+		'show hands' = begin
+			clsid : stringz = 'actions/player/show hands';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'finished';
 		end;
 		
 		'show subj' = begin
