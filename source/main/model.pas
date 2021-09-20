@@ -238,21 +238,28 @@ begin
 	end;
 end;
 
-procedure TransformVertices(v : P4AVertLevel; count : Longword; const xform : TMatrix);
+procedure TransformMUVertices(v : P4AVertLevel; count : Longword; mu : TOGFModelMU);
 var
 	n : TVec3;
+	ao : Single;
 begin
 	while count > 0 do
 	begin
-		Transform(v^.point, xform);
+		ao := ((v^.normal and $FF000000) shr 24) / 255;
+		ao := (ao * mu.c_scale[3] * 0.5) + mu.c_bias[3] * 0.5;
+		if ao > 1.0 then ao := 1.0;
+		if ao < 0.0 then ao := 0.0;
+	
+	
+		Transform(v^.point, mu.xform);
 		UnpackNormal(n, v^.normal);
-		Transform33(n, xform); Normalize(n);
-		v^.normal := PackNormal(n) or (v^.normal and $FF000000);
+		Transform33(n, mu.xform); Normalize(n);
+		v^.normal := PackNormal(n) or (Trunc(ao * 255) shl 24);
 		UnpackNormal(n, v^.tangent);
-		Transform33(n, xform); Normalize(n);
+		Transform33(n, mu.xform); Normalize(n);
 		v^.tangent := PackNormal(n) or (v^.tangent and $FF000000);
 		UnpackNormal(n, v^.binormal);
-		Transform33(n, xform); Normalize(n);
+		Transform33(n, mu.xform); Normalize(n);
 		v^.binormal := PackNormal(n) or (v^.binormal and $FF000000);
 
 		Inc(v);
@@ -444,7 +451,7 @@ begin
 			xl.vbuffers[m.geom_vbuffer].currentvert := m.geom_voffset;
 			CopyVertices(xl.vbuffers[m.geom_vbuffer], P4AVertLevel(verts), m.geom_vcount, lmap_id);
 			if m is TOGFModelMU then
-				TransformVertices(P4AVertLevel(verts), Length(verts), (m as TOGFModelMu).xform);
+				TransformMUVertices(P4AVertLevel(verts), Length(verts), m as TOGFModelMu);
 
 			if (m.modeltype = OGF_MT_TREE_PM) or (m.modeltype = OGF_MT_TREE_ST) then
 				for J := 0 to Length(verts) - 1 do // gotcha!

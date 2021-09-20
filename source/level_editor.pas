@@ -289,11 +289,11 @@ var
 begin
 	ih := IupGetDialogChild(MainDialog, 'LABEL_CAMPOS');
 
-	WriteStr(x, camera_pos.x:1:3);
-	WriteStr(y, camera_pos.y:1:3);
-	WriteStr(z, camera_pos.z:1:3);
+	WriteStr(x, position.x:1:3);
+	WriteStr(y, position.y:1:3);
+	WriteStr(z, position.z:1:3);
 
-	IupSetAttribute(ih, 'TITLE', PAnsiChar('Cam pos: ' + x + ' ' + y + ' ' + z));
+	iup.SetStrAttribute(ih, 'TITLE', 'Cam pos: ' + x + ' ' + y + ' ' + z);
 end;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -418,8 +418,6 @@ begin
 	camera_pos.x := position.x;
 	camera_pos.y := position.y;
 	camera_pos.z := position.z;
-	
-	UpdateCameraPos;
 	
 	Scene.RenderPrepare;
 	
@@ -641,11 +639,15 @@ begin
 		position.z := position.z + (camera_move_sens * (y - mouse_y)) * -cosh;
 		
 		position.x := position.x + (camera_move_sens * (x - mouse_x)) * cosh;
-		position.z := position.z + (camera_move_sens * (x - mouse_x)) * sinh;			
+		position.z := position.z + (camera_move_sens * (x - mouse_x)) * sinh;
+		
+		UpdateCameraPos;		
 	end else
 	if alt and btn3 then // перемещать по оси Y
 	begin
 		position.y := position.y - (camera_move_sens * (y - mouse_y));
+		
+		UpdateCameraPos;
 	end else
 	if btn2 then
 	begin
@@ -1186,6 +1188,8 @@ begin
 	position.x := position.x + m.x;
 	position.y := position.y + m.y;
 	position.z := position.z + m.z;
+	
+	UpdateCameraPos;
 
 	IupRedraw(ih, 0);
 end;
@@ -1868,6 +1872,8 @@ begin
 		position.x := sel_bs.center.x + (-direction.x * dist);
 		position.y := sel_bs.center.y + (-direction.y * dist);
 		position.z := sel_bs.center.z + (-direction.z * dist);
+		
+		UpdateCameraPos;
 		
 		Redisplay;
 	end;

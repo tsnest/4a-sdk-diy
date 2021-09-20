@@ -134,6 +134,29 @@
 			reset : bool = False;
 		end;
 	end;
+	
+	'play patrol path' = begin
+		clsid : stringz = 'actions/play patrol path';
+	
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			start_point : 'entity_link, uobject_link' = 65535;
+			start_from_nearest : bool = True;
+			body_state : stringz = '';
+			anim_state : stringz = '';
+			movement_type : stringz = '';
+			weapon_state : stringz = '';
+			action : stringz = '';
+			target : 'entity_link, uobject_link' = 65535;
+			flags : flags32;
+			flags : u32 = 0;
+			anim_state_approach_speed : fp32 = 2;
+			approaching_accel : fp32 = -1;
+			flags0 : bool8 = 0;
+		end;
+	end;
 end;
 
 'entities' = begin

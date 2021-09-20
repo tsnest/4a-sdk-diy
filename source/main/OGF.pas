@@ -102,6 +102,8 @@ type
 
 	TOGFModelMU = class(TOGFModelSimple)
 		xform : TMatrix;
+		c_scale : array[0..4] of Single;
+		c_bias : array[0..4] of Single;
 
 		procedure Load(reader : TMemoryReader); override;
 		procedure Save(w : TMemoryWriter); override;
@@ -654,7 +656,8 @@ begin
 	r := reader.OpenChunk(OGF_CHUNK_TREEDEF);
 	try
 		r.Read(xform, Sizeof(xform));
-		// other parameters unused
+		r.Read(c_scale, Sizeof(c_scale));
+		r.Read(c_bias, Sizeof(c_bias));
 	finally
 		r.Free;
 	end;

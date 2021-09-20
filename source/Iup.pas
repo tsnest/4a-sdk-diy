@@ -247,6 +247,13 @@ function  iup_isAltXkey(_c : Longint) : Boolean;
 function  iup_isSysXkey(_c : Longint) : Boolean;
 
 // my extensions. Will be called as iup.MenuItem()
+procedure SetAttribute(ih : Ihandle; const name, value : String);
+procedure SetStrAttribute(ih : Ihandle; const name, value : String);
+procedure SetInt(ih : Ihandle; const name : String; value : Longint);
+
+function  GetAttribute(ih : Ihandle; const name : String) : PAnsiChar;
+function  GetInt(ih : Ihandle; const name : String) : Longint;
+
 function Button(const title : String; callback : Icallback) : Ihandle;
 function MenuItem(const title : String; callback : Icallback; state : Boolean = False) : Ihandle;
 function Toggle(const title : String; callback : Icallback; state : Boolean = False) : Ihandle; 
@@ -288,6 +295,31 @@ function  iup_isAltXkey(_c : Longint) : Boolean;
 begin Result := (_c and $40000000) <> 0 end;
 function  iup_isSysXkey(_c : Longint) : Boolean;
 begin Result := (_c and $80000000) <> 0 end;
+
+procedure SetAttribute(ih : Ihandle; const name, value : String);
+begin
+	IupSetAttribute(ih, PAnsiChar(name), PAnsiChar(value));
+end;
+
+procedure SetStrAttribute(ih : Ihandle; const name, value : String);
+begin
+	IupSetStrAttribute(ih, PAnsiChar(name), PAnsiChar(value));
+end;
+
+procedure SetInt(ih : Ihandle; const name : String; value : Longint);
+begin
+	IupSetInt(ih, PAnsiChar(name), value);
+end;
+
+function GetAttribute(ih : Ihandle; const name : String) : PAnsiChar;
+begin
+	Result := IupGetAttribute(ih, PAnsiChar(name));
+end;
+
+function GetInt(ih : Ihandle; const name : String) : Longint;
+begin
+	Result := IupGetInt(ih, PAnsiChar(name));
+end;
 
 function Button(const title : String; callback : Icallback) : Ihandle;
 var

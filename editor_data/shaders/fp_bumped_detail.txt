@@ -25,8 +25,6 @@ TEMP Ldir_m, Ldir_t;
 
 TEMP tc, tx, ty;
 
-TEMP D, tc_d, det_int;
-
 #PARAM Ldir_v = { 0, 0, -1, 0 };
 TEMP Ldir_v;
 PARAM shininess = 30;
@@ -119,16 +117,33 @@ MUL S, tex_bump.gggg, S;
 
 TEX C, fragment.texcoord, texture[0], 2D;
 
-## detail (about .gggg see fp_detail.txt)
-MUL tc_d, fragment.texcoord, detail_params.xyzz;
-TEX D, tc_d, texture[2], 2D;
+## detail
+TEMP 
+	D,          # detail vector, add it to color
+	CD,         # color + detail
+	tex_detail, # sampled detail texture
+	tc_detail,  # detail texcoords
+	det_int;    # detail intensivity (tex_detail.a * detail_params.w)
 
-MUL det_int, detail_params.wwww, D.aaaa;
+TEMP coefs;
+TEMP lerp1, lerp2, lerp3;
 
-MAD D, D, 2, -1;
-MAD D, D.gggg, det_int, C;
+MUL tc_detail, fragment.texcoord, detail_params.xyzz;
+TEX tex_detail, tc_detail, texture[2], 2D;
 
-MAD CLS, D, L, S;
+MUL det_int, detail_params.w, tex_detail.a;
+
+MAD coefs, tex_bump.r, { 2, 2, 0, 0 }, { 0, -1, 0, 0 };
+SLT coefs.z, tex_bump.r, 0.5;
+
+LRP lerp1, coefs.x, tex_detail.b, tex_detail.g;
+LRP lerp2, coefs.y, tex_detail.g, tex_detail.r;
+LRP lerp3, coefs.z, lerp1, lerp2;
+
+MAD D, lerp3, 2, -1;
+MAD CD, D, det_int, C;
+
+MAD CLS, CD, L, S;
 
 MOV result.color, CLS;
 MOV result.color.a, C.a;
