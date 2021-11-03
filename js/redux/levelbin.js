@@ -650,9 +650,9 @@ function ReadBaseBrainUnit(e)
 	e.ReadFP32("alert_vision_luminocity_factor");
 	e.ReadFP32("alert_vision_velocity_fac");
 	e.ReadFP32("alert_vision_descrease_value");
-	e.ReadFP32("alert_vision_threat_threshold");
 	e.ReadFP32("alert_vision_min_lum_threshold");
 	e.ReadFP32("alert_vision_min_threshold");
+	e.ReadFP32("alert_vision_threat_threshold");
 	e.ReadFP32("alert_vision_light_alert_threshold");
 	e.ReadFP32("alert_vision_vis_threshold");
 	e.ReadFP32("alert_vision_lum_min_distance");
@@ -672,7 +672,7 @@ function ReadBaseBrainUnit(e)
 	e.ReadFP32("danger_vision_descrease_value");
 	e.ReadFP32("danger_vision_min_lum_threshold");
 	e.ReadFP32("danger_vision_min_threshold");
-	e.ReadFP32("danger_vision_thread_threshold");
+	e.ReadFP32("danger_vision_threat_threshold");
 	e.ReadFP32("danger_vision_light_alert_threshold");
 	e.ReadFP32("danger_vision_vis_threshold");
 	e.ReadFP32("danger_vision_lum_min_distance");
