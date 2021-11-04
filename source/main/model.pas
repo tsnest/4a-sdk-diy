@@ -29,13 +29,13 @@ begin
 		Writeln;
 		
 		sh := shaderbytexture.Get(m.texture);
-		if (sh <> nil) and (AnsiCompareText(sh^, '<none>') <> 0) then
+		if (sh <> nil) and (sh^ <> '<none>') then
 			m.shader := sh^
 		else
 			m.shader := 'geometry\default';
 	
 		mat := materialbytexture.Get(m.texture);
-		if (mat <> nil) and (AnsiCompareText(mat^, '<none>') <> 0) then
+		if (mat <> nil) and (mat^ <> '<none>') then
 			m.material := mat^
 		else
 			m.material := 'materials\wood';		
@@ -307,8 +307,7 @@ begin
 		if l.visuals[I] is T4AModelRef then
 		begin
 			mt := materialbytexture.Get(l.materials[l.visuals[I].shaderid].texture);
-			if (mt = nil) or (AnsiCompareText(mt^, '<none>') <> 0) then
-			//if (l.materials[l.visuals[I].shaderid,2] = 'terrain\terrain_mp_factory') then
+			if (mt = nil) or (mt^ <> '<none>') then
 				cf.Add4AModel(T4AModelRef(l.visuals[I]), l);
 		end;
 
@@ -366,7 +365,7 @@ begin
 	l.SaveTo(destdir);
 	l.Free;
 end;
-
+{
 procedure FromXRayLevelTo4ALevel(srcdir, destdir : String; params : TLevelFlags);
 var
 	l : T4ALevel;
@@ -427,9 +426,9 @@ begin
 			if mt <> nil then material := mt^
 			else material := 'materials\wood';
 
-			if AnsiCompareText(shader, '<none>') = 0 then
+			if shader = '<none>' then
 				Continue;
-			if AnsiCompareText(material, '<none>') = 0 then
+			if material = '<none>' then
 				material := 'materials\wood';
 				
 			if lmap_id > 0 then flags := $00010000 else flags := 0;
@@ -510,6 +509,231 @@ begin
 		l.visuals[l.sectors[0]].version := 21;
 	if lfRedux in params then
 		l.visuals[l.sectors[0]].version := 22;
+
+	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
+	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
+
+	l.SaveTo(destdir);
+
+	l.Free;
+	xl.Free;
+end;
+}
+
+procedure FromXRayLevelTo4ALevel(srcdir, destdir : String; params : TLevelFlags);
+var
+	l : T4ALevel;
+	xl : TXRayLevel;
+
+	I : Integer;
+	model_version : Byte;
+	
+	root_id : Longint;
+	n : String;
+	
+	function AddVisual(ogf : TOGFModel; sectorid : Longint) : Longint;
+	var
+		J : Integer;
+		verts : array of T4AVertLevel;
+		rm : T4AModelRef;
+		hm : T4AModelHierrarhyL;
+		m	: TOGFModelSimple;
+		h : TOGFModelHierrarhy;	
+	
+		sh, mt : PAnsiString;
+		texture, shader, material : String;
+		flags : Longword;
+	
+		icount, ioffset : Longword;
+	
+		comma : Longint;
+		lmap_name : String;
+		lmap_id : Integer;
+	
+		id : Longint;
+		nadded : Longint;
+		meshes : array of Longword;
+	begin
+		Result := -1;
+		
+		if ogf is TOGFModelSimple then
+		begin
+			m := TOGFModelSimple(ogf);
+			
+			if (lfSkipMU in params) and (m is TOGFModelMU) then
+				Exit;
+	
+			// parse texture name
+			texture := LowerCase(xl.materials[m.shaderid,2]);
+			comma := Pos(',', texture);
+			if comma > 0 then
+			begin
+				lmap_name := Copy(texture, comma+1);
+				SScanf(lmap_name, 'lmap#%d_1', [@lmap_id]);
+				
+				if not (lfUseLMap in params) or (lmap_id > 16) then
+					lmap_id := -1;
+				
+				texture := Copy(texture, 1, comma-1);
+			end else
+				lmap_id := -1;
+			
+			// guess material by texture name
+			sh := shaderbytexture.Get(texture);
+			mt := materialbytexture.Get(texture);
+			if sh <> nil then shader := sh^
+			else shader := 'geometry\default';
+			if mt <> nil then material := mt^
+			else material := 'materials\wood';
+	
+			if shader = '<none>' then
+				Exit;
+			if material = '<none>' then
+				material := 'materials\wood';
+				
+			flags := sectorid;
+			if lmap_id > 0 then 
+				flags := flags or $00010000;
+	
+			// add visual
+			rm := T4AModelRef.Create;
+	
+			rm.version  := model_version;
+			rm.shaderid := l.AddMaterial(shader, texture, material, flags);
+			rm.bbox     := m.bbox;
+			rm.bsphere  := m.bsphere;
+			
+			// - copy vertices
+			SetLength(verts, m.geom_vcount);
+			xl.vbuffers[m.geom_vbuffer].currentvert := m.geom_voffset;
+			CopyVertices(xl.vbuffers[m.geom_vbuffer], P4AVertLevel(verts), m.geom_vcount, lmap_id);
+			if m is TOGFModelMU then
+				TransformMUVertices(P4AVertLevel(verts), Length(verts), m as TOGFModelMu);
+	
+			if (m.modeltype = OGF_MT_TREE_PM) or (m.modeltype = OGF_MT_TREE_ST) then
+				for J := 0 to Length(verts) - 1 do // gotcha!
+				begin
+					verts[J].tc.x := verts[J].tc.x div 2;
+					verts[J].tc.y := verts[J].tc.y div 2;
+				end;
+	
+			rm.vertexformat := MODEL_VF_LEVEL;
+			rm.vertexoffset := l.AddVertexBuffer(verts[0], m.geom_vcount);
+			rm.vertexcount := m.geom_vcount;
+	
+			// - copy indices
+			if m.modeltype = OGF_MT_TREE_PM then
+			begin
+				icount := xl.swibuffers[m.geom_swibuffer][0].nfaces*3;
+				ioffset := m.geom_ioffset+xl.swibuffers[m.geom_swibuffer][0].offset;
+			end else
+			if Length(m.swis) = 0 then
+			begin
+				icount := m.geom_icount;
+				ioffset := m.geom_ioffset;
+			end else
+			begin
+				icount := m.swis[0].nfaces*3;
+				ioffset := m.geom_ioffset+m.swis[0].offset;
+			end;
+			rm.indexoffset := l.AddIndexBuffer(xl.ibuffers[m.geom_ibuffer,ioffset], icount);
+			rm.indexcount := icount;
+	
+			Result := l.AddVisual(rm);
+		end else
+		if ogf is TOGFModelHierrarhy then
+		begin
+			h := TOGFModelHierrarhy(ogf);
+			
+			// add visual
+			hm := T4AModelHierrarhyL.Create;
+			
+			hm.version  := model_version;
+			hm.shaderid := $FFFF;
+			hm.bbox    := h.bbox;
+			hm.bsphere := h.bsphere;
+			
+			SetLength(meshes, Length(h.meshesl));
+			nadded := 0;
+			
+			for J := 0 to Length(h.meshesl) - 1 do
+			begin
+				id := AddVisual(xl.visuals[h.meshesl[J]], sectorid);
+				if id >= 0 then
+				begin
+					meshes[nadded] := id;
+					Inc(nadded);
+				end;
+			end;
+			
+			hm.meshes := meshes;
+			
+			if nadded > 0 then
+				Result := l.AddVisual(hm)
+			else
+				hm.Free;
+		end;
+	end;
+	
+begin
+	l := T4ALevel.Create;
+	
+	WriteLn('loading level ''' + srcdir + '''');
+	xl := TXRayLevel.Create;
+	xl.Load(srcdir);
+
+	// geometry & visuals
+	if lfRedux in params then
+		model_version := 22
+	else if lfLastLight in params then
+		model_version := 21
+	else
+		model_version := 8; // 2033
+	
+	SetLength(l.sectors, 0);
+	
+	for I := 0 to Length(xl.sectors) - 1 do
+	begin
+		root_id := AddVisual(xl.visuals[xl.sectors[I].root], Length(l.sectors));
+		if root_id >= 0 then
+		begin
+			SetLength(l.sectors, Length(l.sectors)+1);
+			l.sectors[Length(l.sectors)-1] := root_id;
+		end;
+	end;
+
+	// cform
+	WriteLn('generating nxcform...');
+	if lfRedux in params then
+		GenerateCform(l, destdir + '\level.nxcform33x', 2)
+	else if lfLastLight in params then
+		GenerateCform(l, destdir + '\level.nxcform_xbox', 1)
+	else
+		GenerateCform(l, destdir + '\level.nxcform_pc', 0);
+		
+	// lightmap
+	if lfUseLMap in params then
+	begin
+		WriteLN('converting lightmap...');
+		ConvertLightMap(srcdir, destdir + '\level.lmap_pc');
+	end;
+	
+	// portals
+	SetLength(l.portals, Length(xl.portals));
+	for I := 0 to Length(xl.portals) - 1 do
+	begin
+		SetLength(l.portals[I].points, xl.portals[I].points_count);
+		Move(xl.portals[I].points[0], l.portals[I].points[0], xl.portals[I].points_count*Sizeof(TVec3));
+		
+		n := IntToStr(I);
+		l.portals[I].name := 'portal' + StringOfChar('0', 4-Length(n)) + n;
+	end;
+	
+	if (lfRedux in params) or (lfLastLight in params) then
+		l.sound_occlusion_version := 5;
+
+	// save level
+	ScaleAO(l);
 
 	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
 	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
@@ -653,89 +877,122 @@ end;
 var
 	I : Integer;
 	flags : TLevelFlags;
+	err : Word;
 begin
 	LoadLists;
 
 	flags := [];
 
 	I := 1;
-	if ParamStr(I) = '-nomu' then
+	while I <= ParamCount do
 	begin
-		Include(flags, lfSkipMU);
-		Inc(I);
-	end;
-	
-	if ParamStr(I) = '-lmap' then
-	begin
-		LMap.soc_version := False;
-		Include(flags, lfUseLMap);
-		Inc(I);
-	end;
-	
-	if ParamStr(I) = '-lmap_soc' then
-	begin
-		LMap.soc_version := True;
-		Include(flags, lfUseLMap);
-		Inc(I);
-	end;
-	
-	if ParamStr(I) = '-ao_scale' then
-	begin
-		LMap.ao_scale := StrToFloat(ParamStr(I+1));
-		Inc(I,2);
-	end;
-	
-	if ParamStr(I) = '-ll' then
-	begin
-		Include(flags, lfLastLight);
-		Inc(I);
-	end;
-	
-	if ParamStr(I) = '-redux' then
-	begin
-		Include(flags, lfRedux);
-		Inc(I);
-	end;	
-
-	if ParamCount-(I-1) >= 3 then
-	begin
-		if ParamStr(I) = '-ogf2model' then
+		// option switches
+		if ParamStr(I) = '-nomu' then 
 		begin
-			FromOGFTo4A(ParamStr(I+1), ParamStr(I+2));
+			Include(flags, lfSkipMU);
 		end else
-		if ParamStr(I) = '-model2ogf' then
+		if ParamStr(I) = '-lmap' then
 		begin
-			From4AToOGF(ParamStr(I+1), ParamStr(I+2));
+			LMap.soc_version := False;
+			Include(flags, lfUseLMap);
 		end else
-		if ParamStr(I) = '-model2nxcform_pc' then
+		if ParamStr(I) = '-lmap_soc' then 
 		begin
-			From4AToNxCform(ParamStr(I+1), ParamStr(I+2));
+			LMap.soc_version := True;
+			Include(flags, lfUseLMap);
+		end else
+		if ParamStr(I) = '-ao_scale' then 
+		begin
+			if (ParamCount - I) > 0 then
+			begin
+				Val(ParamStr(I+1), LMap.ao_scale, err);
+				if err <> 0 then
+					WriteLn('Warning: ''', ParamStr(I+1), ''' is not a valid number');
+				Inc(I,1);
+			end else
+				WriteLn('Missing argument for parameter -ao_scale');
+		end else
+		
+		// target version switches
+		if ParamStr(I) = '-ll' then
+			Include(flags, lfLastLight)
+		else if ParamStr(I) = '-redux' then 
+			Include(flags, lfRedux)
+		else
+		
+		// operations
+		if ParamStr(I) = '-ogf2model' then 
+		begin
+			if (ParamCount - I) >= 2 then
+			begin
+				FromOGFTo4A(ParamStr(I+1), ParamStr(I+2));
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -ogf2model');
+		end else
+		if ParamStr(I) = '-model2ogf' then 
+		begin
+			if (ParamCount - I) >= 2 then
+			begin
+				From4AToOGF(ParamStr(I+1), ParamStr(I+2));
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -model2ogf');
+		end else
+		if ParamStr(I) = '-model2nxcform_pc' then 
+		begin
+			if (ParamCount - I) >= 2 then
+			begin
+				From4AToNxCform(ParamStr(I+1), ParamStr(I+2));
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -model2nxcform_pc');
 		end else
 		if ParamStr(I) = '-model2level' then
 		begin
-			FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount), flags);
+			if (ParamCount - I) >= 2 then
+			begin
+				FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount), flags);
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -model2level');				
 		end else
-		if ParamStr(I) = '-level2level' then
+		if ParamStr(I) = '-level2level' then 
 		begin
-			FromXRayLevelTo4ALevel(ParamStr(I+1), ParamStr(I+2), flags);
+			if (ParamCount - I) >= 2 then
+			begin
+				FromXRayLevelTo4ALevel(ParamStr(I+1), ParamStr(I+2), flags);
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -level2level');
 		end else
 		if ParamStr(I) = '-model2raw' then
 		begin
-			From4AToRaw(ParamStr(I+1), ParamStr(I+2));
-		end else
-			Writeln('Invalid parameter passed!');
-	end else
+			if (ParamCount - I) >= 2 then
+			begin
+				From4AToRaw(ParamStr(I+1), ParamStr(I+2));
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -model2raw');					
+		end else 
+			Writeln('Unknown parameter ', ParamStr(I));
+		
+		Inc(I);
+	end;
+	
+	if ParamCount = 0 then
 	begin
 		WriteLn('Usage:');
 		WriteLn(#9'model -ogf2model infile outfile');
 		WriteLn(#9'model -model2ogf infile outfile');
 		WriteLn(#9'model -model2nxcform_pc infile outfile');
 		WriteLn(#9'model [-ll] [-redux] -model2level model1 model2 .. modelN leveldir');
-		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] [-ll] [-redux] -level2level xrleveldir leveldir');
+		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] [-ao_scale <n>] [-ll] [-redux] -level2level xrleveldir leveldir');
 		WriteLn('Options:');
 		WriteLn(#9'-nomu : skip Multiple Usage models');
 		WriteLn(#9'-lmap : convert lightmaps (CS/CoP version) to level.lmap_pc');
 		WriteLn(#9'-lmap_soc : convert lightmaps (SoC version) to level.lmap_pc');
+		WriteLn(#9'-ao_scale <n> : multiply ambient occlusion values by real number <n>');
 		WriteLn(#9'-ll : target Metro Last Light (2013)');
 		WriteLn(#9'-redux : target Metro Redux');
 	end;

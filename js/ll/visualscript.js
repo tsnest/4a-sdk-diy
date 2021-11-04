@@ -1294,7 +1294,7 @@ var block_readers = {
 		e.ReadU32("min")
 		//e.ReadHint("max", "time")
 		e.ReadU32("max")
-		e.ReadU8("dflags")
+		e.ReadU8("dflags", "bool8")
 	},
 	"logic/exposed_locker": function(e)
 	{
@@ -1909,6 +1909,30 @@ var block_readers = {
 		e.ReadU32("cover_reuse_delay")
 		e.ReadU8("count")
 		e.ReadU8("subtype")
+	},
+	"logic/delay hud": function(e)
+	{
+		// logic/delay
+		e.ReadU32("min")
+		e.ReadU32("max")
+		e.ReadU8("dflags", "bool8")
+		
+		// logic/delay hud
+		e.ReadU32("delta")
+		e.ReadU32("priority")
+		e.ReadVec2("font_position")
+		e.ReadFP32("font_size")
+		e.ReadVec4("font_color", "color, vec4f")
+		e.ReadU8("team_vis")
+		e.ReadBool("show_minutes")
+		e.ReadBool("respawn_time")
+		e.ReadBool("timer_locked")
+		e.ReadBool("buy_respawn")
+		e.ReadU32("cost_respawn")
+		e.ReadFP32("buy_time")
+		e.ReadU8("buy_coeff")
+		e.ReadFP32("buy_cost_coeff")
+		e.ReadBool("ctf_logic")
 	},
 	"triggers/net/log_start_game": null,
 	"triggers/net/log_spawn": null,

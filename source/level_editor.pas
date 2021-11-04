@@ -10,7 +10,7 @@ uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
 	uTabWeather, uTabEntity, uTabEnvZone,
 	uScene, uEntity, uEnvZone, uLevelUndo, uImages,
 	{$IFDEF HAZ_LEVELEXPORT} uLevelExport, uXRayExport, {$ENDIF}
-	uChoose, properties, uTemplates, uAttach, uLEOptions;
+	uChoose, properties, uTemplates, uAttach, uLEOptions, uLevelRun;
 	
 type
 	TEditMode = (emEntity, emEnvZone, emWeather);
@@ -280,6 +280,25 @@ begin
 
 	UpdateSelection;
 	Redisplay;
+end;
+
+procedure SaveMap;
+var
+	kind : Byte;
+begin
+	if Scene.konf <> nil then
+	begin
+		case Scene.GetVersion of
+			sceneVer2033:		kind := konfDebugInfo or konfDiktionary;
+			sceneVerLL:			kind := konfDiktionary;
+			else						kind := konfDiktionary or konfMultiChunk;
+		end;
+			
+		SaveLevelBin(level_path + '\level.bin', Scene.konf, kind);
+		if Scene.konf_add <> nil then
+			SaveLevelBin(level_path + '\level.add.bin', Scene.konf_add, kind);
+		Scene.SaveEnvironmentToFile(level_path + '\level.environment');
+	end;
 end;
 
 procedure UpdateCameraPos;
@@ -1361,28 +1380,17 @@ function menu_file_reopen_cb(ih : Ihandle) : Longint; cdecl;
 begin
 	Scene.LevelReload;
 	UndoClearHistory;
+	UpdateSelection;
 	
 	Redisplay;
 	Result := IUP_DEFAULT;
 end;
 
 function menu_file_save_cb(ih : Ihandle) : Longint; cdecl;
-var
-	kind : Byte;
 begin
 	if Scene.konf <> nil then
-	begin
-		case Scene.GetVersion of
-			sceneVer2033:		kind := 5;
-			sceneVerLL:			kind := 4;
-			else						kind := 36;
-		end;
-			
-		SaveLevelBin(level_path + '\level.bin', Scene.konf, kind);
-		if Scene.konf_add <> nil then
-			SaveLevelBin(level_path + '\level.add.bin', Scene.konf_add, kind);
-		Scene.SaveEnvironmentToFile(level_path + '\level.environment');
-	end else
+		SaveMap
+	else
 		IupMessage('Message', 'Nothing opened');
 		
 	Result := IUP_DEFAULT;
@@ -1527,6 +1535,16 @@ begin
   DoRedo;
   UpdateSelection;
   Redisplay;
+	Result := IUP_DEFAULT;
+end;
+
+function menu_edit_cut_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	case edit_mode of
+		emEntity: uTabEntity.CutSelection;
+		//emEnvZone: uTabEnvZone.CopySelection;
+	end;
+	
 	Result := IUP_DEFAULT;
 end;
 
@@ -1693,6 +1711,56 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
+var
+	arr : TEntityArray;
+begin
+	if Scene.entities <> nil then
+	begin
+		arr := Scene.GetSelected;
+		Scene.MakeAddon(arr, True);
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_level_make_global_cb(ih : Ihandle) : Longint; cdecl;
+var
+	arr : TEntityArray;
+begin
+	if Scene.entities <> nil then
+	begin
+		arr := Scene.GetSelected;
+		Scene.MakeAddon(arr, True);
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_level_save_n_run_cb(ih : Ihandle) : Longint; cdecl;
+var
+	content_maps : String;
+	l : Longint;
+begin
+	content_maps := 'content\maps\';
+	l := Pos(content_maps, LowerCase(level_path));
+	
+	if l > 0 then
+	begin
+		SaveMap;
+		RunGame(Scene.GetVersion, Copy(level_path, l + Length(content_maps)))
+	end else
+		ShowError('Level not in content\maps directory!');
+		
+	Result := IUP_DEFAULT;
+end;
+
+function menu_level_run_options_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	RunOptions(Scene.GetVersion);
+	Result := IUP_DEFAULT;
+end;
+
 function set_width(ih: Ihandle; state: Longint) : Longint; cdecl;
 begin
 	lineWidth := IupGetInt(
@@ -1744,32 +1812,6 @@ begin
 		'Move sens: %r'#10'Rotate sens: %r'#10'Fly speed: %r'#10'Fast fly speed: %r'#10,
 		@camera_move_sens, @camera_rotate_sens, @camera_fly_speed, @camera_fly_speed_fast
 	);
-	
-	Result := IUP_DEFAULT;
-end;
-
-function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
-var
-	arr : TEntityArray;
-begin
-	if Scene.entities <> nil then
-	begin
-		arr := Scene.GetSelected;
-		Scene.MakeAddon(arr, True);
-	end;
-	
-	Result := IUP_DEFAULT;
-end;
-
-function menu_level_make_global_cb(ih : Ihandle) : Longint; cdecl;
-var
-	arr : TEntityArray;
-begin
-	if Scene.entities <> nil then
-	begin
-		arr := Scene.GetSelected;
-		Scene.MakeAddon(arr, True);
-	end;
 	
 	Result := IUP_DEFAULT;
 end;
@@ -1960,6 +2002,7 @@ var
 	fb_scale : Ihandle;
 	fb_weather : Ihandle;
 	fb_ao : Ihandle;
+	fb_run : Ihandle;
 	top_bar : Ihandle;
 	
 	label_sel : Ihandle;
@@ -2032,10 +2075,16 @@ begin
 	IupSetInt(fb_ao, 'VALUE', Integer(showAO));
 	IupSetCallback(fb_ao, 'FLAT_ACTION', @fb_ao_cb);
 	
+	fb_run := IupFlatButton('Save && Run');
+	IupSetAttribute(fb_run, 'IMAGE', 'ICON_RUN');
+	IupSetCallback(fb_run, 'FLAT_ACTION', @menu_level_save_n_run_cb);
+	
 	top_bar := IupHBox(
 		IupSetAttributes(IupRadio(IupHBox(fb_none, fb_move, fb_rotate, fb_scale, nil)), 'MARGIN=0x0, PADDING=0x0'), 
 		IupSetAttributes(IupSpace, 'SIZE=15x5'), 
 		fb_weather, fb_ao, 
+		IupSetAttributes(IupSpace, 'SIZE=15x5'),
+		fb_run,
 		nil
 	);
 	
@@ -2156,6 +2205,8 @@ begin
 		IupMenu(
 		  iup.MenuItem('Undo'#9'Ctrl+T', @menu_edit_undo_cb),
 		  iup.MenuItem('Redo'#9'Ctrl+Y', @menu_edit_redo_cb),
+		  IupSeparator,
+		  iup.MenuItem('Cut', @menu_edit_cut_cb),
 			iup.MenuItem('Copy', @menu_edit_copy_cb), 
 			iup.MenuItem('Paste', @menu_edit_paste_cb), 
 			IupSeparator,
@@ -2187,6 +2238,9 @@ begin
 			IupSeparator, 
 			iup.MenuItem('Make addon',  @menu_level_make_addon_cb), 
 			iup.MenuItem('Make global', @menu_level_make_global_cb), 
+			IupSeparator,
+			iup.MenuItem('Save && Run', @menu_level_save_n_run_cb),
+			iup.MenuItem('Run Options...', @menu_level_run_options_cb),
 			nil
 		)
 	);
@@ -2240,6 +2294,7 @@ end;
 procedure CreateContextMenu;
 begin	
 	context_menu := IupMenu(
+		iup.MenuItem('Cut', @menu_edit_cut_cb),
 		iup.MenuItem('Copy', @menu_edit_copy_cb),
 		iup.MenuItem('Paste', @menu_edit_paste_cb),
 		IupSeparator,

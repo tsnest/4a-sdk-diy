@@ -31,7 +31,6 @@ end;
 procedure DecompileLevel(inf, outf : String);
 var
 	TK : TTextKonfig;
-	S : String;
 begin
 	TK := LoadLevelBin(inf);
 	if TK <> nil then
@@ -128,67 +127,69 @@ var
 	level : Boolean;
 	last_light : Boolean;
 begin
-	I := 1;
 	kind := 5;
 	level := False;
+	last_light := False;
 
-	if (ParamCount >= I) and (ParamStr(I) = '-v') then
+	I := 1;
+	while I <= ParamCount do
 	begin
-		TKonfigReader.WarnIfDataLeft := True;
-		Inc(I);
-	end;
-	
-	if (ParamCount >= I) and (ParamStr(I) = '-vv') then
-	begin
-		TKonfigReader.PrintDebugInfo := True;
-		Inc(I);
-	end;
-
-	if (ParamCount >= I) and (ParamStr(I) = '-l') then
-	begin
-		level := True;
-		Inc(I);
-	end;
-	
-	if (ParamCount >= I) and (ParamStr(I) = '-ll') then
-	begin	
-		last_light := True;
-		Inc(I);
-	end else
-		last_light := False;
-
-	if (ParamCount >= I+1) and (ParamStr(I) = '-k') then
-	begin
-		kind := StrToInt(ParamStr(I+1));
-		Inc(I, 2);
-
-		if (kind <> 3) and (kind <> 4) and (kind <> 5) and (kind <> 36) then
+		if ParamStr(I) = '-v' then
+			TKonfigReader.WarnIfDataLeft := True
+		else if ParamStr(I) = '-vv' then
+			TKonfigReader.PrintDebugInfo := True
+		else if ParamStr(I) = '-l' then
+			level := True
+		else if ParamStr(I) = '-ll' then	
+			last_light := True
+		else if ParamStr(I) = '-k' then
 		begin
-			Writeln('Unsupported config type ', kind, ', reset to 5');
-			kind := 5;
-		end;
-	end;
-
-	if ParamCount >= I+2 then
-	begin
+			kind := StrToInt(ParamStr(I+1));
+			Inc(I, 1);
+			
+			if not (kind in [3, 4, 5, 16, 36]) then
+			begin
+				Writeln('Unsupported config type ', kind, ', reset to 5');
+				kind := 5;
+			end;
+		end else
 		if ParamStr(I) = '-d' then
 		begin
-			if level then
-				DecompileLevel(ParamStr(I+1), ParamStr(I+2))
-			else
-				DecompileConfig(ParamStr(I+1), ParamStr(I+2), last_light)
+			if (ParamCount - I) >= 2 then
+			begin
+				if level then
+					DecompileLevel(ParamStr(I+1), ParamStr(I+2))
+				else
+					DecompileConfig(ParamStr(I+1), ParamStr(I+2), last_light);
+					
+				Inc(I, 2);
+			end else
+				WriteLn('Not enough parameters for -d');
 		end else
 		if ParamStr(I) = '-c' then
 		begin
-			if level then
-				CompileLevel(ParamStr(I+1), ParamStr(I+2), kind)
-			else
-				CompileConfig(ParamStr(I+1), ParamStr(I+2), kind, last_light);
+			if (ParamCount - I) >= 2 then
+			begin
+				if level then
+					CompileLevel(ParamStr(I+1), ParamStr(I+2), kind)
+				else
+					CompileConfig(ParamStr(I+1), ParamStr(I+2), kind, last_light);
+					
+				Inc(I, 2);
+			end else
+				WriteLn('Not enough parameters for -c');
 		end else
-		if (ParamStr(I) = '-s') and (ParamCount >= I+3) then
-			DecompileSpecial(ParamStr(I+1), ParamStr(I+2), ParamStr(I+3))
-		else		
-			Usage;
-	end else
-		Usage;
+		if ParamStr(I) = '-s' then
+		begin
+			if (ParamCount - I) >= 3 then
+			begin
+				DecompileSpecial(ParamStr(I+1), ParamStr(I+2), ParamStr(I+3));
+				Inc(I, 3);
+			end else
+				WriteLn('Not enough parameters for -s');
+		end else		
+			Writeln('Unknown parameter ', ParamStr(I));
+		
+		Inc(I);
+	end;
 end.

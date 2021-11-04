@@ -234,7 +234,35 @@ end;
 		properties = begin
 			min : u32 = 100;
 			max : u32 = 0;
-			dflags : u8 = 2;
+			dflags : bool8 = 2;
+		end;
+	end;
+	
+	'delay hud' = begin
+		clsid : stringz = 'logic/delay hud';
+		
+		in_names : stringz = 'start,activate,deactivate,stop,restart,Delta_+,Delta_-,Lock_respawn,Unlock_respawn,Allow_respawn';
+		out_names : stringz = 'out,entity';
+		
+		properties = begin
+			min : u32 = 100;
+			max : u32 = 0;
+			dflags : bool8 = 2;
+			delta : u32 = 0;
+			priority : u32 = 0;
+			font_position : vec2f = [ 10.0, 10.0 ];
+			font_size : fp32 = 10.0;
+			font_color : 'color, vec4f' = [ 1, 1, 1, 1 ];
+			team_vis : u8 = 0;
+			show_minutes : bool = True;
+			respawn_time : bool = True;
+			timer_locked : bool = False;
+			buy_respawn : bool = True;
+			cost_respawn : u32 = 100;
+			buy_time : fp32 = 10000;
+			buy_coeff : u8 = 1;
+			buy_cost_coeff : fp32 = 1.0;
+			ctf_logic : bool = False;	
 		end;
 	end;
 end;

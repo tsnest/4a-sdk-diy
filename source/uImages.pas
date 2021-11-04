@@ -75,6 +75,8 @@ begin
 	
 	LoadImage('ICON_PLAY', 'editor_data\icons\play.png');
 	LoadImage('ICON_PAUSE', 'editor_data\icons\pause.png');
+	
+	LoadImage('ICON_RUN', 'editor_data\icons\run.png');
 end;
 
 end.

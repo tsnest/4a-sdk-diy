@@ -77,6 +77,20 @@ type
 		procedure Load(reader : TMemoryReader); override;
 		procedure Save(w : TMemoryWriter); override;
 	end;
+	
+	TOGFLodVertex = record
+		point : TVec3;
+		uv    : TVec2;
+		color : array[0..4] of Byte; // r, g, b, sun, hemi
+		dummy : array[0..2] of Byte;
+	end;
+	
+	TOGFModelLOD = class(TOGFModelHierrarhy)
+		lod_data : array[0..31] of TOGFLodVertex;
+	
+		procedure Load(reader : TMemoryReader); override;
+		procedure Save(w : TMemoryWriter); override;
+	end;
 
 	TOGFSlideWindow = packed record
 		offset : Longword;
@@ -136,6 +150,18 @@ type
 
 		function NextVertex : Boolean;
 	end;
+	
+	TXRayPortal = record
+		sector_front : Word;
+		sector_back  : Word;
+		points       : array[0..5] of TVec3;
+		points_count : Longint; // always 6
+	end;
+	
+	TXRaySector = record
+		root    : Longint;
+		portals : array of Word;
+	end;
 
 	TXRayLevel = class
 		version : Word;
@@ -144,6 +170,9 @@ type
 		swibuffers : array of array of TOGFSlideWindow;
 		visuals : array of TOGFModel;
 		materials : array of array[1..2] of String;
+		
+		portals : array of TXRayPortal;
+		sectors : array of TXRaySector;
 
 		constructor Create;
 		destructor Destroy; override;
@@ -420,7 +449,7 @@ begin
 		OGF_MT_HIERRARHY, OGF_MT_SKELETON_RIGID, OGF_MT_SKELETON_ANIM:
 			m := TOGFModelHierrarhy.Create;
 		OGF_MT_LOD:
-			m := nil; // not used
+			m := TOGFModelLOD.Create;
 		OGF_MT_TREE_ST, OGF_MT_TREE_PM:
 			m := TOGFModelMU.Create;
 		else
@@ -586,7 +615,7 @@ var
 begin
 	inherited Load(reader);
 	case modeltype of
-		OGF_MT_HIERRARHY, OGF_MT_SKELETON_ANIM, OGF_MT_SKELETON_RIGID: ;
+		OGF_MT_HIERRARHY, OGF_MT_LOD, OGF_MT_SKELETON_ANIM, OGF_MT_SKELETON_RIGID: ;
 		else
 			raise Exception.Create('Invalid OGF model type, must be hierrarhy');
 	end;
@@ -648,6 +677,23 @@ begin
 	end;
 end;
 
+procedure TOGFModelLOD.Load(reader : TMemoryReader);
+begin
+	inherited Load(reader);
+	case modeltype of
+		OGF_MT_LOD: ;
+		else
+			raise Exception.Create('Invalid OGF model type, must be LOD');
+	end;
+	// lod data ? 
+end;
+
+procedure TOGFModelLOD.Save(w : TMemoryWriter);
+begin
+	inherited Save(w);
+	// lod data ? 
+end;
+
 procedure TOGFModelMU.Load(reader: TMemoryReader);
 var
 	r : TMemoryReader;
@@ -672,6 +718,8 @@ const
 	FSL_CHUNK_VERSION    = 1;
 	FSL_CHUNK_TEXTURES   = 2;
 	FSL_CHUNK_VISUALS    = 3;
+	FSL_CHUNK_PORTALS    = 4;
+	FSL_CHUNK_SECTORS    = 8;
 	FSL_CHUNK_VBUFFERS   = 9;
 	FSL_CHUNK_IBUFFERS   = 10;
 	FSL_CHUNK_SWIBUFFERS = 11;
@@ -696,7 +744,7 @@ end;
 
 function TXRayLevel.Load(from : String) : Boolean;
 var
-	reader, reader_geom, r, r2 : TMemoryReader;
+	reader, reader_geom, r, r2, r3 : TMemoryReader;
 	I : Integer;
 
 	s : String;
@@ -743,8 +791,48 @@ begin
 		materials[I,2] := Copy(s, pos+1, Length(s)-pos);
 	end;
 	r.Free;
+	
+	WriteLn('loading sectors and portals...');
+	r := reader.OpenChunk(FSL_CHUNK_PORTALS);
+	if r <> nil then
+	begin
+		SetLength(portals, r.size div Sizeof(TXRayPortal));
+		r.Read(portals[0], r.size);
+		r.Free;
+	end;
+	
+	r := reader.OpenChunk(FSL_CHUNK_SECTORS);
+	if r <> nil then
+	begin
+		I := 0;
+		
+		while r.More do
+		begin
+			SetLength(sectors, (I+1));
+			
+			r2 := r.OpenChunk;
+			
+			r3 := r2.OpenChunk(2); // root visual id
+			sectors[I].root := r3.ReadLongword;
+			r3.Free;
+			
+			r3 := r2.OpenChunk(1); // portals
+			if r3 <> nil then
+			begin
+				SetLength(sectors[I].portals, r3.size div Sizeof(Word));
+				r3.Read(sectors[I].portals[0], r3.size);
+				r3.Free;
+			end;
+			
+			r2.Free;
+			
+			Inc(I);
+		end;
+		
+		r.Free;
+	end;
+	
 	reader.Free;
-
 	Load := True;
 end;
 

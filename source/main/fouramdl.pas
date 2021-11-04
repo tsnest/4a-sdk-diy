@@ -226,8 +226,16 @@ const
   LEVEL_VER_EXODUS      = 19;
 
 type
+	T4APortal = record
+		points : array of TVec3;
+		name : String;
+	end;
+
   T4ALevel = class
     filename : String;
+
+		version : Longword;
+		checksum : Longword;
 
     visuals : array of T4AModel;
     vbuffer : array of T4AVertLevel;
@@ -238,6 +246,9 @@ type
     	flags : Longword;
     end;
     sectors : array of Longword;
+    
+    portals : array of T4APortal;
+    sound_occlusion_version : Longword;
 
     constructor Create;
     destructor Destroy; override;
@@ -1354,6 +1365,9 @@ end;
 constructor T4ALevel.Create;
 begin
   filename := 'level';
+  version  := LEVEL_VER_2033;
+  checksum := Longword(1500.0);
+  sound_occlusion_version := 4 // 2033 - 4, LL & Redux - 5
 end;
 
 destructor T4ALevel.Destroy;
@@ -1370,14 +1384,20 @@ procedure T4ALevel.Load(const path : String);
 var
   I : Longint;
   f, r, v : TMemoryReader;
-
-  version : Word;
 begin
   f := TMemoryReader.CreateFromFile(path + '\' + filename);
 
   r := f.OpenChunk(LEVEL_CHUNK_VERSION);
   version := r.ReadWord;
+  {quality := r.ReadWord;}
   r.Free;
+  
+  r := f.OpenChunk(LEVEL_CHUNK_CHECKSUM);
+  if r <> nil then
+  begin
+  	checksum := r.ReadLongword;
+  	r.Free;
+  end;
 
   r := f.OpenChunk(LEVEL_CHUNK_VISUALS);
   I := 0;
@@ -1462,7 +1482,7 @@ begin
   w.CloseChunk;
 
   w.OpenChunk(LEVEL_CHUNK_CHECKSUM);
-  w.WriteSingle(0.0);
+  w.WriteLongword(checksum);
   w.CloseChunk;
 
   w.OpenChunk(LEVEL_CHUNK_SECTORS);
@@ -1486,7 +1506,7 @@ begin
   w.CloseChunk;
 
   w.OpenChunk(LEVEL_CHUNK_CHECKSUM);
-  w.WriteSingle(1500.0);
+  w.WriteLongword(checksum);
   w.CloseChunk;
 
   w.OpenChunk(LEVEL_CHUNK_VBUFFER);
@@ -1499,6 +1519,42 @@ begin
 
   w.SaveTo(path + '\' + filename + '.geom_pc');
   w.Free;
+  
+  // save portals
+  if Length(portals) > 0 then
+  begin
+  	w := TMemoryWriter.Create;
+  	
+  	// version ?
+  	w.OpenChunk($0000FFFF);
+  	w.WriteLongword(2);
+  	w.CloseChunk;
+  	
+  	// render portals
+  	for I := 0 to Length(portals) - 1 do
+  	begin
+  		w.OpenChunk(I);
+  		
+  		w.WriteLongword(Length(portals[I].points));
+  		w.Write(portals[I].points[0], Sizeof(TVec3)*Length(portals[I].points));
+  		w.WriteStringZ(portals[I].name);
+  		w.WriteLongword(0);
+  		
+  		w.CloseChunk;
+  	end;
+  	
+  	// sound occlusion (dummy)
+  	w.OpenChunk($0000FFFC);
+  	w.WriteLongword(sound_occlusion_version);
+  	w.WriteLongword(checksum);
+  	w.WriteLongword(0); // sqrt(size_table1)
+  	w.WriteLongword(0); // portal count
+  	w.WriteLongword(0); // ?
+  	w.CloseChunk;
+  	
+  	w.SaveTo(path + '\level.portals');
+  	w.Free;
+  end;
 end;
 
 function T4ALevel.AddMaterial(s, t, m : String; flags : Longword) : Longint;

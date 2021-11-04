@@ -293,7 +293,6 @@ var
 	name : String;
 	new_data : TSection;
 	p_id : TIntegerValue;
-	p_parent_id : TIntegerValue;
 	
 	procedure _RemapLinks(sect : TSection);
 	var
@@ -306,8 +305,13 @@ var
 			begin
 				p := TSimpleValue(sect.items[I]) as TIntegerValue;
 				for J := 0 to Length(ids) do
+				begin
 					if p.num = ids[J] then
+					begin
 						p.num := new_ids[J];
+						Break;
+					end;
+				end;
 			end else
 			if TSimpleValue(sect.items[I]) is TSection then
 				_RemapLinks(TSection(sect.items[I]));
@@ -359,10 +363,14 @@ begin
 	// remap ids
 	for I := 0 to Length(entities) - 1 do
 	begin
-		p_parent_id := entities[I].data.GetParam('parent_id', 'u16') as TIntegerValue;
 		for J := 0 to Length(ids) - 1 do
-			if p_parent_id.num = ids[J] then
-				p_parent_id.num := new_ids[J];
+		begin
+			if entities[I].ParentID = ids[J] then
+			begin
+				entities[I].ParentID := new_ids[J];
+				Break;
+			end;
+		end;
 				
 		_RemapLinks(entities[I].data);
 	end;

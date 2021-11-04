@@ -1673,15 +1673,18 @@ procedure TSoftbodyModelMaler.Draw(mtlset : Longint; selected : Boolean; blended
 		glEnd;
 	end;
 begin
-	if useTextures then
-		material.Enable;
+	if material.visible and (blended = material.blended) and (distort = material.distort) then
+	begin
+		if useTextures then
+			material.Enable;
+		
+		DoDraw;
+		
+		if useTextures then
+			material.Disable;
+	end;
 	
-	DoDraw;
-	
-	if useTextures then
-		material.Disable;
-	
-	if selected and (blended = material.blended) then
+	if selected and (blended = material.blended) and (distort = False) then
 	begin
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
