@@ -1,0 +1,13 @@
+EXPORTS
+    IGizmo_CreateMoveGizmo @1
+    IGizmo_CreateRotateGizmo @2
+    IGizmo_CreateScaleGizmo @3
+    IGizmo_Draw @4
+    IGizmo_OnMouseDown @5
+    IGizmo_OnMouseMove @6
+    IGizmo_OnMouseUp @7
+    IGizmo_SetAxisMask @8
+    IGizmo_SetCameraMatrix @9
+    IGizmo_SetEditMatrix @10
+    IGizmo_SetLocation @11
+    IGizmo_SetScreenDimension @12

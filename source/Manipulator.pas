@@ -90,6 +90,7 @@ CONST
 	AXIS_TRACKBALL = 8;
 	AXIS_SCREEN    = 16;
 	AXIS_ALL       = 31;
+	AXIS_XYZ_SCALE = 32;
 
 function  IGizmo_CreateMoveGizmo : IGizmo; cdecl; external 'libgizmo.dll';
 function  IGizmo_CreateRotateGizmo : IGizmo; cdecl; external 'libgizmo.dll';
@@ -102,6 +103,7 @@ function  IGizmo_OnMouseDown(this : IGizmo; x, y : Longint) : Boolean; cdecl; ex
 procedure IGizmo_OnMouseMove(this : IGizmo; x, y : Longint); cdecl; external 'libgizmo.dll';
 procedure IGizmo_OnMouseUp(this : IGizmo; x, y : Longint); cdecl; external 'libgizmo.dll';
 procedure IGizmo_SetLocation(this : IGizmo; loc : Longint); cdecl; external 'libgizmo.dll';
+procedure IGizmo_SetAxisMask(this : IGizmo; mask : Longint); cdecl; external 'libgizmo.dll';
 procedure IGizmo_Draw(this : IGizmo); cdecl; external 'libgizmo.dll';
 
 constructor TManipulator.Create(isworld : Boolean; line_width : Longint);
@@ -250,6 +252,8 @@ begin
 	
 	gizmo := IGizmo_CreateScaleGizmo;
 	IGizmo_SetLocation(gizmo, LOCATION_LOCAL);
+	if uniform then
+		IGizmo_SetAxisMask(gizmo, AXIS_XYZ_SCALE)
 end;
 
 procedure TScaleManipulator.Draw;

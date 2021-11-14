@@ -1,0 +1,51 @@
+# Project: libgizmo
+# Makefile created by Dev-C++ 5.11
+
+CPP      = g++.exe
+CC       = gcc.exe
+WINDRES  = windres.exe
+OBJ      = ../src/libgizmo/GizmoTransformMove.o ../src/libgizmo/GizmoTransformRender.o ../src/libgizmo/GizmoTransformRotate.o ../src/libgizmo/GizmoTransformScale.o ../src/libgizmo/stdafx.o ../src/libgizmo/ZBaseMaths.o ../src/libgizmo/ZMathsFunc.o c_api.o
+LINKOBJ  = ../src/libgizmo/GizmoTransformMove.o ../src/libgizmo/GizmoTransformRender.o ../src/libgizmo/GizmoTransformRotate.o ../src/libgizmo/GizmoTransformScale.o ../src/libgizmo/stdafx.o ../src/libgizmo/ZBaseMaths.o ../src/libgizmo/ZMathsFunc.o c_api.o
+LIBS     = -L"F:/Dev-Cpp/MinGW64/lib32" -L"F:/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib32" -static-libgcc -lopengl32 -m32
+INCS     = -I"F:/Dev-Cpp/MinGW64/include" -I"F:/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"F:/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"../inc"
+CXXINCS  = -I"F:/Dev-Cpp/MinGW64/include" -I"F:/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"F:/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"F:/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++" -I"../inc"
+BIN      = libgizmo.dll
+CXXFLAGS = $(CXXINCS) -m32 -DBUILDING_DLL=1
+CFLAGS   = $(INCS) -m32 -DBUILDING_DLL=1
+RM       = rm.exe -f
+DEF      = liblibgizmo.def
+STATIC   = liblibgizmo.a
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before $(BIN) all-after
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN) $(DEF) $(STATIC)
+
+$(BIN): $(LINKOBJ)
+	$(CPP) -shared $(LINKOBJ) -o $(BIN) $(LIBS) -Wl,--output-def,$(DEF),--out-implib,$(STATIC),--add-stdcall-alias
+
+../src/libgizmo/GizmoTransformMove.o: ../src/libgizmo/GizmoTransformMove.cpp
+	$(CPP) -c ../src/libgizmo/GizmoTransformMove.cpp -o ../src/libgizmo/GizmoTransformMove.o $(CXXFLAGS)
+
+../src/libgizmo/GizmoTransformRender.o: ../src/libgizmo/GizmoTransformRender.cpp
+	$(CPP) -c ../src/libgizmo/GizmoTransformRender.cpp -o ../src/libgizmo/GizmoTransformRender.o $(CXXFLAGS)
+
+../src/libgizmo/GizmoTransformRotate.o: ../src/libgizmo/GizmoTransformRotate.cpp
+	$(CPP) -c ../src/libgizmo/GizmoTransformRotate.cpp -o ../src/libgizmo/GizmoTransformRotate.o $(CXXFLAGS)
+
+../src/libgizmo/GizmoTransformScale.o: ../src/libgizmo/GizmoTransformScale.cpp
+	$(CPP) -c ../src/libgizmo/GizmoTransformScale.cpp -o ../src/libgizmo/GizmoTransformScale.o $(CXXFLAGS)
+
+../src/libgizmo/stdafx.o: ../src/libgizmo/stdafx.cpp
+	$(CPP) -c ../src/libgizmo/stdafx.cpp -o ../src/libgizmo/stdafx.o $(CXXFLAGS)
+
+../src/libgizmo/ZBaseMaths.o: ../src/libgizmo/ZBaseMaths.cpp
+	$(CPP) -c ../src/libgizmo/ZBaseMaths.cpp -o ../src/libgizmo/ZBaseMaths.o $(CXXFLAGS)
+
+../src/libgizmo/ZMathsFunc.o: ../src/libgizmo/ZMathsFunc.cpp
+	$(CPP) -c ../src/libgizmo/ZMathsFunc.cpp -o ../src/libgizmo/ZMathsFunc.o $(CXXFLAGS)
+
+c_api.o: c_api.cpp
+	$(CPP) -c c_api.cpp -o c_api.o $(CXXFLAGS)
