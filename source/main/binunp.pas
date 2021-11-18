@@ -1,6 +1,6 @@
 program binunp;
 uses classes, sysutils, Konfig, texturePrefs, levelbin,
-		 framework, Konfig_reader;
+		 framework, Konfig_reader, Windows;
 
 function EndsWith(const s1 : String; const s2 : String) : Boolean;
 var
@@ -19,11 +19,24 @@ end;
 procedure CompileLevel(infn, outfn : String; kind : Integer);
 var
 	tk : TTextKonfig;
+	
+	qpf : QWord;
+	qpc1 : QWord;
+	qpc2 : QWord;
+	time_s: Double;
 begin
 	tk := TTextKonfig.Create;
 	tk.LoadFromFile(infn);
 
+	QueryPerformanceFrequency(@qpf);
+	QueryPerformanceCounter(@qpc1);
+
 	SaveLevelBin(outfn, tk, kind);
+	
+	QueryPerformanceCounter(@qpc2);
+	
+	time_s := (qpc2 - qpc1) / qpf;
+	WriteLn('Saving time: ', time_s:10:10, 's');
 
 	tk.Free;
 end;
@@ -31,13 +44,27 @@ end;
 procedure DecompileLevel(inf, outf : String);
 var
 	TK : TTextKonfig;
+	
+	qpf : QWord;
+	qpc1 : QWord;
+	qpc2 : QWord;
+	time_s: Double;
 begin
 	TK := LoadLevelBin(inf);
 	if TK <> nil then
 	begin
 		Writeln('Saving to ', outf);
+		
+		QueryPerformanceFrequency(@qpf);
+		QueryPerformanceCounter(@qpc1);
+		
 		TK.SaveToFile(outf);
 		TK.Free;
+		
+		QueryPerformanceCounter(@qpc2);
+		
+		time_s := (qpc2 - qpc1) / qpf;
+		WriteLn('Saving time: ', time_s:10:10, 's');
 	end else
 		Writeln('This is not level.bin file!');
 end;
@@ -113,19 +140,20 @@ end;
 procedure Usage;
 begin
 	Writeln('Usage: ');
-	Writeln(#9'binunp [-l] [-ll] -d infile outfile');
-	Writeln(#9'binunp [-l] [-ll] [-k n] -c infile outfile');
-	Writeln(#9'binunp -s script infile outfile');
+	Writeln(#9'binunp [-l] [-ll] -d infile [outfile]');
+	Writeln(#9'binunp [-l] [-ll] [-k n] -c infile [outfile]');
+	Writeln(#9'binunp -s script infile [outfile]');
 	Writeln;
 	Writeln('-l option = compile/decompile level.bin');
 	Writeln('-ll option = compile/decompile bin from Last Light or later versions');
-	Writeln('-k option = config type, may be 3, 4 or 5, by default 5');
+	Writeln('-k option = config type, may be 3, 4, 5, 16 or 36, by default 5');
 end;
 
 var
 	I, kind : Integer;
 	level : Boolean;
 	last_light : Boolean;
+	out_file : String;
 begin
 	kind := 5;
 	level := False;
@@ -155,12 +183,17 @@ begin
 		end else
 		if ParamStr(I) = '-d' then
 		begin
-			if (ParamCount - I) >= 2 then
+			if (ParamCount - I) >= 1 then
 			begin
-				if level then
-					DecompileLevel(ParamStr(I+1), ParamStr(I+2))
+				if (ParamCount - I) >= 2 then
+					out_file := ParamStr(I+2)
 				else
-					DecompileConfig(ParamStr(I+1), ParamStr(I+2), last_light);
+					out_file := ParamStr(I+1) + '.txt';
+								
+				if level then
+					DecompileLevel(ParamStr(I+1), out_file)
+				else
+					DecompileConfig(ParamStr(I+1), out_file, last_light);
 					
 				Inc(I, 2);
 			end else
@@ -168,12 +201,17 @@ begin
 		end else
 		if ParamStr(I) = '-c' then
 		begin
-			if (ParamCount - I) >= 2 then
+			if (ParamCount - I) >= 1 then
 			begin
-				if level then
-					CompileLevel(ParamStr(I+1), ParamStr(I+2), kind)
+				if (ParamCount - I) >= 2 then
+					out_file := ParamStr(I+2)
 				else
-					CompileConfig(ParamStr(I+1), ParamStr(I+2), kind, last_light);
+					out_file := ChangeFileExt(ParamStr(I+1), '');
+					
+				if level then
+					CompileLevel(ParamStr(I+1), out_file, kind)
+				else
+					CompileConfig(ParamStr(I+1), out_file, kind, last_light);
 					
 				Inc(I, 2);
 			end else
@@ -181,9 +219,14 @@ begin
 		end else
 		if ParamStr(I) = '-s' then
 		begin
-			if (ParamCount - I) >= 3 then
+			if (ParamCount - I) >= 2 then
 			begin
-				DecompileSpecial(ParamStr(I+1), ParamStr(I+2), ParamStr(I+3));
+				if (ParamCount - I) >= 3 then
+					out_file := ParamStr(I+3)
+				else
+					out_file := ParamStr(I+2) + '.txt';
+					
+				DecompileSpecial(ParamStr(I+1), ParamStr(I+2), out_file);
 				Inc(I, 3);
 			end else
 				WriteLn('Not enough parameters for -s');

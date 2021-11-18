@@ -2000,6 +2000,8 @@ var
 	fb_move : Ihandle;
 	fb_rotate : Ihandle;
 	fb_scale : Ihandle;
+	r_tools : Ihandle;
+	
 	fb_weather : Ihandle;
 	fb_ao : Ihandle;
 	fb_run : Ihandle;
@@ -2079,8 +2081,11 @@ begin
 	IupSetAttribute(fb_run, 'IMAGE', 'ICON_RUN');
 	IupSetCallback(fb_run, 'FLAT_ACTION', @menu_level_save_n_run_cb);
 	
+	r_tools := IupRadio(IupHBox(fb_none, fb_move, fb_rotate, fb_scale, nil));
+	IupSetAttributes(r_tools, 'MARGIN=0x0, PADDING=0x0');
+	
 	top_bar := IupHBox(
-		IupSetAttributes(IupRadio(IupHBox(fb_none, fb_move, fb_rotate, fb_scale, nil)), 'MARGIN=0x0, PADDING=0x0'), 
+		r_tools, 
 		IupSetAttributes(IupSpace, 'SIZE=15x5'), 
 		fb_weather, fb_ao, 
 		IupSetAttributes(IupSpace, 'SIZE=15x5'),

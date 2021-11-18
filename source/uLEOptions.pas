@@ -20,10 +20,11 @@ var
 	camera_fly_speed_fast : Single = 5.0;
 
 implementation
-uses common, Inifiles;
+uses common, Inifiles, uLevelUndo;
 
 var
 	F : TIniFile;
+	undo_limit : Longint;
 	
 initialization
 	
@@ -43,6 +44,9 @@ bkg_color.x           := F.ReadFloat('clear_color', 'r', bkg_color.x);
 bkg_color.y           := F.ReadFloat('clear_color', 'g', bkg_color.y);
 bkg_color.z           := F.ReadFloat('clear_color', 'b', bkg_color.z);
 bkg_color.w           := F.ReadFloat('clear_color', 'a', bkg_color.w);
+
+undo_limit            := F.ReadInteger('history', 'undo_limit', 64);
+SetUndoLimit          (undo_limit);
 
 F.Free;
 

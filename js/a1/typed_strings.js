@@ -399,7 +399,9 @@ var static_data_keys = [
 	"_G.config.entity.wpn_spray_5",
 	"_G.config.entity.wpn_spray_6",
 	"_G.config.entity.wpn_stechkin",
-	"_G.config.entity.wpn_ventil"
+	"_G.config.entity.wpn_ventil",
+	// my invention, doesn't exist in original game
+	"_G.config.entity.vehicle"
 ];
 
 var hash_table_classes = new Object;

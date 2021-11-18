@@ -31,6 +31,7 @@ var
 	has_configbin : Boolean;
 	has_texturesbin : Boolean;
 	has_textures_handles_storage : Boolean;
+	has_vr_attach_base : Boolean;
 	
 	K : TKonfig;
 begin
@@ -38,6 +39,7 @@ begin
 	has_configbin := False;
 	has_texturesbin := False;
 	has_textures_handles_storage := False;
+	has_vr_attach_base := False;
 	
 	if FileExists(ResourcesPath + '\scripts.bin') then
 	begin
@@ -71,6 +73,14 @@ begin
 		has_textures_handles_storage := True;
 	end;
 	
+	// не самый лучший спобов отличать арктику.1
+	// т.к. этот файл распаковывать необязательно и редактору он нафиг не нужен
+	// но я ничего лучше не вижу
+	if FileExists(ResourcesPath + '\weaponry\attaches\vr_attach_base.bin') then
+	begin
+		has_vr_attach_base := True;
+	end;
+	
 	if has_scriptsbin then
 	begin
 		version := eVer2033;
@@ -86,7 +96,10 @@ begin
 				version := eVerExodus;
 			end else
 			begin
-				version := eVerRedux; // как отличить арктику.1 ???
+				if has_vr_attach_base then
+					version := eVerArktika1
+				else
+					version := eVerRedux;
 			end;
 		end;
 	end;

@@ -2,6 +2,8 @@ unit uLevelUndo;
 
 interface
 
+procedure SetUndoLimit(limit : Longint);
+
 procedure DoUndo;
 procedure DoRedo;
 
@@ -9,7 +11,7 @@ procedure UndoClearHistory;
 procedure UndoSave;
 
 implementation
-uses classes, Konfig, uScene;
+uses classes, Konfig, uScene, Windows;
 
 type 
   TUndoRec = record
@@ -19,12 +21,19 @@ type
   end;
   
 var
-  undo_buffer : array[0..63] of TUndoRec;
+  undo_buffer : array of TUndoRec;
   next : Longint = 0;
   
 var
-  redo_buffer : array[0..63] of TUndoRec;
+  redo_buffer : array of TUndoRec;
   redo_next : Longint = 0;
+ 
+procedure SetUndoLimit(limit : Longint);
+begin
+  UndoClearHistory;
+  SetLength(undo_buffer, limit);
+  SetLength(redo_buffer, limit);
+end;
  
 procedure UndoClear;
 var
@@ -42,6 +51,9 @@ end;
   
 procedure UndoPush;
 begin
+  if Length(undo_buffer) = 0 then
+    Exit;
+  
   if next > High(undo_buffer) then
   begin
     undo_buffer[0].konf.Free;
@@ -91,6 +103,9 @@ end;
 
 procedure RedoPush;
 begin
+  if Length(redo_buffer) = 0 then
+    Exit;
+  
   if redo_next > High(redo_buffer) then
   begin
     redo_buffer[0].konf.Free;

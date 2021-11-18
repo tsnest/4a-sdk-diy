@@ -8,6 +8,7 @@ type
 	
 type
 	TU8Array = array of Byte;
+	TU16Array = array of Word;
 	TU32Array = array of Longword;
 	TStrArray = array of String;
 	TFP32Array = array of Single;
@@ -70,8 +71,10 @@ type
 		procedure ReadMatrix43(const nm : String; const tp : String = 'pose, matrix_43T');
 		
 		function ReadU8Array(const nm : String; const tp : String = 'u8_array') : TU8Array;
+		function ReadU16Array(const nm : String; const tp : String = 'u16_array') : TU16Array;
 		function ReadU32Array(const nm : String; const tp : String = 'u32_array') : TU32Array;
 		function ReadFP32Array(const nm : String; const tp : String = 'fp32_array') : TFP32Array;
+		function ReadU16Array16(const nm : String; const tp : String = 'u16_array') : TU16Array;
 		function ReadU32Array16(const nm : String; const tp : String = 'u32_array16') : TU32Array;
 		function ReadFP32Array16(const nm : String; const tp : String = 'fp32_array16') : TFP32Array;
 		
@@ -547,6 +550,33 @@ begin
 	Result := ret;
 end;
 
+function TKonfigReader.ReadU16Array(const nm : String; const tp : String) : TU16Array;
+var
+	ret : TU16Array;
+	arr : TIntegerArrayValue;
+	len : Longint;
+	I : Longint;
+begin
+	_ReadDebugInfo(nm, tp);
+	
+	len := data.ReadLongword;
+	SetLength(ret, len);
+	
+	for I := 0 to len - 1 do
+		ret[I] := data.ReadWord;
+		
+	if Assigned(dest) then 
+	begin
+		arr := TIntegerArrayValue.Create(nm, tp);
+		SetLength(arr.data, len);
+		for I := 0 to len - 1 do
+			arr.data[I] := ret[I];
+		dest.items.Add(arr);
+	end;
+	
+	Result := ret;
+end;
+
 function TKonfigReader.ReadU32Array(const nm : String; const tp : String) : TU32Array;
 var
 	ret : TU32Array;
@@ -592,6 +622,33 @@ begin
 	if Assigned(dest) then 
 	begin
 		arr := TFloatArrayValue.Create(nm, tp);
+		SetLength(arr.data, len);
+		for I := 0 to len - 1 do
+			arr.data[I] := ret[I];
+		dest.items.Add(arr);
+	end;
+	
+	Result := ret;
+end;
+
+function TKonfigReader.ReadU16Array16(const nm : String; const tp : String) : TU16Array;
+var
+	ret : TU16Array;
+	arr : TIntegerArrayValue;
+	len : Longint;
+	I : Longint;
+begin
+	_ReadDebugInfo(nm, tp);
+	
+	len := data.ReadWord;
+	SetLength(ret, len);
+	
+	for I := 0 to len - 1 do
+		ret[I] := data.ReadWord;
+		
+	if Assigned(dest) then 
+	begin
+		arr := TIntegerArrayValue.Create(nm, tp);
 		SetLength(arr.data, len);
 		for I := 0 to len - 1 do
 			arr.data[I] := ret[I];
@@ -1434,6 +1491,28 @@ begin
 	end;
 end;
 
+procedure S_ReadU16Array(J : js_State); cdecl;
+var
+	this : TKonfigReader;
+	name, _type : PAnsiChar;
+	arr : TU16Array;
+	I : Longint;
+begin
+	ArgsThis2Str(J, this, name, _type, nil, 'u16_array');
+
+	try
+		arr := this.ReadU16Array(name, _type);
+		js_newarray(J);
+		for I := 0 to Length(arr)-1 do
+		begin
+			js_newnumber(J, arr[I]);
+			js_setindex(J, -2, I);
+		end;
+	except on E: Exception do
+		js_error(J, PAnsiChar(E.Message));
+	end;
+end;
+
 procedure S_ReadU32Array(J : js_State); cdecl;
 var
 	this : TKonfigReader;
@@ -1467,6 +1546,28 @@ begin
 
 	try
 		arr := this.ReadFP32Array(name, _type);
+		js_newarray(J);
+		for I := 0 to Length(arr)-1 do
+		begin
+			js_newnumber(J, arr[I]);
+			js_setindex(J, -2, I);
+		end;
+	except on E: Exception do
+		js_error(J, PAnsiChar(E.Message));
+	end;
+end;
+
+procedure S_ReadU16Array16(J : js_State); cdecl;
+var
+	this : TKonfigReader;
+	name, _type : PAnsiChar;
+	arr : TU16Array;
+	I : Longint;
+begin
+	ArgsThis2Str(J, this, name, _type, nil, 'u16_array');
+
+	try
+		arr := this.ReadU16Array16(name, _type);
 		js_newarray(J);
 		for I := 0 to Length(arr)-1 do
 		begin
@@ -1620,9 +1721,11 @@ begin
 	DefFunc(S_ReadMatrix43, 'ReadMatrix43');
 	
 	DefFunc(S_ReadU8Array, 'ReadU8Array');
+	DefFunc(S_ReadU16Array, 'ReadU16Array');
 	DefFunc(S_ReadU32Array, 'ReadU32Array');
 	DefFunc(S_ReadFP32Array, 'ReadFP32Array');
-	DefFunc(S_ReadU32Array16, 'ReadU32Array16');
+	DefFunc(S_ReadU16Array, 'ReadU32Array16');
+	DefFunc(S_ReadU16Array16, 'ReadU16Array16');
 	DefFunc(S_ReadFP32Array16, 'ReadFP32Array16');
 	
 	DefFunc(S_ReadStrArray16, 'ReadStrArray16');

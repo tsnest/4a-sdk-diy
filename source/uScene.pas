@@ -926,8 +926,11 @@ begin
 		if FileExists(dir + '\level.nxcform_xbox') then
 			LoadPhysics(dir + '\level.nxcform_xbox', ph)
 		else}
-			if level <> nil then
-				MakeLevelCform(ph, level);
+		if level <> nil then
+			MakeLevelCform(ph, level)
+		else
+		if level2 <> nil then
+			MakeLevelCform2(ph, level2);
 
 		if ph.Count > 0 then
 		begin

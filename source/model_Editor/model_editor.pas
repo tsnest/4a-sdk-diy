@@ -8,15 +8,13 @@ uses common, Iup,
 		 uExportScene, {$IFDEF HAZ_LWOEXPORT} uXRayExport, {$ENDIF}
 		 skeleton, motion, cform_utils, nxcform, uDrawUtils,
 		 KonfigLibrary, uChoose, uChooseMaterial, uChooseTexture,
-		 uEditorUtils, uImages;
+		 uEditorUtils, uImages,
+		 uModelEditorGlobals, uFrameMtlsets;
 
 var
 	selected : T4AModel;
 	model : T4AModel;
-	edit_model : T4AModel;
-	
 	ph_scene : TPHScene;
-	maler : IMaler;
 	
 	surfaces : TList;
 	
@@ -24,10 +22,8 @@ var
 	showSkeleton : Boolean = False;
 	showBoneOBB : Boolean = False;
 	
-	current_mtlset : Longint;
-	mtlsets : P4AMaterialSetArray; // pointer to actual array in model
-	
 	skeleton : T4ASkeleton;
+	sel_bone_id : Longint;
 	
 var
 	anglex, angley : Single;
@@ -211,37 +207,6 @@ begin
 	end;
 
 	IupDestroy(dlg);
-end;
-	
-procedure UpdateMaler;
-var
-	mh : T4AModelHierrarhy;
-	ms : T4AModelSkeleton;
-	mb : T4AModelSoftbody;
-	mk : T4AModelSkinned;
-begin
-	FreeAndNil(maler);
-	
-	if edit_model is T4AModelHierrarhy then
-	begin
-		mh := T4AModelHierrarhy(edit_model);
-		maler := TStaticModelMaler.Create(mh);
-	end else 
-	if edit_model is T4AModelSkeleton then
-	begin
-		ms := T4AModelSkeleton(edit_model);
-		maler := TSkeletonModelMaler.Create(ms);
-	end else 
-	if edit_model is T4AModelSoftBody then
-	begin
-		mb := T4AModelSoftBody(edit_model);
-		maler := TSoftbodyModelMaler.Create(mb);
-	end else
-	if edit_model is T4AModelSkinned then
-	begin
-		mk := T4AModelSkinned(edit_model);
-		maler := TSkinnedModelMaler.Create(nil, mk);
-	end;
 end;
 
 procedure SelectModel(sel : T4AModel);
@@ -500,13 +465,54 @@ begin
 	edit_model := nil;
 end;
 
+procedure FillBonesList;
+var
+	tree : Ihandle;
+	I : Longint;
+	
+	function ChildCount(id : Longint) : Longint;
+	var
+		J : Longint;
+		count : Longint;
+	begin
+		count := 0;
+		for J := 0 to Length(skeleton.bones) - 1 do
+			if skeleton.bones[J].parent_id = id then
+				Inc(count);
+		ChildCount := count;
+	end;
+	
+	procedure AddBone(id, ref : Longint);
+	var
+		K : Longint;
+	begin
+		if ChildCount(id) > 0 then
+		begin
+			iup.SetAttribute(tree, 'ADDBRANCH'+IntToStr(ref), PAnsiChar(skeleton.bones[id].name));
+			ref := IupGetInt(tree, 'LASTADDNODE');
+			
+			for K := 0 to Length(skeleton.bones) - 1 do
+			begin
+				if skeleton.bones[K].parent_id = id then
+					AddBone(K, ref);
+			end;
+		end else
+			iup.SetAttribute(tree, 'ADDLEAF'+IntToStr(ref), PAnsiChar(skeleton.bones[id].name))
+	end;
+begin
+	tree := IupGetDialogChild(MainDialog, 'TREE_SKELETON');
+	IupSetAttribute(tree, 'DELNODE', 'ALL');
+	
+	if Assigned(skeleton) then
+		for I := Length(skeleton.bones) - 1 downto 0 do
+			if skeleton.bones[I].parent_id = -1 then
+				AddBone(I, -1);
+end;
+
 procedure ModelLoad(mdl : T4AModel); overload;
 var
 	mh : T4AModelHierrarhy;
 	ms : T4AModelSkeleton;
-	
-	list_mtlsets : Ihandle;
-	I : Longint;
 begin
 	model := mdl;
 		
@@ -514,12 +520,6 @@ begin
 		texturesCompressed := True
 	else
 		texturesCompressed := False;
-		
-	list_mtlsets := IupGetDialogChild(MainDialog, 'LIST_MTLSETS');
-	IupSetAttribute(list_mtlsets, 'REMOVEITEM', 'ALL');
-	
-	current_mtlset := -1;
-	IupSetAttribute(list_mtlsets, 'APPENDITEM', '<none>');
 
 	if model is T4AModelHierrarhy then
 	begin
@@ -545,9 +545,8 @@ begin
 	if model is T4AModelSkinned then
 		LoadEditModel(model);
 	
-	if Assigned(mtlsets) then
-		for I := 0 to Length(mtlsets^) - 1 do
-			IupSetAttribute(list_mtlsets, 'APPENDITEM', PAnsiChar(mtlsets^[I].name));
+	UpdateMtlsetsFrame;
+	FillBonesList;
 end;
 
 procedure ModelLoad(fn : String); overload;
@@ -608,6 +607,7 @@ begin
 	FreeAndNil(model);
 	mtlsets := nil;
 	skeleton := nil;
+	sel_bone_id := -1;
 	
 	UnloadMotion;
 	
@@ -740,11 +740,14 @@ begin
 	if showTangents then
 		DrawNormals(model);
 	
-	if showSkeleton and Assigned(skeleton) then
-		DrawSkeleton(skeleton, motion, motion_time);
-	
-	if showBoneOBB and (model is T4AModelSkeleton) then
-		DrawBoneOBB(T4AModelSkeleton(model));
+	if Assigned(skeleton) then
+	begin
+		if showSkeleton then
+			DrawSkeleton(skeleton, sel_bone_id, motion, motion_time);
+		
+		if showBoneOBB and (model is T4AModelSkeleton) then
+			DrawBoneOBB(T4AModelSkeleton(model), sel_bone_id);
+	end;
 	
 	IupGLSwapBuffers(ih);
 	Result := IUP_DEFAULT;
@@ -1059,31 +1062,6 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function list_mtlsets_select_cb(ih : Ihandle; title : PAnsiChar; item, state : Longint) : Longint; cdecl;
-var
-	list : Ihandle;
-	I : Longint;
-begin
-	if state = 1 then
-	begin
-		if item = 1 then
-			current_mtlset := -1
-		else
-			current_mtlset := item-2;
-			
-		Redisplay;
-	end;
-	
-	list := IupGetDialogChild(ih, 'LIST_MTLSET_SURFACES');
-	IupSetAttribute(list, 'REMOVEITEM', 'ALL');
-	if current_mtlset <> -1 then
-		for I := 0 to Length(mtlsets^[current_mtlset].materials) - 1 do
-			IupSetAttribute(list, 'APPENDITEM', PAnsiChar(mtlsets^[current_mtlset].materials[I].surface));
-		
-		
-	Result := IUP_DEFAULT;
-end;
-
 function text_texture_changed_cb(ih : Ihandle) : Longint; cdecl;
 begin
 	if selected is T4AModelSimple then
@@ -1218,6 +1196,22 @@ begin
 		end;
 	end;
 		
+	Result := IUP_DEFAULT;
+end;
+
+function tree_skeleton_cb(ih : Ihandle; id, status : Longint) : Longint; cdecl;
+var
+	sel_bone : String;
+begin
+	if status = 1 then
+	begin
+		if Assigned(skeleton) then
+		begin
+			sel_bone := iup.GetAttribute(ih, 'TITLE'+IntToStr(id));
+			sel_bone_id := skeleton.GetBoneID(sel_bone);
+		end;
+		Redisplay;
+	end;
 	Result := IUP_DEFAULT;
 end;
 
@@ -1685,6 +1679,10 @@ end;
 procedure CreateDialog;
 var
 	gl : Ihandle;
+	
+	tab_model : Ihandle;
+	tab_skeleton : Ihandle;
+	tabs : Ihandle;
 	toolbox : Ihandle;
 
 	lod_box, list_lod, btn_lod_load, btn_lod_save, btn_lod_clear : Ihandle;
@@ -1693,23 +1691,22 @@ var
 	box_rm : Ihandle;
 	
 	mousexy : Ihandle;
-	samples : Ihandle;
-	smooth : Ihandle;
-	btn_hemi_yp, btn_full : Ihandle;
-	fr_ao : Ihandle;
+	//samples : Ihandle;
+	//smooth : Ihandle;
+	//btn_hemi_yp, btn_full : Ihandle;
+	//fr_ao : Ihandle;
 
 	list_surfaces : Ihandle;
 	fr_surfaces : Ihandle;
-
 	fr_mtlsets : Ihandle;
-	list_mtlsets : Ihandle;
-	list_mtlset_surfaces : Ihandle;
 
 	texture, shader, material, name, collision : Ihandle;
 	btn_texture, btn_shader, btn_material : Ihandle;
 	box_texture, box_shader, box_material : Ihandle;
 	
 	fr_material : Ihandle;
+	
+	tree_skeleton : Ihandle;
 
 	menu : Ihandle;
 	sm_file, sm_model, sm_render : Ihandle;
@@ -1798,20 +1795,7 @@ begin
 	IupSetAttribute(fr_surfaces, 'TITLE', 'Surfaces'); 
 	
 	//- mtlsets
-	list_mtlsets := IupList(nil);
-	IupSetAttribute(list_mtlsets, 'NAME', 'LIST_MTLSETS');
-	IupSetAttribute(list_mtlsets, 'EXPAND', 'HORIZONTAL');
-	IupSetAttribute(list_mtlsets, 'DROPDOWN', 'YES');
-	IupSetCallback(list_mtlsets, 'ACTION', @list_mtlsets_select_cb);
-	
-	list_mtlset_surfaces := IupList(nil);
-	IupSetAttribute(list_mtlset_surfaces, 'NAME', 'LIST_MTLSET_SURFACES');
-	IupSetAttribute(list_mtlset_surfaces, 'EXPAND', 'HORIZONTAL');
-	IupSetAttribute(list_mtlset_surfaces, 'VISIBLELINES', '6');
-	
-	fr_mtlsets := IupFrame(IupVBox(list_mtlsets, list_mtlset_surfaces, nil));
-	IupSetAttribute(fr_mtlsets, 'NAME', 'FRAME_MTLSETS');
-	IupSetAttribute(fr_mtlsets, 'TITLE', 'Material sets'); 
+	fr_mtlsets := CreateMtlsetsFrame;
 	//- mtlsets
 	
 	texture := IupSetAttributes(IupText(nil), 'NAME=TEXT_TEXTURE, TIP=Texture, EXPAND=HORIZONTAL');
@@ -1844,8 +1828,23 @@ begin
 	IupSetAttribute(fr_material, 'NAME', 'FRAME_MATERIAL');
 	IupSetAttribute(fr_material, 'VISIBLE', 'NO');
 	IupSetAttribute(fr_material, 'TITLE', 'Material');
+	
+	tab_model := IupVBox(box_rm, mousexy, lod_box, {fr_ao,} fr_surfaces, fr_mtlsets, fr_material, nil);
+	
+	// Skeleton tab
+	tree_skeleton := IupTree;
+	IupSetAttribute(tree_skeleton, 'NAME', 'TREE_SKELETON');
+	IupSetAttribute(tree_skeleton, 'RASTERSIZE', '200x');
+	IupSetCallback(tree_skeleton, 'SELECTION_CB', @tree_skeleton_cb);
+	
+	tab_skeleton := IupVBox(tree_skeleton, nil);
 
-	toolbox := IupVBox(box_rm, mousexy, lod_box, {fr_ao,} fr_surfaces, fr_mtlsets, fr_material, nil);
+	tabs := IupTabs(tab_model, tab_skeleton, nil);
+
+	IupSetAttribute(tabs, 'TABTITLE0', 'Model');
+	IupSetAttribute(tabs, 'TABTITLE1', 'Skeleton');
+
+	toolbox := IupVBox(tabs, nil);
 	IupSetAttribute(toolbox, 'MARGIN', '10x10');
 	IupSetAttribute(toolbox, 'GAP', '5x5');
 

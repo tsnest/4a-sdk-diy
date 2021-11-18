@@ -42,6 +42,7 @@ type
 		locators : array of T4ALocator;
 		bone_parts : array of T4ABonePart;
 		anim_path : String;
+		source_info : String;
 		
 		procedure Load2033(reader : TMemoryReader);
 		procedure LoadKonfig(r : TMemoryReader); overload;
@@ -171,19 +172,32 @@ begin
 	end;
 end;
 
+function RecStr(const pref : String; num : Longint; digits : Longint) : String;
+var
+	n : String;
+begin
+	n := IntToStr(num);
+	RecStr := pref + StringOfChar('0', digits-Length(n)) + n;
+end;
+
 procedure T4ASkeleton.LoadKonfig(k : TKonfig);
 var
 	reader : TKonfigReader;
-	I, count : Longint;
+	I, J, bone_strs_size, count : Longint;
 	quat : TVec4; // TQuaterion
 	
 	skeleton : TKonfigReader;
-	bones_arr, b : TKonfigReader;
-	locators_arr, l : TKonfigReader;
-	aux_bones_arr, ab : TKonfigReader;
-	driven_bones_arr, drb : TKonfigReader;
-	dynamic_bones_arr, dnb : TKonfigReader;
-	partitions_arr, p : TKonfigReader;
+	bones_arr : TKonfigReader;
+	locators_arr : TKonfigReader;
+	aux_bones_arr : TKonfigReader;
+	procedural_bones_arr : TKonfigReader;
+	driven_bones_arr : TKonfigReader;
+	dynamic_bones_arr : TKonfigReader;
+	constrained_bones_arr : TKonfigReader;
+	partitions_arr : TKonfigReader;
+	rec : TKonfigReader;
+	position : TKonfigReader;
+	orientation : TKonfigReader;
 	
 	procedural : TKonfigReader;
 begin
@@ -195,6 +209,8 @@ begin
 			crc := skeleton.ReadU32('crc');
 			skeleton.ReadString('facefx');
 			anim_path := skeleton.ReadString('motions');
+			if version >= 13 then
+				source_info := skeleton.ReadString('source_info');
 			
 			count := 0; // suppress compiler warning
 			
@@ -203,17 +219,17 @@ begin
 				SetLength(bones, count);
 				for I := 0 to count-1 do
 				begin
-					b := bones_arr.ReadSection('', False);
+					rec := bones_arr.ReadSection(RecStr('rec_', I, 4), False);
 					try
-						bones[I].name := b.ReadString('name');
-						bones[I].parent_name := b.ReadString('parent');
-						quat := b.ReadVec4('q');
+						bones[I].name := rec.ReadString('name');
+						bones[I].parent_name := rec.ReadString('parent');
+						quat := rec.ReadVec4('q');
 						Quaterion2Angles(bones[I].orientation, quat);
 						bones[I].q := quat;
-						bones[I].position := b.ReadVec3('t');
-						bones[I].bone_part := b.ReadU16('bp');
+						bones[I].position := rec.ReadVec3('t');
+						bones[I].bone_part := rec.ReadU16('bp');
 					finally
-						b.Free;
+						rec.Free;
 					end;
 				end;
 			finally
@@ -225,17 +241,17 @@ begin
 				SetLength(locators, count);
 				for I := 0 to count-1 do
 				begin
-					l := locators_arr.ReadSection('', False);
+					rec := locators_arr.ReadSection(RecStr('rec_', I, 4), False);
 					try
-						locators[I].name := l.ReadString('name');
-						locators[I].parent_name := l.ReadString('parent');
-						quat := l.ReadVec4('q');
+						locators[I].name := rec.ReadString('name');
+						locators[I].parent_name := rec.ReadString('parent');
+						quat := rec.ReadVec4('q');
 						Quaterion2Angles(locators[I].orientation, quat);
 						locators[I].q := quat;
-						locators[I].position := l.ReadVec3('t');
-						locators[I].flags := l.ReadU8('fl', 'bool8');
+						locators[I].position := rec.ReadVec3('t');
+						locators[I].flags := rec.ReadU8('fl', 'bool8');
 					finally
-						l.Free;
+						rec.Free;
 					end;
 				end;
 			finally
@@ -248,14 +264,14 @@ begin
 				try
 					for I := 0 to count-1 do
 					begin
-						ab := aux_bones_arr.ReadSection('', False);
+						rec := aux_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
 						try
-							ab.ReadString('name');
-							ab.ReadString('parent');
-							ab.ReadVec4('q');
-							ab.ReadVec3('t');
+							rec.ReadString('name');
+							rec.ReadString('parent');
+							rec.ReadVec4('q');
+							rec.ReadVec3('t');
 						finally
-							ab.Free;
+							rec.Free;
 						end;
 					end;
 				finally
@@ -266,7 +282,113 @@ begin
 			if version >= 11 then // Arktika.1
 			begin
 				procedural := skeleton.ReadSection('procedural');
-				procedural.Free;
+				try
+					procedural.ReadU32('ver');
+					procedural_bones_arr := procedural.ReadArray('procedural_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							try
+								rec := procedural_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
+								rec.ReadU16('type');
+								rec.ReadU16('index_on_array');
+							finally
+								rec.Free;
+							end;
+						end;
+					finally
+						procedural_bones_arr.Free;
+					end;
+					driven_bones_arr := procedural.ReadArray('driven_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							try
+								rec := driven_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
+								rec.ReadHintStr('bone', 'choose');
+								rec.ReadHintStr('driver', 'choose');
+								rec.ReadHintStr('driver_parent', 'choose');
+								rec.ReadU8('component');
+								rec.ReadHintStr('twister', 'choose');
+								rec.ReadFP32('value_min');
+								rec.ReadFP32('value_max');
+								rec.ReadU8('refresh_kids');
+								rec.ReadBool('use_anim_poses');
+							finally
+								rec.Free;
+							end;
+						end;
+					finally
+						driven_bones_arr.Free;
+					end;
+					dynamic_bones_arr := procedural.ReadArray('dynamic_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							try
+								rec := dynamic_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
+								rec.ReadHintStr('bone', 'choose');
+								rec.ReadFP32('inertia');
+								rec.ReadFP32('damping');
+								rec.ReadVec3('constraints');
+								rec.ReadBool('use_world_pos');
+							finally
+								rec.Free;
+							end;
+						end;
+					finally
+						dynamic_bones_arr.Free;
+					end;
+					constrained_bones_arr := procedural.ReadArray('constrained_bones', @count);
+					try
+						for I := 0 to count-1 do
+						begin
+							try
+								rec := constrained_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
+								rec.ReadHintStr('bone', 'choose');
+								//rec.ReadU8('axis');
+								rec.ReadU8('look_at_axis');
+								rec.ReadU8('pos_axis');
+								rec.ReadU8('rot_axis');
+								rec.ReadU8('rotation_order');
+								position := rec.ReadSection('position');
+								try
+									position.ReadU8('axis');
+									position.ReadHintStr('bone_names', 'choose_array, str_shared');
+									bone_strs_size := position.ReadU32('bone_strs_size');
+									for J := 0 to bone_strs_size-1 do
+									begin
+										position.ReadString('bone'+IntToStr(J));
+										position.ReadFP32('weight'+IntToStr(J));
+									end;
+								finally
+									position.Free;
+								end;
+								orientation := rec.ReadSection('orientation');
+								try
+									orientation.ReadU8('axis');
+									orientation.ReadHintStr('bone_names', 'choose_array, str_shared');
+									bone_strs_size := orientation.ReadU32('bone_strs_size');
+									for J := 0 to bone_strs_size-1 do
+									begin
+										orientation.ReadString('bone'+IntToStr(J));
+										orientation.ReadFP32('weight'+IntToStr(J));
+									end;
+								finally
+									orientation.Free;
+								end;
+								rec.ReadU8('refresh_kids');
+								rec.ReadBool('use_anim_poses');
+							finally
+								rec.Free;
+							end;
+						end;
+					finally
+						constrained_bones_arr.Free;
+					end;
+				finally
+					procedural.Free;
+				end;
 			end else // Redux
 			begin
 				if version >= 7 then
@@ -275,17 +397,17 @@ begin
 					try
 						for I := 0 to count-1 do
 						begin
-							drb := driven_bones_arr.ReadSection('', False);
+							rec := driven_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
 							try
-								drb.ReadHintStr('bone', 'choose');
-								drb.ReadHintStr('driver', 'choose');
-								drb.ReadHintStr('driver_parent', 'choose');
-								drb.ReadU8('component');
-								drb.ReadString('twister');
-								drb.ReadFP32('value_min');
-								drb.ReadFP32('value_max');
+								rec.ReadHintStr('bone', 'choose');
+								rec.ReadHintStr('driver', 'choose');
+								rec.ReadHintStr('driver_parent', 'choose');
+								rec.ReadU8('component');
+								rec.ReadString('twister');
+								rec.ReadFP32('value_min');
+								rec.ReadFP32('value_max');
 							finally
-								drb.Free;
+								rec.Free;
 							end;
 						end;
 					finally
@@ -299,14 +421,14 @@ begin
 					try
 						for I := 0 to count-1 do
 						begin
-							dnb := dynamic_bones_arr.ReadSection('', False);
+							rec := dynamic_bones_arr.ReadSection(RecStr('rec_', I, 4), False);
 							try
-								dnb.ReadHintStr('bone', 'choose');
-								dnb.ReadFP32('inertia');
-								dnb.ReadFP32('damping');
-								dnb.ReadVec3('contraints');
+								rec.ReadHintStr('bone', 'choose');
+								rec.ReadFP32('inertia');
+								rec.ReadFP32('damping');
+								rec.ReadVec3('contraints');
 							finally
-								dnb.Free;
+								rec.Free;
 							end;
 						end;
 					finally
@@ -320,12 +442,12 @@ begin
 				SetLength(bone_parts, count);
 				for I := 0 to count-1 do
 				begin
-					p := partitions_arr.ReadSection('', False);
+					rec := partitions_arr.ReadSection(RecStr('rec_', I, 4), False);
 					try
-						bone_parts[I].name := p.ReadString('name');
-						bone_parts[I].weights := p.ReadU8Array('infl');
+						bone_parts[I].name := rec.ReadString('name');
+						bone_parts[I].weights := rec.ReadU8Array('infl');
 					finally
-						p.Free;
+						rec.Free;
 					end;
 				end;
 			finally

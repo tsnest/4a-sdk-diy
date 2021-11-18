@@ -1,0 +1,129 @@
+actions = begin
+
+	'attach' = begin
+		clsid : stringz = 'actions/attach';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'target,finish,owner';
+		
+		properties = begin
+			dbg_model : choose;
+			dbg_model : stringz = '';
+			dbg_skel : stringz = '';
+			bone : attp_str;
+			bone : stringz = '';
+			offset : 'pose, matrix_43T' = [0.9999990463, 0, 0, 0.003570557106, 0, 0.9999986887, 0, 0.00176620495, 0, 0, 0.9999992251, -0.001480103005];
+			flags : bool8 = 0;
+		end;		
+	end;
+
+	'console command' = begin
+		clsid : stringz = 'actions/console command';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'target,finish'; { is it really used? }
+		
+		properties = begin
+			cmd : stringz = '';
+		end;
+	end;
+	
+	'detach' = begin
+		clsid : stringz = 'actions/detach';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'target,finish,owner';
+		
+		properties = begin
+			owner : 'entity_link, uobject_link' = 65535;
+			check_parent : bool = False;
+		end;
+	end;
+	
+	'player' = begin
+	
+		'mount_vehicle' = begin
+			clsid : stringz = 'actions/player/mount_vehicle';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'target,finish,vehicle';	
+		end;
+	
+	end;
+
+end;
+
+entities = begin
+
+	'entity self' = begin
+		clsid : stringz = 'entities/entity self';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+	end;
+	
+	'entity ref' = begin
+		clsid : stringz = 'entities/entity ref';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+		
+		properties = begin
+			target : 'entity_link, uobject_link' = 65535;
+		end;
+	end;
+	
+	'entity player' = begin
+		clsid : stringz = 'entities/entity player';
+		
+		in_names : stringz = 'entity';
+		out_names : stringz = '';
+		
+		properties = begin
+			team : u8 = 0;
+		end;
+	end;
+
+end;
+
+logic = begin
+	
+	'locker' = begin
+		clsid : stringz = 'logic/locker';
+		
+		in_names : stringz = 'lock,unlock,in';
+		out_names : stringz = 'out,out_fail';
+		
+		properties = begin
+			flags : bool8 = 6;
+		end;
+	end;
+	
+end;
+
+triggers = begin
+
+	use = begin
+		clsid : stringz = 'triggers/use';
+		
+		in_names : stringz = 'activate,deactivate,Blink_On,Blink_Off';
+		out_names : stringz = 'on_use,unk2,entity,initiator,Can_Use,Cant_Use,Hold_End';
+		
+		properties = begin
+			active : bool = True;
+			source_filter : u8 = 1;
+			usage_distance : fp32 = 2;
+			use_action : choose;
+			use_action : stringz = 'lamp_off';
+			use_offset : vec2f = [0, -0.1000000015];
+			blink_distance : fp32 = 10;
+			flags8 : bool8 = 3;
+			user_team : u8 = 0;
+			in_reloading : bool = False;
+			mp_classes : u8_array = [];
+			trigger_only : bool = False;
+			hold_count : u32 = 0;
+		end;
+	end;
+
+end;

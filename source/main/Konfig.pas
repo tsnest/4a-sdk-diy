@@ -12,15 +12,15 @@ type
 
 	TSimpleValue = class
 		name, vtype : String;
-		constructor Create(nm, tp : String); overload;
+		constructor Create(const nm, tp : String); overload;
 
 		function Copy : TSimpleValue; virtual;
 	end;
 	TSection = class(TSimpleValue)
 		items: TList;
 		constructor Create; overload;
-		constructor Create(nm : String); overload;
-		constructor Create(nm, tp : String); overload;
+		constructor Create(const nm : String); overload;
+		constructor Create(const nm, tp : String); overload;
 		destructor Destroy; override;
 
 		function Copy : TSimpleValue; override;
@@ -61,17 +61,17 @@ type
 	end;
 	TIntegerValue = class(TSimpleValue)
 		num : Int64;
-		constructor Create(nm, tp : String; i : Int64); overload;
+		constructor Create(const nm, tp : String; i : Int64); overload;
 		function Copy : TSimpleValue; override;
 	end;
 	TSingleValue = class(TSimpleValue)
 		num : Single;
-		constructor Create(nm, tp : String; f : Single); overload;
+		constructor Create(const nm, tp : String; f : Single); overload;
 		function Copy : TSimpleValue; override;
 	end;
 	TStringValue = class(TSimpleValue)
 		str : String;
-		constructor Create(nm, val : String); overload;
+		constructor Create(const nm, val : String); overload;
 		function Copy : TSimpleValue; override;
 	end;
 	TByteArrayValue = class(TSimpleValue)
@@ -104,7 +104,7 @@ type
 	TBoolValue = class(TSimpleValue)
 		bool : Boolean;
 		function Copy : TSimpleValue; override;
-		constructor Create(nm, tp : String; val : Boolean);
+		constructor Create(const nm, tp : String; val : Boolean);
 	end;
 
 	TTextKonfig = class
@@ -116,9 +116,9 @@ type
 		
 		function Copy : TTextKonfig;
 		
-		function Load(const str : String) : Boolean;
+		procedure Load(const str : String);
 		procedure Save(var str : String);
-		function LoadFromFile(const filename : String) : Boolean;
+		procedure LoadFromFile(const filename : String);
 		procedure SaveToFile(const filename : String);
 	end;
 
@@ -150,7 +150,7 @@ type
 		procedure Compile(from : TTextKonfig; ll : Boolean = False);
 		procedure Decompile(tk : TTextKonfig; ll : Boolean = False);
 	private
-		function AddWord(w : String) : Longint;
+		function AddWord(const w : String) : Longint;
 		procedure CompileSection(sect : TSection; w : TMemoryWriter; ll : Boolean);
 		procedure CompileConfig(items : TList; w : TMemoryWriter; ll : Boolean);
 		function DecompileSection(r : TMemoryReader; ll : Boolean) : TSection;
@@ -164,6 +164,9 @@ function _IsHint(const vtype : String) : Boolean;
 begin
 	_IsHint := 
 	(vtype = 'array') or
+	(vtype = 'name') or
+	(vtype = 'time') or
+	(vtype = 'choose') or
 	(vtype = 'camera_track, str_shared') or
 	(vtype = 'texture, str_shared') or
 	(vtype = 'choose_array, str_shared') or
@@ -172,22 +175,24 @@ begin
 	(vtype = 'vs_ref, str_shared') or
 	(vtype = 'material, str_shared') or
 	(vtype = 'shader, str_shared') or
-	(vtype = 'locator_str') or
 	(vtype = 'locator_id') or
-	(vtype = 'name') or
-	(vtype = 'ref_model') or
-	(vtype = 'animation_str') or
+	(vtype = 'locator_str') or
+	(vtype = 'bone_id') or
+	(vtype = 'bone_str') or
 	(vtype = 'part_id') or
+	(vtype = 'part_str') or
+	(vtype = 'attp_str') or
+	(vtype = 'animation_str') or
+	(vtype = 'ref_coloranim') or
+	(vtype = 'ref_model') or
 	(vtype = 'sound') or
 	(vtype = 'str_array') or
 	(vtype = 'str_array16') or
 	(vtype = 'str_array32') or
-	(vtype = 'bone_id') or
-	(vtype = 'ref_coloranim') or
 	(vtype = 'flags8') or
+	(vtype = 'flags16') or
 	(vtype = 'flags32') or
-	(vtype = 'bone_str') or
-	(vtype = 'choose')
+	(vtype = 'flags64') 
 end;
 
 type
@@ -333,7 +338,7 @@ begin
 end;
 
 // value implementation
-constructor TSimpleValue.Create(nm: string; tp: string);
+constructor TSimpleValue.Create(const nm, tp: String);
 begin
 	name := nm;
 	vtype := tp;
@@ -350,13 +355,13 @@ begin
 	items := TList.Create;
 end;
 
-constructor TSection.Create(nm: string);
+constructor TSection.Create(const nm: String);
 begin
 	inherited Create(nm, 'section');
 	items := TList.Create;
 end;
 
-constructor TSection.Create(nm: string; tp: string);
+constructor TSection.Create(const nm, tp: String);
 begin
 	inherited Create(nm, tp);
 	items := TList.Create;
@@ -712,7 +717,7 @@ begin
 	end;
 end;
 
-constructor TIntegerValue.Create(nm: string; tp: string; i: Int64);
+constructor TIntegerValue.Create(const nm, tp: String; i: Int64);
 begin
 	inherited Create(nm, tp);
 	num := i;
@@ -723,7 +728,7 @@ begin
 	Result := TIntegerValue.Create(name, vtype, num);
 end;
 
-constructor TSingleValue.Create(nm: string; tp: string; f: Single);
+constructor TSingleValue.Create(const nm, tp: String; f: Single);
 begin
 	inherited Create(nm, tp);
 	num := f;
@@ -734,7 +739,7 @@ begin
 	Result := TSingleValue.Create(name, vtype, num);
 end;
 
-constructor TStringValue.Create(nm: string; val: string);
+constructor TStringValue.Create(const nm, val: String);
 begin
 	inherited Create(nm, 'stringz');
 	str := val;
@@ -914,7 +919,7 @@ begin
 	data[11] := m[4,3];
 end;
 
-constructor TBoolValue.Create(nm: string; tp: string; val: Boolean);
+constructor TBoolValue.Create(const nm, tp: String; val: Boolean);
 begin
 	inherited Create(nm, tp);
 	bool := val;
@@ -1056,7 +1061,7 @@ begin
 		raise Exception.Create('Cannot decompile config with kind='+IntToStr(kind));
 end;
 
-function TKonfig.AddWord(w : String) : Longint;
+function TKonfig.AddWord(const w : String) : Longint;
 var
 	I : Integer;
 begin
@@ -1141,7 +1146,7 @@ begin
 					w.WriteWord(int.num)
 				else if int.vtype = 's16' then
 					w.WriteSmallint(int.num)
-				else if int.vtype = 'u32' then
+				else if (int.vtype = 'u32') or (int.vtype = 'color, u32') then
 					w.WriteLongword(int.num)
 				else if int.vtype = 's32' then
 					w.WriteLongint(int.num)
@@ -1196,12 +1201,27 @@ begin
 					w.WriteLongint(intarr.data[2]);
 					w.WriteLongint(intarr.data[3]);
 				end else
+				if item.vtype = 'u16_array' then
+				begin
+					if ll then
+						w.WriteWord(Length(intarr.data))
+					else
+						w.WriteLongword(Length(intarr.data));
+					for J := 0 to Length(intarr.data) - 1 do
+						w.WriteWord(intarr.data[J]);
+				end else
 				if item.vtype = 'u32_array' then
 				begin
 					if ll then
 						w.WriteWord(Length(intarr.data))
 					else
 						w.WriteLongword(Length(intarr.data));
+					for J := 0 to Length(intarr.data) - 1 do
+						w.WriteLongword(intarr.data[J]);
+				end else
+				if item.vtype = 'identifier_array' then
+				begin
+					w.WriteLongword(Length(intarr.data));
 					for J := 0 to Length(intarr.data) - 1 do
 						w.WriteLongword(intarr.data[J]);
 				end else
@@ -1349,7 +1369,7 @@ begin
 				if vtype = 's16' then
 					items.Add(TIntegerValue.Create(vname, vtype, r.ReadSmallint))
 				else
-				if vtype = 'u32' then
+				if (vtype = 'u32') or (vtype = 'color, u32') then
 					items.Add(TIntegerValue.Create(vname, vtype, r.ReadLongword))
 				else
 				if vtype = 's32' then
@@ -1375,6 +1395,16 @@ begin
 					u8arr := TByteArrayValue.Create(vname, vtype);
 					u8arr.FromReader(r, r.ReadLongword);
 					items.Add(u8arr);
+				end else
+				if vtype = 'u16_array' then
+				begin
+					intarr := TIntegerArrayValue.Create(vname, vtype);
+					if ll then
+						SetLength(intarr.data, r.ReadWord)
+					else
+						SetLength(intarr.data, r.ReadLongword);
+					for I := 0 to Length(intarr.data) - 1 do
+						intarr.data[I] := r.ReadWord;
 				end else
 				if vtype = 'u32_array' then
 				begin
@@ -1417,7 +1447,7 @@ begin
 					floatarr.FromReader(r, 2);
 					items.Add(floatarr);
 				end else
-				if vtype = 'vec3f' then
+				if (vtype = 'vec3f') or (vtype = 'ang3f') then
 				begin
 					floatarr := TFloatArrayValue.Create(vname, vtype);
 					floatarr.FromReader(r, 3);
@@ -1543,7 +1573,8 @@ begin
 				 (t3 = 'entity_link, uobject_link') or
 				 (t3 = 'cover_link, ucover_link') or
 				 (t3 = 'bool8') or
-				 (t3 = 'fp32_q8') then
+				 (t3 = 'fp32_q8') or 
+				 (t3 = 'color, u32') then
 			begin
 				items.Add(TIntegerValue.Create(t1, t3, ParseInteger(parser)));
 			end else
@@ -1564,7 +1595,9 @@ begin
 				u8arr.FromStrings(arr);
 				items.Add(u8arr);
 			end else
-			if t3 = 'u32_array' then
+			if (t3 = 'u16_array') or 
+			   (t3 = 'u32_array') or 
+			   (t3 = 'identifier_array') then
 			begin
 				arr := ParseArray(parser);
 				intarr := TIntegerArrayValue.Create(t1, t3);
@@ -1607,7 +1640,7 @@ begin
 				floatarr.FromStrings(arr);
 				items.Add(floatarr);
 			end else
-			if t3 = 'vec3f' then
+			if (t3 = 'vec3f') or (t3 = 'ang3f') then
 			begin
 				arr := ParseArray(parser);
 				if Length(arr) <> 3 then
@@ -1721,7 +1754,8 @@ var
 	end;
 	procedure Println(const l : String);
 	begin
-		w.WriteString(l + #13#10);
+		w.WriteString(l);
+		w.WriteWord($0A0D);
 	end;
 begin
 	for I := 0 to items.Count - 1 do
@@ -1817,15 +1851,13 @@ begin
 	 Result := TTextKonfig.Create(TSection(root.Copy));
 end;
 
-function TTextKonfig.Load(const str: String) : Boolean;
+procedure TTextKonfig.Load(const str: String);
 var
 	parser : TParser;
 begin
 	parser := TParser.Create(str);
 	ParseConfig(0, root.items, parser);
 	parser.Free;
-
-	Load := True;
 end;
 
 procedure TTextKonfig.Save(var str: string);
@@ -1842,15 +1874,12 @@ begin
 	w.Free;
 end;
 
-function TTextKonfig.LoadFromFile(const filename : String) : Boolean;
+procedure TTextKonfig.LoadFromFile(const filename : String);
 var
 	f : TFileStream;
 	S : String;
 begin
 	f := TFileStream.Create(filename, fmOpenRead);
-	
-	LoadFromFile := True; // ?
-	
 	try
 		SetLength(S, f.Size);
 		f.ReadBuffer(S[1], Length(S));

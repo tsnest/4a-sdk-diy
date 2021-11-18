@@ -10,6 +10,7 @@ procedure MakePhysicsSkinned(ph : TList; model : T4AModelSkinned; twosided : Boo
 procedure MakePhysicsSkeleton(ph : TList; model : T4AModelSkeleton; twosided : Boolean = False);
 procedure MakePhysicsSoftbody(ph : TList; m : T4AModelSoftbody; twosided : Boolean = False);
 procedure MakeLevelCform(meshes : TList; level : T4ALevel);
+procedure MakeLevelCform2(meshes : TList; level : T4ALevel2);
 
 implementation
 uses sysutils, vmath, chunkedFile, PhysX;
@@ -292,6 +293,14 @@ begin
 			else
 				meshes.Add(r);
 		end;
+end;
+
+procedure MakeLevelCform2(meshes : TList; level : T4ALevel2);
+var
+	I : Longint;
+begin
+	for I := 0 to Length(level.sublevels)-1 do
+		MakeLevelCform(meshes, level.sublevels[I]);
 end;
 
 end.

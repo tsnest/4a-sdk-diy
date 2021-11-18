@@ -68,6 +68,7 @@ begin
 	glEnd;
 end;
 
+{
 function Pow(x, y : Single) : Single;
 begin
 	Pow := exp(y*ln(abs(x)));
@@ -88,6 +89,41 @@ begin
 	begin
 		p.x := Pow(1 - t, 3.0) * x1 + 3 * t * Pow(1 - t, 2.0) * cx1 + 3 * (1 - t) * Pow(t, 2.0) * cx2 + Pow(t, 3.0) * x2;
 		p.y := Pow(1 - t, 3.0) * y1 + 3 * t * Pow(1 - t, 2.0) * cy1 + 3 * (1 - t) * Pow(t, 2.0) * cy2 + Pow(t, 3.0) * y2;
+	
+		glVertex2f(p.x, p.y);
+	
+		t := t + 1/Points;
+	end;
+	
+	glEnd;
+end;
+}
+
+function Pow2(x : Single) : Single;
+begin
+	Pow2 := x*x;
+end;
+
+function Pow3(x : Single) : Single;
+begin
+	Pow3 := x*x*x;
+end;
+
+procedure DrawCurve(x1, y1, x2, y2, cx1, cy1, cx2, cy2 : Single);
+const
+	Points = 50;
+var
+	I : Integer;
+	t : Single;
+	p : TVec2;
+begin
+	glBegin(GL_LINE_STRIP);
+
+	t := 0;
+	for I := 0 to Points do
+	begin
+		p.x := Pow3(1 - t) * x1 + 3 * t * Pow2(1 - t) * cx1 + 3 * (1 - t) * Pow2(t) * cx2 + Pow3(t) * x2;
+		p.y := Pow3(1 - t) * y1 + 3 * t * Pow2(1 - t) * cy1 + 3 * (1 - t) * Pow2(t) * cy2 + Pow3(t) * y2;
 	
 		glVertex2f(p.x, p.y);
 	
@@ -232,6 +268,7 @@ type
 		procedure ProcessHits(count : Longint; hits : array of GLuint);
 		
 		function GetTargetEntity(block : TBlock) : TEntity;
+		function FindLink(block_from, block_to : TBlock; point_from, point_to : Integer) : TLink;
 		
 		// maybe store canvas handle as field and remove ih parameter ?
 		function gl_map_cb(ih : Ihandle) : Longint;
@@ -393,7 +430,7 @@ begin
 	
 	tree_descs := IupTree;
 	IupSetAttribute(tree_descs, 'NAME', 'TREE_DESCS');
-	//IupSetAttribute(tree_descs, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(tree_descs, 'RASTERSIZE', '200x');
 	IupSetAttribute(tree_descs, 'ADDROOT', 'NO');
 	//IupSetInt(tree_descs, 'VISIBLELINES', 20);
 	
@@ -406,6 +443,7 @@ begin
 	
 	tree_props := IupTree;
 	IupSetAttribute(tree_props, 'NAME', 'TREE_PROPS');
+	IupSetAttribute(tree_props, 'RASTERSIZE', '200x');
 	IupSetCallback(tree_props, 'PROPS_EDIT_CB', @property_edit_cb);
 	
 	fr_properties := IupFrame(IupVBox(tree_props, nil));
@@ -430,10 +468,12 @@ begin
 	IupMap(dlg);
 	
 	case Scene.GetVersion of
-		sceneVer2033:		LoadDescs('editor_data\block_descs.txt', tree_descs);
-		sceneVerLL:			LoadDescs('editor_data\block_descs_ll.txt', tree_descs);
-		sceneVerRedux:	LoadDescs('editor_data\block_descs_redux.txt', tree_descs);
-		else						LoadDescs('editor_data\block_descs.txt', tree_descs);
+		sceneVer2033:		  LoadDescs('editor_data\block_descs.txt', tree_descs);
+		sceneVerLL:			  LoadDescs('editor_data\block_descs_ll.txt', tree_descs);
+		sceneVerRedux:	  LoadDescs('editor_data\block_descs_redux.txt', tree_descs);
+		sceneVerArktika1: LoadDescs('editor_data\block_descs_a1.txt', tree_descs);
+		sceneVerExodus:   LoadDescs('editor_data\block_descs_exodus.txt', tree_descs);
+		else						  LoadDescs('editor_data\block_descs.txt', tree_descs);
 	end;
 	
 	blocks := TList.Create;
@@ -880,6 +920,28 @@ begin
 	end;
 end;
 
+function TScriptEditor.FindLink(block_from, block_to : TBlock; point_from, point_to : Integer) : TLink;
+var
+	I : Integer;
+	link : TLink;
+begin
+	for I := 0 to links.Count - 1 do
+	begin
+		link := TLink(links[I]);
+		
+		if (link.block_from = block_from) and
+		   (link.block_to = block_to) and
+		   (link.point_from = point_from) and
+		   (link.point_to = point_to) then
+		begin
+			FindLink := link;
+			Exit;
+		end;
+	end;
+	
+	FindLink := nil;
+end;
+
 function TScriptEditor.gl_map_cb(ih : Ihandle) : Longint;
 begin
 	IupGLMakeCurrent(ih);
@@ -950,24 +1012,30 @@ begin
 		begin
 			if (start_outpoint <> -1) and (over_inpoint <> -1) then
 			begin
-				// make link
-				link := TLink.Create;
-				link.block_from := start_block;
-				link.point_from := start_outpoint;
-				link.block_to := over_block;
-				link.point_to := over_inpoint;
-				links.Add(link);
+				if FindLink(start_block, over_block, start_outpoint, over_inpoint) = nil then
+				begin
+					// make link
+					link := TLink.Create;
+					link.block_from := start_block;
+					link.point_from := start_outpoint;
+					link.block_to := over_block;
+					link.point_to := over_inpoint;
+					links.Add(link)
+				end;
 			end;
 			
 			if (start_inpoint <> -1) and (over_outpoint <> -1) then
 			begin
-				// make link
-				link := TLink.Create;
-				link.block_from := over_block;
-				link.point_from := over_outpoint;
-				link.block_to := start_block;
-				link.point_to := start_inpoint;
-				links.Add(link);
+				if FindLink(over_block, start_block, over_outpoint, start_inpoint) = nil then
+				begin
+					// make link
+					link := TLink.Create;
+					link.block_from := over_block;
+					link.point_from := over_outpoint;
+					link.block_to := start_block;
+					link.point_to := start_inpoint;
+					links.Add(link)
+				end;
 			end;			
 			
 			// stop link creation

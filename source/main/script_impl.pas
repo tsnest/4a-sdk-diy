@@ -83,8 +83,10 @@ begin
 				WriteLn(r + '.ReadVec3i("' + P.name + '")')
 			else if P.vtype = 'vec4i' then
 				WriteLn(r + '.ReadVec4i("' + P.name + '")')
+			else if P.vtype = 'u16_array' then
+				WriteLn(r + '.ReadU16Array16("' + P.name + '")')
 			else if P.vtype = 'u32_array' then
-				WriteLn(r + '.ReadU32Array("' + P.name + '")')
+				WriteLn(r + '.ReadU32Array16("' + P.name + '")')
 			else
 				raise Exception.Create('define integer array type ' + P.vtype + ', please');
 			

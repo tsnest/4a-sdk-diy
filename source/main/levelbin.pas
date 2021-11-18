@@ -42,7 +42,6 @@ begin
 
 	if magic = LEVEL_BIN_MAGIC then
 	begin
-
 		if dword = $00000124 then
 			Result := LoadLevelBinA1(fn) // exodus too
 		else 
@@ -50,7 +49,6 @@ begin
 			Result := LoadLevelBinLL(fn)
 		else
 			Result := LoadLevelBin2033(fn);
-
 	end else
 	begin
 		WriteLn('"', fn, '" is not level bin file!');
@@ -121,6 +119,62 @@ begin
 					end;
 				end;
 			end;
+			
+			// commons_vs also may contain blocks (Arktika.1 and further)
+			_vss := e.GetSect('commons_vs', False);
+			if _vss <> nil then
+			begin
+				for J := 1 to _vss.items.Count - 1 do
+				begin
+					if TObject(_vss.items[J]) is TSection then
+					begin
+						_v := TSection(_vss.items[J]);
+						_blocks := _v.GetSect('exposed_blocks', False);
+						
+						if _blocks <> nil then
+						begin
+							for K := 0 to _blocks.items.Count - 1 do
+							begin
+								if TObject(_blocks.items[K]) is TSection then
+								begin
+									_block := TSection(_blocks.items[K]);
+									_clsid := _block.GetParam('clsid', 'stringz') as TStringValue;
+									
+									_block.Replace(_clsid, TIntegerValue.Create('clsid', 'u32', GetStringCrc(_clsid.str)));
+								end;
+							end;
+						end;
+					end;
+				end;
+			end;
+			
+			_vss := e.GetSect('removed_vs', False);
+			if _vss <> nil then
+			begin
+				for J := 1 to _vss.items.Count - 1 do
+				begin
+					if TObject(_vss.items[J]) is TSection then
+					begin
+						_v := TSection(_vss.items[J]);
+						_blocks := _v.GetSect('exposed_blocks', False);
+					
+						if _blocks <> nil then
+						begin
+							for K := 0 to _blocks.items.Count - 1 do
+							begin
+								if TObject(_blocks.items[K]) is TSection then
+								begin
+									_block := TSection(_blocks.items[K]);
+									_clsid := _block.GetParam('clsid', 'stringz') as TStringValue;
+									
+									_block.Replace(_clsid, TIntegerValue.Create('clsid', 'u32', GetStringCrc(_clsid.str)));
+								end;
+							end;
+						end;
+					end;
+				end;
+			end;
+			
 		end;
 	end;
 end;
@@ -277,7 +331,7 @@ begin
 
 	K := TKonfig.Create;
 	K.kind := kind;
-	K.Compile(C);
+	K.Compile(C, True);
 
 	w := TMemoryWriter.Create;
 	K.Save(w);
@@ -323,13 +377,17 @@ end;
 procedure SaveLevelBinA1(const fn : String; tk : TTextKonfig; kind : Integer);
 var
 	K : TKonfig;
+	C : TTextKonfig;
 
 	outf : TFileStream;
 	magic : Longword;
 begin
+	C := tk.Copy;
+	RecoverCrc(C.root);
+	
 	K := TKonfig.Create;
 	K.kind := kind;
-	K.Compile(tk);
+	K.Compile(C, True);
 
 	outf := TFileStream.Create(fn, fmCreate);
 	magic := LEVEL_BIN_MAGIC;
@@ -338,6 +396,7 @@ begin
 	outf.Free;
 
 	K.Free;
+	C.Free;
 end;
 // end Arktika.1 (and exodus)
 

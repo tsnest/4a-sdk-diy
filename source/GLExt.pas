@@ -291,6 +291,11 @@ const
   GL_COMPRESSED_RGBA_S3TC_DXT1_EXT           = $83F1;
   GL_COMPRESSED_RGBA_S3TC_DXT3_EXT           = $83F2;
   GL_COMPRESSED_RGBA_S3TC_DXT5_EXT           = $83F3;
+  
+// GL_EXT_texture_filter_anisotropic
+const
+  GL_TEXTURE_MAX_ANISOTROPY_EXT              = $84FE;
+  GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT          = $84FF;
 
 // GL_ARB_texture_compression_bptc
 const

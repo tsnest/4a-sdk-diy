@@ -392,11 +392,12 @@ begin
 		IupSetStrAttribute(dlg, 'DESCRIPTION', @sl[T][1]);
 	
 		// 1. Получим имя текстуры для textures.bin                             
-	  n := LowerCase(dir + '\' + sl[T]); // имя текстуры обязательно в нижнем регистре
+	  n := sl[T];
 	  
 	  if Copy(n, 1, Length(ImportDirectory)) = ImportDirectory then
 	  	n := Copy(n, Length(ImportDirectory) + 2); // ImportDirectory\tex\tex_1.dds -> tex\tex_1.dds
 	  	
+	  n := LowerCase(n); // имя текстуры обязательно в нижнем регистре
 	  n := ChangeFileExt(n, '');
 	  
 	  // 2. Попробуем найти запись в textures.bin

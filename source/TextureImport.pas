@@ -13,7 +13,7 @@ procedure MakeDDS_LL(const tex_name : String);
 procedure MakeStreamable_LL(const src_dds, dst_name : String; var dxt1a : Boolean);
 
 implementation
-uses sysutils, classes, chunkedFile, FileApi, crnlib;
+uses sysutils, classes, chunkedFile, FileApi, crnlib, ImageLibraryOptions;
 
 const
   DDPF_ALPHAPIXELS  = $1;
@@ -585,6 +585,7 @@ begin
 					crn.m_format := cCRNFmtDXT1;
 				
 				crn.m_pImages[0,0] := image[M];
+				crn.m_quality_level := CrunchTextureQuality;
 				
 				data := crn_compress(crn, data_size);
 				if data = nil then
@@ -617,6 +618,8 @@ begin
 				crn.m_pImages[0,J] := image[M];
 				Inc(M);
 			end;
+			
+			crn.m_quality_level := CrunchTextureQuality;
 			
 			data := crn_compress(crn, data_size);
 			if data = nil then

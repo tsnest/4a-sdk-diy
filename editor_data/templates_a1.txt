@@ -1,0 +1,281 @@
+effect = begin
+	class : stringz = 'EFFECT';
+	static_data_key : stringz = '_G.config.entity.effect';
+	att_bone_id : choose;
+	att_bone_id : stringz = '';
+	id : u16 = 4293;
+	parent_id : u16 = 65535;
+	att_offset : 'pose, matrix_43T' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+	att_root : bool = False;
+	name : name;
+	name : stringz = 'effect';
+	force_hud : bool = False;
+	ghost2 : bool = False;
+	oflags : bool8 = 128;
+	sflags : bool8 = 0;
+	cull_distance : fp32 = 100000;
+	'' : 'pose, matrix' = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+	visual : choose;
+	visual : stringz = '';
+	dao_val : u16 = 21;
+	render_aux_val : 'color, vec4f' = [0, 0, 0, 1.401298464E-45];
+	vss_ver_6 : array;
+	vss_ver_6 = begin
+		count : u32 = 0;
+	end;
+	vs_active : bool = True;
+	spatial_sector : u16 = 65535;
+	commons_vs : array;
+	commons_vs = begin
+		count : u32 = 0;
+	end;
+	removed_vs : array;
+	removed_vs = begin
+		count : u32 = 0;
+	end;
+	startup_animation : animation_str;
+	startup_animation : stringz = '';
+	bone_part : part_str;
+	bone_part : stringz = 'default';
+	start_frame : u16 = 0;
+	speed : fp32 = 0;
+	startup_animation_flags : bool8 = 0;
+	force_looped : u8 = 0;
+	sound : choose;
+	sound : stringz = '';
+	sound_volume : fp32_q8 = 128;
+	sound_filter : u8 = 0;
+	particles : choose;
+	particles : stringz = '';
+	particle_flags : bool8 = 3;
+	interest = begin
+		min_importance : u16 = 500;
+		max_importance : u16 = 1000;
+		interest_type : u8 = 3;
+		duration : u16 = 0;
+		speed : fp32 = 0.001000000047;
+		distance : fp32 = 0.00191549561;
+	end;
+	labels : str_array32;
+	labels : u32 = 0;
+end;
+vehicle_spawn = begin
+	class : stringz = 'VEHICLE';
+	static_data_key : stringz = '_G.config.entity.vehicle';
+	att_bone_id : choose;
+	att_bone_id : stringz = '';
+	id : u16 = 9999;
+	parent_id : u16 = 65535;
+	att_offset : 'pose, matrix_43T' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+	att_root : bool = False;
+	health : fp32 = 0.1000000015;
+	dying_mask : u32 = 0;
+	name : name;
+	name : stringz = 'vehicle_spawn';
+	force_hud : bool = False;
+	ghost2 : bool = False;
+	oflags : bool8 = 139;
+	sflags : bool8 = 0;
+	cull_distance : fp32 = 100000;
+	'' : 'pose, matrix' = [1, 0, 0, 0, 1, 0, 0, 0, 1, -23.28855133, 38.31475449, 0.1328826398];
+	visual : choose;
+	visual : stringz = 'dynamic\objects\cars\uaz\uaz_452@vr';
+	dao_val : u16 = 35;
+	render_aux_val : 'color, vec4f' = [0, 0, 0, 0];
+	vss_ver_6 : array;
+	vss_ver_6 = begin
+		count : u32 = 0;
+	end;
+	vs_active : bool = True;
+	spatial_sector : u16 = 65535;
+	commons_vs : array;
+	commons_vs = begin
+		count : u32 = 0;
+	end;
+	removed_vs : array;
+	removed_vs = begin
+		count : u32 = 0;
+	end;
+	startup_animation : animation_str;
+	startup_animation : stringz = '';
+	bone_part : part_str;
+	bone_part : stringz = 'default';
+	start_frame : u16 = 0;
+	speed : fp32 = 0;
+	startup_animation_flags : bool8 = 0;
+	force_looped : u8 = 0;
+	sound : choose;
+	sound : stringz = '';
+	sound_volume : fp32_q8 = 128;
+	sound_filter : u8 = 0;
+	particles : choose;
+	particles : stringz = '';
+	particle_flags : bool8 = 1;
+	interest = begin
+		min_importance : u16 = 500;
+		max_importance : u16 = 1000;
+		interest_type : u8 = 3;
+		duration : u16 = 0;
+		speed : fp32 = 0.001000000047;
+		distance : fp32 = 0.00191549561;
+	end;
+	labels : str_array32;
+	labels : u32 = 0;
+	add_physics_flags : bool8 = 9;
+	friend_type : u8 = 0;
+	reaction_type : u8 = 0;
+	fixed_bones : 'choose_array, str_shared';
+	fixed_bones : stringz = '';
+	physics_flags0 : bool8 = 65;
+	physics_flags1 : bool8 = 0;
+	break_impulse_threshold : fp32 = 1;
+	collisions_group : u8 = 1;
+	scene_type : u8 = 0;
+	break_particles_break : choose;
+	break_particles_break : stringz = '';
+	break_particles_death : choose;
+	break_particles_death : stringz = '';
+	break_sound_death : choose;
+	break_sound_death : stringz = '';
+	type_mask : flags64;
+	type_mask : u64 = 0;
+	ph_shell_model_src : u32 = 344925244;
+	ph_shell_skltn_src : u32 = 4249836598;
+	ph_shell_skltn_bcount : u32 = 1;
+	ph_shell_writed : bool = False;
+	attach_with_joint : bool = False;
+	footprint_size : fp32 = 0;
+	footprint_power : fp32 = 0;
+	data = begin
+		engine = begin
+			max_rpm : fp32 = 7000;
+			max_torque : fp32 = 1000;
+			air_inlet_offset : vec3f = [0, 1, 0];
+			air_inlet_radius : fp32 = 0.1000000015;
+			curve = begin
+				torque_curve0 : fp32 = 0;
+				torque_curve1 : fp32 = 0.1099999994;
+				torque_curve2 : fp32 = 0.2199999988;
+				torque_curve3 : fp32 = 0.3300000131;
+				torque_curve4 : fp32 = 0.4399999976;
+				torque_curve5 : fp32 = 0.5500000119;
+				torque_curve6 : fp32 = 0.6600000262;
+				torque_curve7 : fp32 = 0.8799999952;
+			end;
+		end;
+		digital_input = begin
+			raise_fall_rate = begin
+				move = begin
+					accel = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					breake = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					hand_breake = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+				end;
+				steer = begin
+					left = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					right = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+				end;
+			end;
+		end;
+		analog_input = begin
+			raise_fall_rate = begin
+				move = begin
+					accel = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					breake = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					hand_breake = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+				end;
+				steer = begin
+					left = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+					right = begin
+						raise : fp32 = 1;
+						fall : fp32 = 1;
+					end;
+				end;
+			end;
+		end;
+		transmission = begin
+			diff_type : u8 = 0;
+		end;
+		suspension_system = begin
+			wheels = begin
+				l_fwd = begin
+					tire = begin
+						type : u8 = 0;
+						damp : fp32 = 1;
+					end;
+					dampfer = begin
+						spring_compression : fp32 = 1;
+						spring_elongation : fp32 = 1;
+						spring_strength : fp32 = 4;
+						ammortizator_strength : fp32 = 2;
+					end;
+				end;
+				r_fwd = begin
+					tire = begin
+						type : u8 = 0;
+						damp : fp32 = 1;
+					end;
+					dampfer = begin
+						spring_compression : fp32 = 1;
+						spring_elongation : fp32 = 1;
+						spring_strength : fp32 = 4;
+						ammortizator_strength : fp32 = 2;
+					end;
+				end;
+				l_bck = begin
+					tire = begin
+						type : u8 = 0;
+						damp : fp32 = 1;
+					end;
+					dampfer = begin
+						spring_compression : fp32 = 1;
+						spring_elongation : fp32 = 1;
+						spring_strength : fp32 = 4;
+						ammortizator_strength : fp32 = 2;
+					end;
+				end;
+				r_bck = begin
+					tire = begin
+						type : u8 = 0;
+						damp : fp32 = 1;
+					end;
+					dampfer = begin
+						spring_compression : fp32 = 1;
+						spring_elongation : fp32 = 1;
+						spring_strength : fp32 = 4;
+						ammortizator_strength : fp32 = 2;
+					end;
+				end;
+			end;
+		end;
+		steering_system = begin
+			speed : 'angle, fp32' = 0.7070000172;
+		end;
+	end;
+end;

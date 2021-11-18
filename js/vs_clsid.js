@@ -1,10 +1,17 @@
+var already_printed = new Object // unknown classes
+
 this.get_clsid = function(crc)
 {
 	var clsid = hash_table[crc];
 	
 	if(!clsid)
-	{		
-		print("unknown block clsid found, crc ", crc);
+	{
+		if(!already_printed[crc])
+		{
+			print("unknown block clsid found, crc ", crc);
+			already_printed[crc] = true;
+		}
+		
 		return "";
 	}
 	else	
@@ -1707,7 +1714,98 @@ var clsids = [
 	"trolley/lock on target",
 	"trolley/start drezina",
 	"trolley/station stand mode",
-	"trolley/stop drezina hand"
+	"trolley/stop drezina hand",
+	
+	// Arktika.1
+	"actions/alt_ammo_mode",
+	"actions/attach_vr",
+	"actions/block_hand",
+	"actions/change_phys_scene",
+	"actions/citadel/achievements menu",
+	"actions/citadel/check_rank",
+	"actions/citadel/complete_objective",
+	"actions/citadel/level_started",
+	"actions/citadel/main menu",
+	"actions/citadel/perks",
+	"actions/citadel/perks_activate",
+	"actions/citadel/perks_small",
+	"actions/citadel/perks_unlock",
+	"actions/citadel/select_level",
+	"actions/citadel/set_achievments_last_seen",
+	"actions/citadel/stats",
+	"actions/citadel/store purchase",
+	"actions/citadel/store",
+	"actions/citadel/unlock vr mission",
+	"actions/citadel/unlock_level",
+	"actions/citadel/unlock_vr_mission",
+	"actions/disable_teleport",
+	"actions/engine/3d_arcade_score",
+	"actions/engine/3d_user_coords_text",
+	"actions/engine/3d_user_name_text",
+	"actions/engine/VR/menu_input",
+	"actions/engine/button_enabled",
+	"actions/engine/counter control",
+	"actions/engine/restore tpreset",
+	"actions/engine/set_menu_label",
+	"actions/entity/VR/alt ammo mode",
+	"actions/entity/VR/holster weapon",
+	"actions/entity/VR/set mechanism",
+	"actions/entity/VR/set_mech_offset",
+	"actions/entity/attach vr",
+	"actions/entity/teleport control",
+	"actions/entity/vr_cube control",
+	"actions/game/update_play_stats",
+	"actions/holster_weapon",
+	"actions/new virtual grab",
+	"actions/npc/play seq",
+	"actions/player/VR/block hand",
+	"actions/player/VR/disable teleportation",
+	"actions/player/VR/teleport cooldown",
+	"actions/player/arcade score check",
+	"actions/player/arcade score commit",
+	"actions/player/arcade score",
+	"actions/player/arcade_score",
+	"actions/player/arcade_score_check",
+	"actions/player/arcade_score_commit",
+	"actions/scary_face",
+	"actions/set mechanism",
+	"actions/set_mech_offset",
+	"actions/teleport_control",
+	"actions/teleport_cooldown",
+	"actions/vr_cube_control",
+	"actions/weapon modular/power mode",
+	"actions/weapon/VR/lock target",
+	"actions/weapon/VR/safelock",
+	"actions/weapon/safelock",
+	"actions/weapon/weapon_lock_target",
+	"checker/entity/VR/can_be_holstered",
+	"checker/entity/VR/is_holstered",
+	"checker/player/is attached",
+	"checker/pneumo/pressure",
+	"checker/previous_map",
+	"checker/sound_language",
+	"debug/simulate_start",
+	"entities/holstered_weapon",
+	"entities/nearest_enemies",
+	"entities/random_npc",
+	"logic/xor-multi",
+	"trigger/pinned",
+	"triggers/block_explosion",
+	"triggers/citadel/arktika mainmenu",
+	"triggers/citadel/level_selected",
+	"triggers/citadel/perks",
+	"triggers/citadel/teleport",
+	"triggers/citadel/vr_mission_trigger",
+	"triggers/citadel_purchase",
+	"triggers/engine/graphics_changed",
+	"triggers/hand_orientation",
+	"triggers/magnetic_holster",
+	"triggers/menu_option_changed",
+	"triggers/modular_customize",
+	"triggers/store_selection",
+	"triggers/turret",
+	"triggers/wall_collision",
+	"triggers/weapon/can fire"
 ];
 
 var hash_table = new Object;

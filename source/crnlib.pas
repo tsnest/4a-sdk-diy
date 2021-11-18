@@ -110,7 +110,7 @@ type
 		m_levels                                : Longword;
 		m_format                                : Longword;
 		m_flags                                 : Longword;
-		m_pImages                               : array[0..cCRNMaxFaces] of array[0..cCRNMaxLevels] of PLongword;
+		m_pImages                               : array[0..cCRNMaxFaces-1] of array[0..cCRNMaxLevels-1] of PLongword;
 		m_target_bitrate                        : Single;
 		m_quality_level                         : Longword;
 		m_dxt1a_alpha_threshold                 : Longword;
@@ -149,7 +149,7 @@ function  crn_decompress_crn_to_dds(data : Pointer; file_size : PLongint) : Poin
 external 'crnlib.dll' name crn_decompress_crn_to_dds_Proc;
 	
 function crn_compress(
-	const comp_params : crn_comp_params; 
+	var comp_params : crn_comp_params; 
 	out compressed_size : Longword; 
 	pActual_quality_level : PLongword = nil; 
 	pActual_bitrate : PSingle = nil) : pointer; cdecl;
@@ -181,7 +181,7 @@ external 'crnlib.dll' name '?crn_decompress_dds_to_images@@YA_NPEBXIPEAPEAIAEAUc
 external 'crnlib.dll' name '?crn_decompress_dds_to_images@@YA_NPBXIPAPAIAAUcrn_texture_desc@@@Z';
 {$ENDIF}
 
-procedure crn_free_all_images(ppImages : PLongword; const dest : crn_texture_desc); cdecl;
+procedure crn_free_all_images(ppImages : PLongword; var dest : crn_texture_desc); cdecl;
 
 {$IFDEF WIN64}
 external 'crnlib.dll' name '?crn_free_all_images@@YAXPEAPEAIAEBUcrn_texture_desc@@@Z';

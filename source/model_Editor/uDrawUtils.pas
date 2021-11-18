@@ -3,15 +3,15 @@ unit uDrawUtils;
 interface
 uses fouramdl, skeleton, motion;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton; mot : T4AMotion = nil; time : Single = 0.0);
-procedure DrawBoneOBB(ms : T4AModelSkeleton);
+procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : T4AMotion = nil; time : Single = 0.0);
+procedure DrawBoneOBB(ms : T4AModelSkeleton; sel : Longint);
 
 procedure DrawNormals(model : T4AModel);
 
 implementation
 uses vmath, GL;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton; mot : T4AMotion = nil; time : Single = 0.0);
+procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : T4AMotion = nil; time : Single = 0.0);
 var
 	I : Longint;
 	mt : TMatrix;
@@ -49,11 +49,16 @@ const
 begin
 	glDisable(GL_DEPTH_TEST);
 	
-	glColor3f(0.8, 0.8, 0.0);
+	
 	glBegin(GL_LINES);
 	
 	for I := 0 to Length(skeleton.bones)-1 do
 	begin
+		if sel = I then
+			glColor3f(1.0, 1.0, 1.0)
+		else
+			glColor3f(0.8, 0.8, 0.0);
+			
 		if skeleton.bones[I].parent_name <> '' then
 		begin
 			GetTransform(skeleton.bones[I].name, mt);
@@ -67,11 +72,15 @@ begin
 	glEnd;
 	
 	glPointSize(5.0);
-	glColor3f(1.0, 0.0, 0.0);
 	glBegin(GL_POINTS);
 	
 	for I := 0 to Length(skeleton.bones)-1 do
 	begin
+		if sel = I then
+			glColor3f(0.0, 0.0, 1.0)
+		else
+			glColor3f(1.0, 0.0, 0.0);
+	
 		GetTransform(skeleton.bones[I].name, mt);
 		glVertex3f(mt[4,1], mt[4,2], mt[4,3]);
 	end;
@@ -104,7 +113,7 @@ begin
 	glEnable(GL_DEPTH_TEST);
 end;
 
-procedure _DrawBoneOBB(m : T4AModelSkinnedMesh; skeleton : T4ASkeleton);
+procedure _DrawBoneOBB(m : T4AModelSkinnedMesh; skeleton : T4ASkeleton; sel : Longint);
 var
 	I, bone_id : Longint;
 	mat : TMatrix;
@@ -128,6 +137,11 @@ begin
 			
 			glPushMatrix;
 			glMultMatrixf(@b);
+			
+			if sel = bone_id then
+				glColor3f(0.0, 1.0, 0.0)
+			else
+				glColor3f(1.0, 1.0, 1.0);
 			
 			glBegin(GL_QUADS);
 			
@@ -163,6 +177,8 @@ begin
 			
 			glEnd;
 			
+			glColor3f(1.0, 1.0, 1.0);
+			
 			glPopMatrix;
 		end;
 		
@@ -170,13 +186,13 @@ begin
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 end;
 
-procedure DrawBoneOBB(ms : T4AModelSkeleton);
+procedure DrawBoneOBB(ms : T4AModelSkeleton; sel : Longint);
 var
 	I, J : Longint;
 begin
 	for I := 0 to Length(ms.meshes[0])-1 do
 		for J := 0 to Length(ms.meshes[0,I].meshes)-1 do
-			_DrawBoneOBB(ms.meshes[0,I].meshes[J], ms.skeleton);
+			_DrawBoneOBB(ms.meshes[0,I].meshes[J], ms.skeleton, sel);
 end;
 
 procedure _DrawNormals(model : T4AModelHierrarhy); overload;

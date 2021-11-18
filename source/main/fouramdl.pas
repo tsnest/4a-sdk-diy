@@ -456,7 +456,7 @@ begin
 			w.WriteLongword(mtlsets[I].flags);
 		
 		w.WriteWord(Length(mtlsets[I].materials));
-		for J := 0 to Length(mtlsets[I].materials) do
+		for J := 0 to Length(mtlsets[I].materials) - 1 do
 			with mtlsets[I].materials[J] do
 			begin
 				w.WriteStringZ(surface);

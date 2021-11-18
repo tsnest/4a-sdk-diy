@@ -1110,7 +1110,7 @@ procedure TStaticModelMaler.Draw(mtlset : Longint; selected : Boolean; blended :
 var
 	ms : TMaterialSet;
 begin
-	if (mtlset < 0) or (mtlset > Length(mtlsets)) then 
+	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
 		ms := materials
 	else 
 		ms := mtlsets[mtlset];
@@ -1154,7 +1154,7 @@ var
 	
 	ms : TMaterialSet;
 begin
-	if (mtlset < 0) or (mtlset > Length(mtlsets)) then 
+	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
 		ms := materials
 	else 
 		ms := mtlsets[mtlset];
