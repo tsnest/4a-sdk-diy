@@ -3,7 +3,7 @@ unit uDrawUtils;
 interface
 uses fouramdl, skeleton, motion;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : T4AMotion = nil; time : Single = 0.0);
+procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : I4AMotion = nil; time : Single = 0.0);
 procedure DrawBoneOBB(ms : T4AModelSkeleton; sel : Longint);
 
 procedure DrawNormals(model : T4AModel);
@@ -11,7 +11,7 @@ procedure DrawNormals(model : T4AModel);
 implementation
 uses vmath, GL;
 
-procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : T4AMotion = nil; time : Single = 0.0);
+procedure DrawSkeleton(skeleton : T4ASkeleton; sel : Longint; mot : I4AMotion = nil; time : Single = 0.0);
 var
 	I : Longint;
 	mt : TMatrix;

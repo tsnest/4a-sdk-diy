@@ -86,6 +86,16 @@ function  IupSetHandle(name : PAnsiChar; ih : Ihandle) : Ihandle; cdecl; externa
 procedure IupSetAttributeHandle(ih : Ihandle; name : PAnsiChar; ih_named : Ihandle); cdecl; external 'iup.dll';
 function  IupGetAttributeHandle(ih : Ihandle; name : PAnsiChar) : Ihandle; cdecl; external 'iup.dll';
 
+function  IupGetClassName(ih : Ihandle) : PAnsiChar; cdecl; external 'iup.dll';
+function  IupGetClassType(ih : Ihandle) : PAnsiChar; cdecl; external 'iup.dll';
+function  IupGetAllClasses(names : PPAnsiChar; n : Longint) : Longint; cdecl; external 'iup.dll';
+function  IupGetClassAttributes(classname : PAnsiChar; names : PPAnsiChar; n : Longint) : Longint; cdecl; external 'iup.dll';
+function  IupGetClassCallbacks(classname : PAnsiChar; names : PPAnsiChar; n : Longint) : Longint; cdecl; external 'iup.dll';
+procedure IupSaveClassAttributes(ih : Ihandle); cdecl; external 'iup.dll';
+procedure IupCopyClassAttributes(src_ih, dst_id : Ihandle); cdecl; external 'iup.dll';
+procedure IupSetClassDefaultAttribute(classname, name, value : PAnsiChar); cdecl; external 'iup.dll';
+function  IupClassMatch(ih : Ihandle; classname : PAnsiChar) : Longint; cdecl; external 'iup.dll';
+
 {************************************************************************}
 {*                        Elements                                      *}
 {************************************************************************}
@@ -149,6 +159,8 @@ function  IupTimer : Ihandle; cdecl; external 'iup.dll';
 function  IupClipboard : Ihandle; cdecl; external 'iup.dll';
 function  IupProgressBar : Ihandle; cdecl; external 'iup.dll';
 function  IupVal(orientation : PAnsiChar) : Ihandle; cdecl; external 'iup.dll';
+function  IupFlatVal(orientation : PAnsiChar) : Ihandle; cdecl; external 'iup.dll';
+function  IupFlatTree : Ihandle; cdecl; external 'iup.dll';
 function  IupTabs(child : Ihandle) : Ihandle; cdecl; external 'iup.dll'; varargs;
 function  IupTabsv(children : PIhandle) : Ihandle; cdecl; external 'iup.dll';
 function  IupFlatTabs(first : Ihandle) : Ihandle; cdecl; external 'iup.dll'; varargs;
@@ -247,7 +259,7 @@ function  iup_isAltXkey(_c : Longint) : Boolean;
 function  iup_isSysXkey(_c : Longint) : Boolean;
 
 // my extensions. Will be called as iup.MenuItem()
-procedure SetAttribute(ih : Ihandle; const name, value : String);
+procedure SetAttribute(ih : Ihandle; const name : String; value : PAnsiChar);
 procedure SetStrAttribute(ih : Ihandle; const name, value : String);
 procedure SetInt(ih : Ihandle; const name : String; value : Longint);
 
@@ -296,7 +308,7 @@ begin Result := (_c and $40000000) <> 0 end;
 function  iup_isSysXkey(_c : Longint) : Boolean;
 begin Result := (_c and $80000000) <> 0 end;
 
-procedure SetAttribute(ih : Ihandle; const name, value : String);
+procedure SetAttribute(ih : Ihandle; const name : String; value : PAnsiChar);
 begin
 	IupSetAttribute(ih, PAnsiChar(name), PAnsiChar(value));
 end;

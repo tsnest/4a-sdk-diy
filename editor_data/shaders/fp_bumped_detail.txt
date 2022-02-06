@@ -14,7 +14,6 @@ ATTRIB M1 = fragment.texcoord[2];
 ATTRIB M2 = fragment.texcoord[3];
 
 ATTRIB Pv = fragment.texcoord[4];
-ATTRIB Nv = fragment.texcoord[5];
 
 TEMP temp;
 TEMP tex_bump;

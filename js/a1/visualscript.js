@@ -161,7 +161,7 @@ function ReadActionPlayMotion(e)
 
 function ReadActionPlayMotionControl(e)
 {
-	e.ReadHintStr("dbg_model", "ref_model")
+	e.ReadHintStr("dbg_model", "choose")  // Arktika.1: changed 'ref_model' to 'choose'
 	e.ReadString("dbg_skel")
 	e.ReadHintStr("anim_fwd", "animation_str")
 	e.ReadHintStr("anim_bwd", "animation_str")		
@@ -458,7 +458,7 @@ var block_readers = {
 		e.ReadU32("enemy_seen_timeout")
 		e.ReadU32("lookout_min")
 		e.ReadU32("lookout_max")
-		e.ReadU32("aim_shile_lookout_timeout")
+		e.ReadU32("aim_while_lookout_timeout")
 		e.ReadU32("lookout_cooldown_min")
 		e.ReadU32("lookout_cooldown_max")
 		e.ReadU32("lookout_cooldown_min_far")
@@ -944,7 +944,7 @@ var block_readers = {
 	{
 		ReadActionPlayMotion(e)
 		
-		e.ReadHintStr("dbg_object_model", "choose") // Arktika.1: changed 'ref_coloranim' to 'choose'
+		e.ReadHintStr("dbg_object_model", "choose") // Arktika.1: changed 'ref_model' to 'choose'
 		e.ReadHintStr("object_attp_id", "attp_str") // Arktika.1: changed 'locator_str' to 'attp_str'
 		e.ReadU8("flags0", "bool8")
 		e.ReadFP32("p2p_offset")
@@ -1327,7 +1327,7 @@ var block_readers = {
 	"logic/counter sel": function(e)
 	{
 		ReadLogicCounter(e)
-		e.ReadBool("auto_touch")
+		e.ReadU8("quant")
 	},
 	"logic/delay": ReadLogicDelay,
 	"logic/delay ex": function(e)

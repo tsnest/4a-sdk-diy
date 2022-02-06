@@ -3,11 +3,19 @@ unit properties;
 interface
 uses classes, Iup, Konfig;
 
+type
+	TPropsBeforeChangeCb = procedure(val : TSimpleValue); cdecl;
+	TPropsAfterChangeCb = procedure(val : TSimpleValue); cdecl;
+	TPropsEditCb = function(tree : Ihandle; sect : TSection; val : TSimpleValue) : Longint; cdecl; // ret = 0 - cancel, 1 - default editor, 2 - apply
+
+procedure UpdateCaption(tree : Ihandle; nid : Longint; v : TSimpleValue); overload;
+procedure UpdateCaption(tree : Ihandle; v : TSimpleValue); overload;
+
 function EditBool8(v : TIntegerValue; const names : String) : Boolean;
 function EditEnum(v : TIntegerValue; const names : String; caption : String = '') : Boolean;
-function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String = '') : Boolean; overload;
-function EditChoose(v : TStringValue; allow_none : Boolean; names : TStringList; caption : String = '') : Boolean; overload;
-function EditChooseArray(v : TStringValue; items : TStringList; caption : String = '') : Boolean;
+function EditChoose(var str : String; allow_none : Boolean; const names : String; caption : String = '') : Boolean; overload;
+function EditChoose(var str : String; allow_none : Boolean; names : TStringList; caption : String = '') : Boolean; overload;
+function EditChooseArray(var str : String; items : TStringList; caption : String = '') : Boolean;
 
 procedure SetupProperties(tree : Ihandle; data : TSection);
 
@@ -16,13 +24,9 @@ uses
 	sysutils,
 	uScene, uEntity, vmath, uEditorUtils,
 	matrix_editor,
-	uChoose, uChooseTexture, uChooseColoranim;
+	uChoose, uChooseTexture, uChooseColoranim, uLEOptions;
 
-type
-	TPropsValueChangedCb = procedure(val : TSimpleValue); cdecl;
-	TPropsEditCb = function(tree : Ihandle; sect : TSection; val : TSimpleValue) : Longint; cdecl; // ret = 0 - cancel, 1 - default editor, 2 - apply
-
-procedure UpdateCaption(tree : Ihandle; nid : Longint; v : TSimpleValue);
+procedure UpdateCaption(tree : Ihandle; nid : Longint; v : TSimpleValue); overload;
 var
 	e : TEntity;
 	eid : Word;
@@ -31,9 +35,7 @@ var
 	vec : TFloatArrayValue;
 		
 	title : String;
-begin
-	title := v.name + ' : ' + v.vtype;
-
+begin	
 	if v.vtype = 'entity_link, uobject_link' then
 	begin
 		eid := (v as TIntegerValue).num;
@@ -41,34 +43,34 @@ begin
 		begin
 			e := Scene.EntityById(eid);
 			if e <> nil then
-				title := title + ' = ' + e.Name
+				title := e.Name
 			else
-				title := title + ' = <invalid>';
+				title := '<invalid>';
 		end else
-			title := title + ' = <none>';
+			title := '<none>';
 	end else
 	if v is TStringValue then
-		title := title + ' = ' + (v as TStringValue).str
+		title := (v as TStringValue).str
 	else
 	if v is TIntegerValue then
-		title := title + ' = ' + IntToStr((v as TIntegerValue).num)
+		title := IntToStr((v as TIntegerValue).num)
 	else
 	if v is TSingleValue then
-		title := title + ' = ' + FloatToStr((v as TSingleValue).num)
+		title := FloatToStr((v as TSingleValue).num)
 	else
 	if v is TBoolValue then
 	begin
 		if (v as TBoolValue).bool then
-			title := title + ' = True'
+			title := 'True'
 		else
-			title := title + ' = False';
+			title := 'False';
 	end else
 	if v is TFloatArrayValue then
 	begin
 		if (v.vtype = 'vec2f') or (v.vtype = 'vec3f') or (v.vtype = 'vec4f') or (v.vtype = 'color, vec4f') then
 		begin
 			vec := v as TFloatArrayValue;
-			title := title + '= [';
+			title := '[';
 			for I := 0 to Length(vec.data) - 1 do
 			begin
 				if I > 0 then title := title + ', ';
@@ -77,8 +79,34 @@ begin
 			title := title + ']';
 		end;
 	end;
+	
+	if IupGetClassType(tree) = 'control' then
+	begin
+		if (Length(title) > 0) or (v is TStringValue) then
+			title := v.name + ' : ' + v.vtype + ' = ' + title
+		else
+			title := v.name + ' : ' + v.vtype;
 			
-	IupSetStrAttribute(tree, PAnsiChar('TITLE'+IntToStr(nid)), PAnsiChar(title));
+		iup.SetStrAttribute(tree, 'TITLE'+IntToStr(nid), title);
+	end else
+	begin
+		if (Length(title) > 0) or (v is TStringValue) then
+			title := ' = ' + title;
+
+		iup.SetStrAttribute(tree, 'EXTRATEXT'+IntToStr(nid), title);
+	end;
+end;
+
+procedure UpdateCaption(tree : Ihandle; v : TSimpleValue); overload;
+var
+	I : Longint;
+begin
+	for I := 0 to iup.GetInt(tree, 'COUNT') - 1 do
+		if iup.GetAttribute(tree, 'USERDATA'+IntToStr(I)) = Pointer(v) then
+		begin
+			UpdateCaption(tree, I, v);
+			Exit;
+		end;
 end;
 
 function EditBool8(v : TIntegerValue; const names : String) : Boolean;
@@ -141,7 +169,7 @@ begin
 	sl.Free;
 end;
 
-function EditChoose(v : TStringValue; allow_none : Boolean; const names : String; caption : String) : Boolean; overload;
+function EditChoose(var str : String; allow_none : Boolean; const names : String; caption : String) : Boolean; overload;
 var
 	sl : TStringList;
 	ret : Longint;
@@ -156,20 +184,17 @@ begin
 	op := 1;	
 	for I := 0 to sl.Count-1 do
 	begin
-		if sl[I] = v.str then
+		if sl[I] = str then
 			op := I+1;
 	end;
-
-	if caption = '' then
-		caption := v.name;
 
 	ret := iup.ListDialog(caption, sl, op, 15, 15);
 	if ret <> -1 then
 	begin
 		if allow_none and (ret = sl.Count) then
-			v.str := ''
+			str := ''
 		else
-			v.str := sl[ret];
+			str := sl[ret];
 			
 		EditChoose := True;
 	end else
@@ -178,7 +203,7 @@ begin
 	sl.Free;
 end;
 
-function EditChoose(v : TStringValue; allow_none : Boolean; names : TStringList; caption : String) : Boolean; overload;
+function EditChoose(var str : String; allow_none : Boolean; names : TStringList; caption : String) : Boolean; overload;
 var
 	sl : TStringList;
 	ret : Longint;
@@ -193,20 +218,17 @@ begin
 	op := 1;
 	for I := 0 to sl.Count-1 do
 	begin
-		if sl[I] = v.str then
+		if sl[I] = str then
 			op := I+1;
 	end;
-
-	if caption = '' then
-		caption := v.name;
 
 	ret := iup.ListDialog(caption, sl, op, 15, 15);
 	if ret <> -1 then
 	begin
 		if allow_none and (ret = sl.Count) then
-			v.str := ''
+			str := ''
 		else
-			v.str := sl[ret];
+			str := sl[ret];
 			
 		EditChoose := True;
 	end else
@@ -215,7 +237,7 @@ begin
 	sl.Free;
 end;
 
-function EditChooseArray(v : TStringValue; items : TStringList; caption : String) : Boolean;
+function EditChooseArray(var str : String; items : TStringList; caption : String) : Boolean;
 var
 	ret : Longint;
 	I : Longint;
@@ -224,24 +246,21 @@ begin
 	SetLength(marks, items.Count);
 	for I := 0 to items.Count-1 do
 	begin
-		if Pos(items[I], v.str) > 0 then
+		if Pos(items[I], str) > 0 then
 			marks[I+1] := '+'
 		else
 			marks[I+1] := '-';
 	end;
 
-	if caption = '' then
-		caption := v.name;
-
 	ret := iup.ListDialogMulti(caption, items, 1, 15, 15, marks);
 	if ret <> -1 then
 	begin
-		v.str := '';
+		str := '';
 		for I := 0 to items.Count-1 do
 			if marks[I+1] = '+' then
 			begin
-				if Length(v.str) > 0 then v.str := v.str + ',';
-				v.str := v.str + items[I];
+				if Length(str) > 0 then str := str + ',';
+				str := str + items[I];
 			end;
 			
 		EditChooseArray := True;
@@ -249,7 +268,7 @@ begin
 		EditChooseArray := False;
 end;
 
-function EditStrArray(sect : TSection; hint : TSimpleValue; size_type : String) : Boolean;
+function EditStrArray(sect : TSection; hint : TSimpleValue; size_type : String; before_change_cb : TPropsBeforeChangeCb; after_change_cb : TPropsAfterChangeCb) : Boolean;
 var
 	I, index : Longint;
 	src : String;
@@ -288,6 +307,8 @@ begin
 	
 	if IupGetText(PAnsiChar(hint.name), PAnsiChar(buffer), maxlen) <> 0 then
 	begin
+		before_change_cb(hint);
+		
 		I := index+1;
 		while (I < sect.items.Count) and (TSimpleValue(sect.items[I]).name = hint.name) do
 		begin
@@ -307,8 +328,18 @@ begin
 			
 		sl.Free;
 		
+		after_change_cb(hint);
+		
 		Result := True;
 	end;
+end;
+
+procedure default_before_change_cb(val : TSimpleValue); cdecl;
+begin
+end;
+
+procedure default_after_change_cb(val : TSimpleValue); cdecl;
+begin
 end;
 
 function tree_props_button_cb(ih : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint; cdecl;
@@ -329,6 +360,8 @@ var
 	s : TStringValue;
 	b : TBoolValue;
 
+	str : String;
+
 	c : TFloatArrayValue; // color
 	cvalue : TVec4;
 
@@ -342,19 +375,26 @@ var
 	parent : Longint;
 	sect : TSection;
 	
-	changed_cb : TPropsValuechangedCb;
-	edit_cb : TPropsEditCb;
+	before_change_cb : TPropsBeforeChangeCb;
+	after_change_cb  : TPropsAfterChangeCb;
+	edit_cb          : TPropsEditCb;
 begin
 	id := IupConvertXYToPos(ih, x, y);
-	changed_cb := TPropsValuechangedCb(IupGetAttribute(ih, 'PROPS_VALUECHANGED_CB'));
+	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(ih, 'PROPS_BEFORE_CHANGE_CB'));
+	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(ih, 'PROPS_AFTER_CHANGE_CB'));
 	edit_cb := TPropsEditCb(IupGetAttribute(ih, 'PROPS_EDIT_CB'));
+	
+	if not Assigned(before_change_cb) then
+		before_change_cb := default_before_change_cb;
+	if not Assigned(after_change_cb) then
+		after_change_cb := default_after_change_cb;
 
 	if (id <> -1) and iup_isdouble(status) then
 	begin
-		parent := IupGetInt(ih, PAnsiChar('PARENT'+IntToStr(id)));
-		sect := TSection(IupGetAttribute(ih, PAnsiChar('USERDATA'+IntToStr(parent))));
+		parent := iup.GetInt(ih, 'PARENT'+IntToStr(id));
+		sect := TSection(iup.GetAttribute(ih, 'USERDATA'+IntToStr(parent)));
 				
-		v := TSimpleValue(IupGetAttribute(ih, PAnsiChar('USERDATA'+IntToStr(id))));
+		v := TSimpleValue(iup.GetAttribute(ih, 'USERDATA'+IntToStr(id)));
 		if v <> nil then
 		begin
 			if Assigned(edit_cb) then
@@ -367,46 +407,71 @@ begin
 				if (v.vtype = 'ref_model') or ((v.vtype = 'choose') and (v.name = 'visual')) then
 				begin		
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
-					if ChooseModel(s.str) then
+					str := s.str;
+					
+					if ChooseModel(str) then
 					begin
-						if Assigned(changed_cb) then
-							changed_cb(s);
+						before_change_cb(s);
+						s.str := str;
+						after_change_cb(s);
+						
+						UpdateCaption(ih, s);
 					end;					
 				end else
 				if v.vtype = 'texture, str_shared' then
 				begin
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
-					if ChooseTexture(s.str) then
+					str := s.str;
+					
+					if ChooseTexture(str) then
 					begin
-						if Assigned(changed_cb) then
-							changed_cb(s);
+						before_change_cb(s);
+						s.str := str;
+						after_change_cb(s);
+						
+						UpdateCaption(ih, s);
 					end;
 				end;
 				if v.vtype = 'particles, str_shared' then
 				begin
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
-					if ChooseParticles(s.str) then
+					str := s.str;
+					
+					if ChooseParticles(str) then
 					begin
-						if Assigned(changed_cb) then
-							changed_cb(s);
+						before_change_cb(s);
+						s.str := str;
+						after_change_cb(s);
+						
+						UpdateCaption(ih, s);
 					end;
 				end;
 				if v.vtype = 'sound' then
 				begin
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
-					if ChooseSound(s.str) then
+					str := s.str;
+					
+					if ChooseSound(str) then
 					begin
-						if Assigned(changed_cb) then
-							changed_cb(s);
+						before_change_cb(s);
+						s.str := str;
+						after_change_cb(s);
+						
+						UpdateCaption(ih, s);
 					end;
 				end;
 				if v.vtype = 'ref_coloranim' then
 				begin
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
+					str := s.str;
+					
 					if ChooseColoranim(s.str) then
 					begin
-						if Assigned(changed_cb) then
-							changed_cb(s);
+						before_change_cb(s);
+						s.str := str;
+						after_change_cb(s);
+						
+						UpdateCaption(ih, s);
 					end;
 				end;
 				if v.vtype = 'entity_link, uobject_link' then
@@ -415,28 +480,24 @@ begin
 	
 					if ChooseEntity(entity) then
 					begin
+						before_change_cb(i);
 						if entity <> nil then
-						begin
-							i.num := entity.ID;
-						end else
-						begin
+							i.num := entity.ID
+						else
 							i.num := 65535;
-						end;
+						after_change_cb(i);
 						
 						UpdateCaption(ih, id, v);
-						
-						if Assigned(changed_cb) then
-							changed_cb(i);
 					end;
 				end else
 				if v.vtype = 'str_array16' then
 				begin
-					if EditStrArray(sect, v, 'u16') then
+					if EditStrArray(sect, v, 'u16', before_change_cb, after_change_cb) then
 						SetupProperties(ih, TSection(IupGetAttribute(ih, 'USERDATA0')));
 				end else
 				if (v.vtype = 'str_array32') or (v.vtype = 'str_array') then
 				begin
-					if EditStrArray(sect, v, 'u32') then
+					if EditStrArray(sect, v, 'u32', before_change_cb, after_change_cb) then
 						SetupProperties(ih, TSection(IupGetAttribute(ih, 'USERDATA0')));
 				end else
 				if v is TIntegerValue then
@@ -457,12 +518,11 @@ begin
 					format := 'Value: ' + format + #10;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, PAnsiChar(format), @ivalue) = 1 then
 					begin
+						before_change_cb(i);
 						i.num := ivalue;
+						after_change_cb(i);
 						
 						UpdateCaption(ih, id, v);
-						
-						if Assigned(changed_cb) then
-							changed_cb(i);
 					end;
 				end else
 				if v is TSingleValue then
@@ -471,12 +531,11 @@ begin
 					fvalue := f.num;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, 'Value: %r'#10, @fvalue) = 1 then
 					begin
+						before_change_cb(f);
 						f.num := fvalue;
+						after_change_cb(f);
 						
 						UpdateCaption(ih, id, v);
-						
-						if Assigned(changed_cb) then
-							changed_cb(f);
 					end;
 				end else
 				if v is TStringValue then
@@ -486,23 +545,23 @@ begin
 					svalue[Length(s.str)] := #0;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, 'Value: %s'#10, @svalue) = 1 then
 					begin
+						before_change_cb(s);
 						s.str := PAnsiChar(@svalue);
+						after_change_cb(s);
 						
 						UpdateCaption(ih, id, v);
-					
-						if Assigned(changed_cb) then
-							changed_cb(s);
 					end;
 				end else
 				if v is TBoolValue then
 				begin
 					b := v as TBoolValue;
+					
+					before_change_cb(b);
+					
 					b.bool := not b.bool;
-	
 					UpdateCaption(ih, id, v);
 					
-					if Assigned(changed_cb) then
-						changed_cb(b);
+					after_change_cb(b);
 				end else
 				if v is TFloatArrayValue then
 				begin
@@ -517,6 +576,8 @@ begin
 						
 						if EditMatrix(matrix, True) then
 						begin
+							before_change_cb(c);
+							
 							if Length(c.data) = 16 then	c.SetMatrix44(matrix)
 							else c.SetMatrix43(matrix);
 							ret := 1;
@@ -528,6 +589,8 @@ begin
 						
 						if EditMatrix(matrix, True) then
 						begin
+							before_change_cb(c);
+							
 							c.SetMatrix43T(matrix);
 							ret := 1;
 						end;
@@ -537,6 +600,8 @@ begin
 						Move(c.data[0], cvalue, Sizeof(cvalue));
 						if SelectColor(cvalue, True) then
 						begin
+							before_change_cb(c);
+							
 							Move(cvalue, c.data[0], Sizeof(cvalue));
 							ret := 1;
 						end;
@@ -546,41 +611,48 @@ begin
 						Move(c.data[0], vec4, Sizeof(vec4));
 						ret := IupGetParam(PAnsiChar(v.name), nil, nil, 'X: %r'#10'Y: %r'#10'Z: %r'#10'W: %r'#10,
 							@vec4.x, @vec4.y, @vec4.z, @vec4.w);
+							
 						if ret = 1 then
+						begin
+							before_change_cb(c);
 							Move(vec4, c.data[0], Sizeof(vec4));
+						end;
 					end;
 					if c.vtype = 'vec3f' then
 					begin
 						Move(c.data[0], vec3, Sizeof(vec3));
 						ret := IupGetParam(PAnsiChar(v.name), nil, nil, 'X: %r'#10'Y: %r'#10'Z: %r'#10,
 							@vec3.x, @vec3.y, @vec3.z);
+							
 						if ret = 1 then
+						begin
+							before_change_cb(c);
 							Move(vec3, c.data[0], Sizeof(vec3));
+						end;
 					end;
 					if c.vtype = 'vec2f' then
 					begin
 						Move(c.data[0], vec2, Sizeof(vec2));
 						ret := IupGetParam(PAnsiChar(v.name), nil, nil, 'X: %r'#10'Y: %r'#10,
 							@vec2.x, @vec2.y);
+							
 						if ret = 1 then
+						begin
+							before_change_cb(c);
 							Move(vec2, c.data[0], Sizeof(vec2));
+						end;
 					end;
 					
 					if ret = 1 then
 					begin
 						UpdateCaption(ih, id, v);
-						 
-						if Assigned(changed_cb) then
-							changed_cb(c);
+						after_change_cb(c);
 					end;
 				end;
 			end else
 			if ret = 2 then // user editor
 			begin
 				UpdateCaption(ih, id, v);
-				
-				if Assigned(changed_cb) then
-					changed_cb(v);
 			end;
 			
 		end;
@@ -596,9 +668,14 @@ var
 
 	nid : String;
 begin
-	IupSetAttribute(tree, PAnsiChar('ADDBRANCH' + IntToStr(ref)), PAnsiChar(sect.name));
+	iup.SetStrAttribute(tree, 'ADDBRANCH' + IntToStr(ref), sect.name);
+	
+	if uLEOptions.props_exclude_vss_ver_6 then
+		if (sect.name = 'vss_ver_6') or (sect.name = 'vss_ver_7') then
+			Exit;
+	
 	nid := IupGetAttribute(tree, 'LASTADDNODE');
-	IupSetAttribute(tree, PAnsiChar('USERDATA' + nid), Pointer(sect));
+	iup.SetAttribute(tree, 'USERDATA' + nid, Pointer(sect));
 	
 	ref := StrToInt(nid);
 	
@@ -611,9 +688,9 @@ begin
 			AddSection(tree, ref, v as TSection);
 		end else
 		begin
-			IupSetStrAttribute(tree, PAnsiChar('ADDLEAF' + IntToStr(ref)), PAnsiChar(v.name));
+			iup.SetStrAttribute(tree, 'ADDLEAF'+IntToStr(ref), v.name + ' : ' + v.vtype);
 			nid := IupGetAttribute(tree, 'LASTADDNODE');
-			IupSetAttribute(tree, PAnsiChar('USERDATA' + nid), Pointer(v));
+			iup.SetAttribute(tree, 'USERDATA' + nid, Pointer(v));
 			
 			UpdateCaption(tree, StrToInt(nid), v);
 		end;
@@ -622,9 +699,19 @@ end;
 
 procedure SetupProperties(tree : Ihandle; data : TSection);
 begin
-	IupSetCallback(tree, 'BUTTON_CB', @tree_props_button_cb);
+	// if tree is native control callback name is BUTTON_CB, else FLAT_BUTTON_CB
+	if IupGetClassType(tree) = 'control' then
+		IupSetCallback(tree, 'BUTTON_CB', @tree_props_button_cb)
+	else
+		IupSetCallback(tree, 'FLAT_BUTTON_CB', @tree_props_button_cb);
+	
 	IupSetAttribute(tree, 'DELNODE', 'ALL');
+	
+	IupSetAttribute(tree, 'AUTOREDRAW', 'NO');
 	AddSection(tree, -1, data);	
+	IupSetAttribute(tree, 'AUTOREDRAW', 'YES');
+	
+	IupRedraw(tree, 1);
 end;
 
 end.

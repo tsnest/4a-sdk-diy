@@ -44,15 +44,15 @@ begin
 	
 	if current_mtlset <> -1 then
 	begin
-		iup.SetAttribute(hit_preset, 'VALUE', mtlsets^[current_mtlset].hit_preset);
-		iup.SetAttribute(voice, 'VALUE', mtlsets^[current_mtlset].voice);
+		iup.SetStrAttribute(hit_preset, 'VALUE', mtlsets^[current_mtlset].hit_preset);
+		iup.SetStrAttribute(voice, 'VALUE', mtlsets^[current_mtlset].voice);
 		
 		for I := 0 to Length(mtlsets^[current_mtlset].materials) - 1 do
-			iup.SetAttribute(list, 'APPENDITEM', mtlsets^[current_mtlset].materials[I].surface);		
+			iup.SetStrAttribute(list, 'APPENDITEM', mtlsets^[current_mtlset].materials[I].surface);		
 	end else
 	begin
-		iup.SetAttribute(hit_preset, 'VALUE', '');
-		iup.SetAttribute(voice, 'VALUE', '');
+		iup.SetStrAttribute(hit_preset, 'VALUE', '');
+		iup.SetStrAttribute(voice, 'VALUE', '');
 	end;
 		
 	_ResetOverride;
@@ -94,7 +94,7 @@ begin
 			mtlsets^[I].materials  := nil;
 			
 			list := IupGetDialogChild(ih, 'LIST_MTLSETS');
-			iup.SetAttribute(list, 'APPENDITEM', str);
+			iup.SetStrAttribute(list, 'APPENDITEM', str);
 			
 			UpdateMaler;
 		end;
@@ -125,8 +125,8 @@ begin
 		override_shader := IupGetDialogChild(ih, 'OVERRIDE_SHADER');
 		override_texture := IupGetDialogChild(ih, 'OVERRIDE_TEXTURE');
 		
-		iup.SetAttribute(override_shader, 'VALUE', mtlsets^[current_mtlset].materials[item-1].new_shader);
-		iup.SetAttribute(override_texture, 'VALUE', mtlsets^[current_mtlset].materials[item-1].new_texture);
+		iup.SetStrAttribute(override_shader, 'VALUE', mtlsets^[current_mtlset].materials[item-1].new_shader);
+		iup.SetStrAttribute(override_texture, 'VALUE', mtlsets^[current_mtlset].materials[item-1].new_texture);
 	end;
 	Result := IUP_DEFAULT;
 end;
@@ -182,7 +182,7 @@ begin
 				pmtlset.materials[I].new_texture := '';
 				pmtlset.materials[I].new_shader  := '';
 				
-				iup.SetAttribute(o_list, 'APPENDITEM', sl[ret]);
+				iup.SetStrAttribute(o_list, 'APPENDITEM', sl[ret]);
 			end;
 		end else
 			IupMessage('Message', 'All surfaces already overriden');
@@ -209,7 +209,7 @@ begin
 		if sel > 0 then
 		begin
 			Delete(pmtlset.materials, sel-1, 1);
-			iup.SetAttribute(o_list, 'REMOVEITEM', IntToStr(sel));
+			iup.SetStrAttribute(o_list, 'REMOVEITEM', IntToStr(sel));
 			
 			_ResetOverride;
 			UpdateMaler;
@@ -274,7 +274,7 @@ begin
 			if ChooseShader(pmtlset.materials[override_id-1].new_shader) then
 			begin
 				override_shader := IupGetDialogChild(ih, 'OVERRIDE_SHADER');
-				iup.SetAttribute(override_shader, 'VALUE', pmtlset.materials[override_id-1].new_shader);
+				iup.SetStrAttribute(override_shader, 'VALUE', pmtlset.materials[override_id-1].new_shader);
 				UpdateMaler;
 				Redisplay;
 			end;
@@ -297,7 +297,7 @@ begin
 			if ChooseTexture(pmtlset.materials[override_id-1].new_texture) then
 			begin
 				override_texture := IupGetDialogChild(ih, 'OVERRIDE_TEXTURE');
-				iup.SetAttribute(override_texture, 'VALUE', pmtlset.materials[override_id-1].new_texture);
+				iup.SetStrAttribute(override_texture, 'VALUE', pmtlset.materials[override_id-1].new_texture);
 				UpdateMaler;
 				Redisplay;
 			end;

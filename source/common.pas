@@ -4,9 +4,16 @@ interface
 uses classes, GL, fouramdl, motion, vmath, texturePrefs, glfont;
 
 type
+	TInstanceData = record
+		matrix   : array[0..1023] of TMatrix;
+		selected : array[0..1023] of Boolean;
+	end;
+
 	IMaler = class
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
+		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); virtual; abstract; 
+		procedure DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); virtual; abstract; 
 	end;
 	
 	ILevelMaler = class
@@ -23,10 +30,12 @@ const
 	FP_BUMPED_DETAIL  = 6;
 
 	FP_SELECTED       = 7;
-	FP_WALLMARK				= 8;
-	FP_SELFLIGHT			= 9;
+	FP_WALLMARK       = 8;
+	FP_SELFLIGHT      = 9;
 	
 	FP_SCREEN_IMAGE   = 10;
+	
+	VP_STATIC_INSTANCED = 11;
 
 var
 	useTextures : Boolean = True;
@@ -38,6 +47,7 @@ var
 	
 	bkg_color : TVec4 = (X: 0.4; Y: 0.7; Z: 0.8; W: 1.0);
 	prog : array[1..16] of GLuint;
+	instance_matrix_buffer : GLuint;
 	
 	camera_pos : TVec3;
 	frustum : array[1..6] of TPlane;
@@ -132,17 +142,24 @@ type
 	TSkinnedModelMaler = class;
 	
 	TStaticModelMaler = class(IMaler)
-		model : T4AModelHierrarhy;
+		//model : T4AModelHierrarhy;
 		materials : TMaterialSet;
 		buffers : array[1..2] of GLuint;
 		
 		mtlsets : array of TMaterialSet;
+		
+		mesh_count : Longint;
+		index_count  : array of GLsizei;
+		index_offset : array of Pointer;
+		base_vertex  : array of GLint;
 
 		constructor Create(m : T4AModelHierrarhy; presets : P4AMAterialSetArray = nil);
 		destructor Destroy; override;
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
+		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
+		procedure DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
 	end;
 
 	TSkeletonModelMaler = class(IMaler)
@@ -159,10 +176,11 @@ type
 		procedure GetTexSubst(var tex : String);
 		
 		procedure ResetTransform;
-		procedure MotionTransform(mot : T4AMotion; t : Single);
+		procedure MotionTransform(mot : I4AMotion; t : Single);
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
+		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
 	end;
 	
 	TSkinnedModelMaler = class(IMaler)
@@ -178,6 +196,7 @@ type
 
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
+		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
 	end;
 	
 	TSoftbodyModelMaler = class(IMaler)
@@ -244,8 +263,8 @@ implementation
 uses sysutils, GLExt, fgl, chunkedFile, Texture, PhysX, cform_utils, Iup, skeleton, Engine;
 
 type
-	TResTextureMap 	= TFPGMap<String,TResTexture>;
-	TResModelMap		= TFPGMap<String,TResModel>;
+	TResTextureMap  = TFPGMap<String,TResTexture>;
+	TResModelMap    = TFPGMap<String,TResModel>;
 
 var
 	textures		: TResTextureMap;
@@ -466,12 +485,12 @@ begin
 				skeleton.LoadKonfig(r);
 			end;
 		except
-		  on E : Exception do
-  		begin
-  			WriteLn('skeleton ', path, ' loading failed: ', E.Message);
-  			FreeAndNil(skeleton);
-  		end;
-  	end;
+			on E : Exception do
+			begin
+				WriteLn('skeleton ', path, ' loading failed: ', E.Message);
+				FreeAndNil(skeleton);
+			end;
+		end;
 		
 		model.skeleton := skeleton;
 	end;	
@@ -1021,17 +1040,23 @@ var
 begin
 	inherited Create;
 
-	model := m;
-
 	vsize := 0;
 	isize := 0;
 	
+	mesh_count := Length(m.meshes);
 	SetLength(mats, Length(m.meshes));
+	SetLength(index_count,  Length(m.meshes));
+	SetLength(index_offset, Length(m.meshes));
+	SetLength(base_vertex,  Length(m.meshes));
+	
 	for I := 0 to Length(m.meshes) - 1 do
 	begin
 		s := m.meshes[I];
 
 		mats[I] := TMaterial.Create(s.texture, s.shader, s.name);
+		index_count[I]  := Length(s.indices);
+		index_offset[I] := Pointer(isize);
+		base_vertex[I]  := (vsize div Sizeof(T4AVertStatic)); 
 
 		Inc(vsize, Length(s.vertices)*Sizeof(T4AVertStatic));
 		Inc(isize, Length(s.indices)*Sizeof(Word));
@@ -1146,13 +1171,8 @@ end;
 procedure TStaticModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended : Boolean; distort : Boolean);
 var
 	I : Integer;
-	s : T4AModelSimple;
-
-	vpos, ipos : PByte;
-	
-	material : TMaterial;
-	
 	ms : TMaterialSet;
+	material : TMaterial;
 begin
 	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
 		ms := materials
@@ -1169,20 +1189,16 @@ begin
 
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+	
+	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(12));
+	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
+	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
+	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
 
-	vpos := nil; // 0
-	ipos := nil; // 0
-
-	for I := 0 to Length(model.meshes) - 1 do
-	begin
-		s := model.meshes[I];		
+	for I := 0 to self.mesh_count - 1 do
+	begin	
 		material := ms[I];
-
-		glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+0);
-		glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), vpos+12);
-		if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), vpos+16);
-		if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), vpos+20);
-		if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), vpos+24);
 
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
@@ -1193,14 +1209,26 @@ begin
 			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
 			0.0, 0.0, 0.0, 1.0);
 	
-			glDrawElements(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos);
+			glDrawElementsBaseVertex(
+				GL_TRIANGLES, 
+				self.index_count[I], 
+				GL_UNSIGNED_SHORT, 
+				self.index_offset[I], 
+				self.base_vertex[I]
+			);
 			
 			if material.double_side then
 			begin
 				glCullFace(GL_FRONT);
 				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
 				0.0, 0.0, 0.0, -1.0);
-				glDrawElements(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos);
+				glDrawElementsBaseVertex(
+					GL_TRIANGLES, 
+					self.index_count[I], 
+					GL_UNSIGNED_SHORT, 
+					self.index_offset[I], 
+					self.base_vertex[I]
+				);
 				glCullFace(GL_BACK);
 			end;
 	
@@ -1209,7 +1237,7 @@ begin
 		end;
 
 		if (blended = material.blended) and (distort = False) then
-		if selected or (flSelected in s.editor_flags) then
+		if selected {or (flSelected in s.editor_flags)} then
 		begin
 			glEnable(GL_FRAGMENT_PROGRAM_ARB);
 			glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
@@ -1218,7 +1246,15 @@ begin
 				glDisable(GL_CULL_FACE);
 
 			RenderWireframe;
-			glDrawElements(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos);
+
+			glDrawElementsBaseVertex(
+				GL_TRIANGLES, 
+				self.index_count[I], 
+				GL_UNSIGNED_SHORT, 
+				self.index_offset[I], 
+				self.base_vertex[I]
+			);
+
 			RenderDefault;
 			
 			if material.double_side then
@@ -1227,12 +1263,252 @@ begin
 			glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
 			glDisable(GL_FRAGMENT_PROGRAM_ARB);
 		end;
-
-		Inc(vpos, Length(s.vertices)*Sizeof(T4AVertStatic));
-		Inc(ipos, Length(s.indices)*Sizeof(Word));
 	end;
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+end;
+
+procedure TStaticModelMaler.DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
+var
+	I, J : Integer;
+	
+	ms : TMaterialSet;
+	material : TMaterial;
+begin
+	if (mtlset < 0) or (mtlset >= Length(self.mtlsets)) then 
+		ms := self.materials
+	else 
+		ms := self.mtlsets[mtlset];
+			
+	if (not blended) and (ms.n_opaque < 1) then
+		Exit;
+	if (blended) and (ms.n_blended < 1) then
+		Exit;
+	if (distort) and (ms.n_distort < 1) then
+		Exit;
+				
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+	
+	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(12));
+	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
+	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
+	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
+
+	for I := 0 to self.mesh_count - 1 do
+	begin
+		material := ms[I];
+		
+		if material.visible and (blended = material.blended) and (distort = material.distort) then
+		begin
+			if useTextures then material.Enable;
+
+			for J := 0 to count - 1 do
+			begin
+				glPushMatrix;
+				glMultMatrixf(@instances.matrix[J]);
+		
+				// 0, 0, 0, normal_scale (for double siding)
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
+				0.0, 0.0, 0.0, 1.0);
+		
+				glDrawElementsBaseVertex(
+					GL_TRIANGLES, 
+					self.index_count[I], 
+					GL_UNSIGNED_SHORT, 
+					self.index_offset[I], 
+					self.base_vertex[I]
+				);
+				
+				if material.double_side then
+				begin
+					glCullFace(GL_FRONT);
+					glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
+					0.0, 0.0, 0.0, -1.0);
+
+					glDrawElementsBaseVertex(
+						GL_TRIANGLES, 
+						self.index_count[I], 
+						GL_UNSIGNED_SHORT, 
+						self.index_offset[I], 
+						self.base_vertex[I]
+					);
+				
+					glCullFace(GL_BACK);
+				end;
+			
+				glPopMatrix;
+			end; // for J := 0 to count - 1
+
+			if useTextures then material.Disable;
+		end;
+		
+		// Draw selection
+		glEnable(GL_FRAGMENT_PROGRAM_ARB);
+		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
+		
+		RenderWireframe;
+		
+		for J := 0 to count - 1 do
+		begin
+			if (blended = material.blended) and (distort = False) then
+			if instances.selected[J] {or (flSelected in s.editor_flags)} then
+			begin
+				glPushMatrix;
+				glMultMatrixf(@instances.matrix[J]);
+				
+				if material.double_side then
+					glDisable(GL_CULL_FACE);
+
+				glDrawElementsBaseVertex(
+					GL_TRIANGLES, 
+					self.index_count[I], 
+					GL_UNSIGNED_SHORT, 
+					self.index_offset[I], 
+					self.base_vertex[I]
+				);
+				
+				if material.double_side then
+					glEnable(GL_CULL_FACE);
+			
+				glPopMatrix;
+			end;
+		end;
+		
+		RenderDefault;
+		
+		glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
+		glDisable(GL_FRAGMENT_PROGRAM_ARB);
+	end;
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+end;
+
+procedure TStaticModelMaler.DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
+var
+	I : Integer;
+	
+	ms : TMaterialSet;
+	material : TMaterial;
+begin
+	if (mtlset < 0) or (mtlset >= Length(self.mtlsets)) then 
+		ms := self.materials
+	else 
+		ms := self.mtlsets[mtlset];
+			
+	if (not blended) and (ms.n_opaque < 1) then
+		Exit;
+	if (blended) and (ms.n_blended < 1) then
+		Exit;
+	if (distort) and (ms.n_distort < 1) then
+		Exit;
+	
+	// bind model vertex attributes	
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(12));
+	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
+	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
+	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	// bind instance matrix attributes
+	glBindBuffer(GL_ARRAY_BUFFER, instance_matrix_buffer);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, count*Sizeof(TMatrix), @instances.Matrix);
+	
+	glVertexAttribPointerARB(5, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(0));
+	glVertexAttribPointerARB(6, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(16));
+	glVertexAttribPointerARB(7, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(32));
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	// bind index buffer
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+
+	for I := 0 to self.mesh_count - 1 do
+	begin
+		material := ms[I];
+		
+		if material.visible and (blended = material.blended) and (distort = material.distort) then
+		begin
+			if useTextures then material.Enable;
+
+			// 0, 0, 0, normal_scale (for double siding)
+			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
+			0.0, 0.0, 0.0, 1.0);
+	
+			glDrawElementsInstancedBaseVertex(
+				GL_TRIANGLES, 
+				self.index_count[I], 
+				GL_UNSIGNED_SHORT, 
+				self.index_offset[I], 
+				count, 
+				self.base_vertex[I]
+			);
+			
+			if material.double_side then
+			begin
+				glCullFace(GL_FRONT);
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
+				0.0, 0.0, 0.0, -1.0);
+
+				glDrawElementsInstancedBaseVertex(
+					GL_TRIANGLES, 
+					self.index_count[I], 
+					GL_UNSIGNED_SHORT, 
+					self.index_offset[I], 
+					count, 
+					self.base_vertex[I]
+				);
+
+				glCullFace(GL_BACK);
+			end;
+
+			if useTextures then material.Disable;
+		end;
+	end;
+	
+	// draw selection
+	{
+	glEnable(GL_FRAGMENT_PROGRAM_ARB);
+	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
+	
+	glDisable(GL_CULL_FACE);
+	
+	RenderWireframe;
+	
+	for I := 0 to count - 1 do
+	begin
+		if instances.Selected[I] then
+		begin
+			// bind instance matrix attributes
+			glVertexAttribPointerARB(5, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][1,1]);
+			glVertexAttribPointerARB(6, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][2,1]);
+			glVertexAttribPointerARB(7, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][3,1]);
+			
+			glMultiDrawElementsBaseVertex(
+				GL_TRIANGLES,
+				@self.index_count[0],
+				GL_UNSIGNED_SHORT,
+				@self.index_offset[0],
+				self.mesh_count,
+				@self.base_vertex[0]
+			);
+		end;
+	end;
+	
+	RenderDefault;
+	
+	glEnable(GL_CULL_FACE);
+
+	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
+	glDisable(GL_FRAGMENT_PROGRAM_ARB);
+	}
+	
+	// unbind index buffer
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 end;
 
@@ -1294,7 +1570,7 @@ begin
 		Identity(bone_xform[I]);
 end;
 
-procedure TSkeletonModelMaler.MotionTransform(mot : T4AMotion; t : Single);
+procedure TSkeletonModelMaler.MotionTransform(mot : I4AMotion; t : Single);
 var
 	I : Integer;
 	skl : T4ASkeleton;
@@ -1356,6 +1632,16 @@ begin
 	for I := 0 to Length(child) - 1 do
 	begin
 		child[I].Draw2(mtlset, selected, blended, distort);
+	end;
+end;
+
+procedure TSkeletonModelMaler.DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
+var
+	I : Integer;
+begin
+	for I := 0 to Length(child) - 1 do
+	begin
+		child[I].DrawInstanced2(mtlset, count, instances, blended, distort);
 	end;
 end;
 
@@ -1507,13 +1793,17 @@ procedure TSkinnedModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended
 var
 	I, J, K : Longint;
 	s : T4AModelSkinnedMesh;
-	vpos, ipos : PByte;
-	material : TMaterial;
+	base_vert : GLint; 
+	ipos : PByte;
 	scale : Single;
+	
 	ms : TMaterialSet;
+	material : TMaterial;
 begin
-	if mtlset = -1 then ms := materials
-	else ms := mtlsets[mtlset];
+	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
+		ms := materials
+	else
+		ms := mtlsets[mtlset];
 	
 	if (not blended) and (ms.n_opaque < 1) then
 		Exit;
@@ -1522,11 +1812,18 @@ begin
 	if (distort) and (ms.n_distort < 1) then
 		Exit;
 		
-
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+	
+	glVertexAttribPointerARB(0, 3, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(8));
+	glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_FALSE, Sizeof(T4AVertSkin), Pointer(20));
+	glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(24));
+	if useBump then glVertexAttribPointerARB(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(12));
+	if useBump then glVertexAttribPointerARB(5, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(16));
+	if useTextures then glVertexAttribPointerARB(6, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), Pointer(28));
 
-	vpos := nil; // 0
+	base_vert := 0;
 	ipos := nil; // 0
 
 	if model.version < MODEL_VER_ARKTIKA1 then
@@ -1565,24 +1862,13 @@ begin
 				//glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 4 + J*4, 0.0, 0.0, 0.0, 1.0);
 			end;
 
-		glVertexAttribPointerARB(0, 3, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), vpos+0);
-		glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+8);
-		glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_FALSE, Sizeof(T4AVertSkin), vpos+20);
-		glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+24);
-		
-		if useBump then 
-			glVertexAttribPointerARB(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+12);
-		if useBump then 
-			glVertexAttribPointerARB(5, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), vpos+16);
-		if useTextures then 
-			glVertexAttribPointerARB(6, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), vpos+28);
 
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
 			if useTextures then
 				material.Enable;
-				
-			glDrawElements(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos);
+			
+			glDrawElementsBaseVertex(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos, base_vert);
 	
 			if useTextures then
 				material.Disable;
@@ -1595,14 +1881,149 @@ begin
 			glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
 
 			RenderWireframe;
-			glDrawElements(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, Pointer(ipos));
+
+			glDrawElementsBaseVertex(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos, base_vert);
+		
 			RenderDefault;
 
 			glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
 			glDisable(GL_FRAGMENT_PROGRAM_ARB);
 		end;
 
-		Inc(vpos, Length(s.vertices)*Sizeof(T4AVertSkin));
+		Inc(base_vert, Length(s.vertices));
+		Inc(ipos, Length(s.indices)*Sizeof(Word));
+	end;
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+end;
+
+procedure TSkinnedModelMaler.DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
+var
+	I : Longint; // - submesh id
+	M : Longint; // - instance id
+	s : T4AModelSkinnedMesh;
+	base_vert : GLint; 
+	ipos : PByte;
+	scale : Single;
+	
+	ms : TMaterialSet;
+	material : TMaterial;
+	
+	procedure SetupBonesTransform;
+	var
+		J, K : Longint;
+	begin
+		//if instances[M].bone_xform <> nil then
+		//	for J := 0 to Length(s.bone_ids) - 1 do
+		//	begin
+		//		K := s.bone_ids[J];
+		//		glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 1 + J*3, @instances[M].bone_xform[K][1,1]);
+		//		glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 2 + J*3, @instances[M].bone_xform[K][2,1]);
+		//		glProgramLocalParameter4fvARB(GL_VERTEX_PROGRAM_ARB, 3 + J*3, @instances[M].bone_xform[K][3,1]);
+		//	end
+		//else
+			for J := 0 to Length(s.bone_ids) - 1 do
+			begin
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 1 + J*3, 1.0, 0.0, 0.0, 0.0);
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 2 + J*3, 0.0, 1.0, 0.0, 0.0);
+				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 3 + J*3, 0.0, 0.0, 1.0, 0.0);
+			end;
+	end;
+	
+begin
+	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
+		ms := materials
+	else
+		ms := mtlsets[mtlset];
+	
+	if (not blended) and (ms.n_opaque < 1) then
+		Exit;
+	if (blended) and (ms.n_blended < 1) then
+		Exit;
+	if (distort) and (ms.n_distort < 1) then
+		Exit;
+		
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+	
+	glVertexAttribPointerARB(0, 3, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(8));
+	glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_FALSE, Sizeof(T4AVertSkin), Pointer(20));
+	glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(24));
+	if useBump then glVertexAttribPointerARB(4, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(12));
+	if useBump then glVertexAttribPointerARB(5, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertSkin), Pointer(16));
+	if useTextures then glVertexAttribPointerARB(6, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertSkin), Pointer(28));
+
+	base_vert := 0;
+	ipos := nil; // 0
+
+	if model.version < MODEL_VER_ARKTIKA1 then
+	begin
+		scale := 1/2720;
+		glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, scale, scale, scale, 1.0);
+	end;
+
+	for I := 0 to Length(model.meshes) - 1 do
+	begin
+		s := model.meshes[I];
+		material := ms[I];
+		
+		SetupBonesTransform;
+				
+		if model.version >= MODEL_VER_ARKTIKA1 then
+		begin
+			scale := (1/32767) * s.scale;
+			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, scale, scale, scale, 1.0); 
+		end;
+
+		if material.visible and (blended = material.blended) and (distort = material.distort) then
+		begin	
+			if useTextures then material.Enable;
+			
+			for M := 0 to count - 1 do
+			begin
+				//SetupBonesTransform;
+			
+				glPushMatrix;
+				glMultMatrixf(@instances.matrix[M]);
+				
+				glDrawElementsBaseVertex(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos, base_vert);
+			
+				glPopMatrix;
+			end;
+	
+			if useTextures then material.Disable;
+		end;
+		
+		// Draw selection
+		for M := 0 to count - 1 do
+		begin
+			if (blended = material.blended) and (distort = False) then
+			if instances.selected[M] or (flSelected in s.editor_flags) then
+			begin
+				//SetupBonesTransform;
+			
+				glPushMatrix;
+				glMultMatrixf(@instances.matrix[M]);
+			
+				glEnable(GL_FRAGMENT_PROGRAM_ARB);
+				glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
+				
+				RenderWireframe;
+
+				glDrawElementsBaseVertex(GL_TRIANGLES, Length(s.indices), GL_UNSIGNED_SHORT, ipos, base_vert);
+		
+				RenderDefault;
+				
+				glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
+				glDisable(GL_FRAGMENT_PROGRAM_ARB);
+			
+				glPopMatrix;
+			end;
+		end;
+
+		Inc(base_vert, Length(s.vertices));
 		Inc(ipos, Length(s.indices)*Sizeof(Word));
 	end;
 
@@ -1753,6 +2174,14 @@ begin
 	if useBump then glEnableVertexAttribArrayARB(2);
 	if useBump then glEnableVertexAttribArrayARB(3);
 	if useTextures then glEnableVertexAttribArrayARB(4);
+	
+	{$IFDEF _BASEVERTEX}
+	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertLevel), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertLevel), Pointer(12));
+	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertLevel), Pointer(16));
+	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertLevel), Pointer(20));
+	if useTextures then glVertexAttribPointerARB(4, 2, GL_SHORT, GL_FALSE, Sizeof(T4AVertLevel), Pointer(24));
+	{$ENDIF}
 
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_LEVEL]);
@@ -1824,6 +2253,7 @@ begin
 	if useTextures then
 		materials[m.shaderid].Enable;
 
+	{$IFNDEF _BASEVERTEX}
 	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertLevel), Pointer(m.vertexoffset*Sizeof(T4AVertLevel)));
 	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertLevel), Pointer(m.vertexoffset*Sizeof(T4AVertLevel)+12));
 	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertLevel), Pointer(m.vertexoffset*Sizeof(T4AVertLevel)+16));
@@ -1832,6 +2262,9 @@ begin
 
 	glDrawElements(GL_TRIANGLES, m.indexcount, GL_UNSIGNED_SHORT,
 	Pointer(m.indexoffset*Sizeof(Word)));
+	{$ELSE}
+	glDrawRangeElementsBaseVertex(GL_TRIANGLES, 0, m.indexcount div 3, m.indexcount, GL_UNSIGNED_SHORT, Pointer(m.indexoffset*Sizeof(Word)), m.vertexoffset);
+	{$ENDIF}
 
 	if useTextures then
 		materials[m.shaderid].Disable;
@@ -1966,16 +2399,18 @@ begin
 		program_options := program_options + 'WEATHER ';
 
 	try
-		LoadVP(prog[VP_STATIC],						'editor_data\shaders\vp_static.txt');
-		LoadVP(prog[VP_DYNAMIC],					'editor_data\shaders\vp_dynamic.txt');
-		LoadFP(prog[FP_SELECTED], 				'editor_data\shaders\fp_selected.txt');
-		LoadFP(prog[FP_BUMPED],						'editor_data\shaders\fp_bumped.txt');
-		LoadVP(prog[VP_LEVEL],						'editor_data\shaders\vp_level.txt');
-		LoadFP(prog[FP_DETAIL],						'editor_data\shaders\fp_detail.txt');
-		LoadFP(prog[FP_BUMPED_DETAIL], 		'editor_data\shaders\fp_bumped_detail.txt');
-		LoadFP(prog[FP_WALLMARK],					'editor_data\shaders\fp_wallmark.txt');
-		LoadFP(prog[FP_SELFLIGHT],				'editor_data\shaders\fp_selflight.txt');
-		LoadFP(prog[FP_SCREEN_IMAGE], 		'editor_data\shaders\fp_screen_image.txt');
+		LoadVP(prog[VP_STATIC],        'editor_data\shaders\vp_static.txt');
+		LoadVP(prog[VP_DYNAMIC],       'editor_data\shaders\vp_dynamic.txt');
+		LoadFP(prog[FP_SELECTED],      'editor_data\shaders\fp_selected.txt');
+		LoadFP(prog[FP_BUMPED],        'editor_data\shaders\fp_bumped.txt');
+		LoadVP(prog[VP_LEVEL],         'editor_data\shaders\vp_level.txt');
+		LoadFP(prog[FP_DETAIL],        'editor_data\shaders\fp_detail.txt');
+		LoadFP(prog[FP_BUMPED_DETAIL], 'editor_data\shaders\fp_bumped_detail.txt');
+		LoadFP(prog[FP_WALLMARK],      'editor_data\shaders\fp_wallmark.txt');
+		LoadFP(prog[FP_SELFLIGHT],     'editor_data\shaders\fp_selflight.txt');
+		LoadFP(prog[FP_SCREEN_IMAGE],  'editor_data\shaders\fp_screen_image.txt');
+		
+		LoadVP(prog[VP_STATIC_INSTANCED], 'editor_data\shaders\vp_static_instanced.txt');
 	except
 		on E: EFOpenError do
 			IupMessage('Error', PAnsiChar(E.Message));
@@ -2027,6 +2462,11 @@ begin
 	glGenProgramsARB(16, @prog);
 	ReloadGLPrograms;
 	
+	glGenBuffers(1, @instance_matrix_buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, instance_matrix_buffer);
+	glBufferData(GL_ARRAY_BUFFER, 1024*Sizeof(TMatrix), nil, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
 	flags := glGenLists(2);
 	
 	glNewList(flags+0, GL_COMPILE);
@@ -2064,16 +2504,15 @@ end;
 procedure DrawFlag(clr : TFlagColor);
 begin
 	case clr of
-		fclWhite:		glCallList(flags+0);
-		fclYellow:	glCallList(flags+1);
+		fclWhite:  glCallList(flags+0);
+		fclYellow: glCallList(flags+1);
 	end;
 end;
 
 initialization
-
 	textures		:= TResTextureMap.Create;
 	models			:= TResModelMap.Create;
 
 	textures.Sorted := True;
-	models.Sorted := True;
+	models.Sorted   := True;
 end.

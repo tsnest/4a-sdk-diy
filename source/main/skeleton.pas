@@ -187,6 +187,7 @@ var
 	quat : TVec4; // TQuaterion
 	
 	skeleton : TKonfigReader;
+	_array : TKonfigReader;
 	bones_arr : TKonfigReader;
 	locators_arr : TKonfigReader;
 	aux_bones_arr : TKonfigReader;
@@ -207,12 +208,32 @@ begin
 		try
 			version := skeleton.ReadU32('ver');
 			crc := skeleton.ReadU32('crc');
-			skeleton.ReadString('facefx');
+			if version >= 20 then skeleton.ReadString('pfnn')
+			else skeleton.ReadString('facefx');
 			anim_path := skeleton.ReadString('motions');
-			if version >= 13 then
-				source_info := skeleton.ReadString('source_info');
+			if version >= 13 then source_info := skeleton.ReadString('source_info');
 			
 			count := 0; // suppress compiler warning
+			
+			if version >= 20 then
+			begin
+				skeleton.ReadString('parent_skeleton');
+				
+				_array := skeleton.ReadArray('parent_bone_maps', @count);
+				try
+					for I := 0 to count - 1 do
+					begin
+						rec := _array.ReadSection(RecStr('rec_', I, 4), False);
+						try
+							// TODO
+						finally
+							rec.Free;
+						end;
+					end;
+				finally
+					_array.Free;
+				end;
+			end;
 			
 			bones_arr := skeleton.ReadArray('bones', @count);
 			try
@@ -227,7 +248,13 @@ begin
 						Quaterion2Angles(bones[I].orientation, quat);
 						bones[I].q := quat;
 						bones[I].position := rec.ReadVec3('t');
-						bones[I].bone_part := rec.ReadU16('bp');
+						
+						if version >= 20 then
+						begin
+							rec.ReadU8('bp');
+							rec.ReadU8('bpf');
+						end else
+							bones[I].bone_part := rec.ReadU16('bp');
 					finally
 						rec.Free;
 					end;

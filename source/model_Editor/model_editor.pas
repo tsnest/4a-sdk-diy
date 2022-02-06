@@ -33,15 +33,22 @@ var
 // Animation stuff                                                           //
 ///////////////////////////////////////////////////////////////////////////////
 var
-	motion : T4AMotion;
+	motion : I4AMotion;
 	motion_time : Single;
 	motion_name : String;
 	motion_timer : Ihandle;
 	
 procedure LoadMotion(const fn : String);
+var
+	ext : String;
 begin
 	try
-		motion := T4AMotion.CreateAndLoad(fn);
+		ext := LowerCase(ExtractFileExt(fn));
+		
+		if (ext = '.m2') or (ext = '.m3') then 
+			motion := T4AMotionLL.CreateAndLoad(fn)
+		else if (ext = '.motion') then
+			motion := T4AMotion.CreateAndLoad(fn);
 		
 		motion_name := ChangeFileExt(ExtractFileName(fn), '');
 		IupSetAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', PAnsiChar(motion_name));
@@ -65,7 +72,7 @@ var
 begin
 	if Assigned(motion) then
 	begin	
-		motion_time := motion_time + 1 / motion.frame_count;
+		motion_time := motion_time + (1.0 / 30.0 / motion.LengthSec);
 		
 		if motion_time > 1.0 then
 			motion_time := 0.0;
@@ -96,6 +103,14 @@ begin
 			
 			for I := 0 to sl.Count - 1 do
 			begin
+				fn := ResourcesPath + '\motions\' + sl[I] + '\' + motion_name + '.m2';
+				if FileExists(fn) then
+				begin
+					UnloadMotion;
+					LoadMotion(fn);
+					Break;
+				end;
+				
 				fn := ResourcesPath + '\motions\' + sl[I] + '\' + motion_name + '.motion';
 				if FileExists(fn) then
 				begin
@@ -639,8 +654,8 @@ end;
 // OpenGL canvas callbacks                                                   //
 ///////////////////////////////////////////////////////////////////////////////
 function gl_map_cb(ih : Ihandle) : Longint; cdecl;
-var
-	mdl : T4AModel;
+//var
+//	mdl : T4AModel;
 begin
 	IupGLMakeCurrent(ih);
 
@@ -684,9 +699,6 @@ var
 	h : Single;
 	
 	m : TMatrix;
-	
-	ms : T4AModelSkeleton;
-	I, J : Longint;
 begin
 	IupGLMakeCurrent(ih);
 	

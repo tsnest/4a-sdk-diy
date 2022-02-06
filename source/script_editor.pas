@@ -3,7 +3,7 @@ unit script_editor;
 interface
 uses Konfig;
 
-procedure EditScript(s : TSection);
+function EditScript(s : TSection) : Boolean;
 
 implementation
 uses classes, sysutils, Iup, GL, GLU, vmath, properties, 
@@ -12,7 +12,8 @@ uses classes, sysutils, Iup, GL, GLU, vmath, properties,
 	glfont,
 	skeleton, uChoose, // for properties
 	Math, // for Max
-	script_block_descs;
+	script_block_descs,
+	uLEOptions;
 
 // utility functions
 
@@ -350,8 +351,10 @@ begin
 				s := sect.GetParam(prop.name, 'stringz') as TStringValue;
 		
 				if ChooseBone(skeleton, s.str) then
-					Result := 2
-				else
+				begin
+					properties.UpdateCaption(tree, s);
+					Result := 2;
+				end else
 					Result := 0;
 			end;
 	
@@ -360,8 +363,10 @@ begin
 				s := sect.GetParam(prop.name, 'stringz') as TStringValue;
 				
 				if ChooseLocator(skeleton, s.str) then
-					Result := 2
-				else
+				begin
+					properties.UpdateCaption(tree, s);
+					Result := 2;
+				end else
 					Result := 0;
 			end;
 	
@@ -370,8 +375,10 @@ begin
 				s := sect.GetParam(prop.name, 'stringz') as TStringValue;
 
 				if ChooseBonePart(skeleton, s.str) then
-					Result := 2
-				else
+				begin
+					properties.UpdateCaption(tree, s);
+					Result := 2;
+				end else
 					Result := 0;
 			end;
 	
@@ -380,8 +387,10 @@ begin
 				s := sect.GetParam(prop.name, 'stringz') as TStringValue;
 
 				if ChooseAnimation(skeleton, s.str) then
-					Result := 2
-				else
+				begin
+					properties.UpdateCaption(tree, s);
+					Result := 2;
+				end else
 					Result := 0;
 			end;
 		end;
@@ -441,7 +450,13 @@ begin
 	fr_create := IupFrame(IupVBox(tree_descs, nil));
 	IupSetAttribute(fr_create, 'TITLE', 'Create');
 	
-	tree_props := IupTree;
+	if uLEOptions.props_two_column then
+	begin
+		tree_props := IupFlatTree;
+		IupSetAttribute(tree_props, 'EXTRATEXTWIDTH', '200');
+	end else
+		tree_props := IupTree;
+		
 	IupSetAttribute(tree_props, 'NAME', 'TREE_PROPS');
 	IupSetAttribute(tree_props, 'RASTERSIZE', '200x');
 	IupSetCallback(tree_props, 'PROPS_EDIT_CB', @property_edit_cb);
@@ -1215,7 +1230,7 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-procedure EditScript(s : TSection);
+function EditScript(s : TSection) : Boolean;
 var
 	editor : TScriptEditor;
 	rec_0000 : TSimpleValue;
@@ -1271,7 +1286,10 @@ begin
 				(count as TIntegerValue).num := 1;
 			end;
 		end;
-	end;
+		
+		EditScript := True;
+	end else
+		EditScript := False;
 	
 	editor.Free;
 end;

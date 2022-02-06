@@ -513,7 +513,7 @@ begin
 	dirs.CommaText := skeleton.anim_path;
 	for I := 0 to dirs.Count - 1 do
 	begin
-		mask := ResourcesPath + '\motions\' + dirs[I] + '\*.m3';
+		mask := ResourcesPath + '\motions\' + dirs[I] + '\*.m2';
 		if FindFirst(mask, faAnyFile xor faDirectory, sr) = 0 then
 		begin
 			repeat

@@ -1,6 +1,6 @@
 program binunp;
 uses classes, sysutils, Konfig, texturePrefs, levelbin,
-		 framework, Konfig_reader, Windows;
+		 framework, Konfig_reader, Timer;
 
 function EndsWith(const s1 : String; const s2 : String) : Boolean;
 var
@@ -19,24 +19,17 @@ end;
 procedure CompileLevel(infn, outfn : String; kind : Integer);
 var
 	tk : TTextKonfig;
-	
-	qpf : QWord;
-	qpc1 : QWord;
-	qpc2 : QWord;
-	time_s: Double;
+	tmr : TTimer;
 begin
 	tk := TTextKonfig.Create;
+	
+	tmr.Start;
 	tk.LoadFromFile(infn);
+	WriteLn('Parsed ''', infn, ''' in ', tmr.CurrentTime:10:10, 's');
 
-	QueryPerformanceFrequency(@qpf);
-	QueryPerformanceCounter(@qpc1);
-
+	tmr.Start;
 	SaveLevelBin(outfn, tk, kind);
-	
-	QueryPerformanceCounter(@qpc2);
-	
-	time_s := (qpc2 - qpc1) / qpf;
-	WriteLn('Saving time: ', time_s:10:10, 's');
+	WriteLn('Saving time: ', tmr.CurrentTime:10:10, 's');
 
 	tk.Free;
 end;
@@ -44,27 +37,23 @@ end;
 procedure DecompileLevel(inf, outf : String);
 var
 	TK : TTextKonfig;
-	
-	qpf : QWord;
-	qpc1 : QWord;
-	qpc2 : QWord;
-	time_s: Double;
+	tmr : TTimer;
 begin
+	tmr.Start;
 	TK := LoadLevelBin(inf);
+	WriteLn('Loaded ''', inf, ''' in ', tmr.CurrentTime:10:10, 's');
+	
+	ReadLn;
+	
 	if TK <> nil then
 	begin
 		Writeln('Saving to ', outf);
-		
-		QueryPerformanceFrequency(@qpf);
-		QueryPerformanceCounter(@qpc1);
-		
+	
+		tmr.Start;		
 		TK.SaveToFile(outf);
+		WriteLn('Saving time: ', tmr.CurrentTime:10:10, 's');
+		
 		TK.Free;
-		
-		QueryPerformanceCounter(@qpc2);
-		
-		time_s := (qpc2 - qpc1) / qpf;
-		WriteLn('Saving time: ', time_s:10:10, 's');
 	end else
 		Writeln('This is not level.bin file!');
 end;

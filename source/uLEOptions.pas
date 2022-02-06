@@ -18,6 +18,11 @@ var
 	camera_rotate_sens    : Single = 1.0;
 	camera_fly_speed      : Single = 1.0;
 	camera_fly_speed_fast : Single = 5.0;
+	
+	props_exclude_vss_ver_6 : Boolean = False;
+	props_two_column        : Boolean = False;
+	cull_distance           : Boolean = True;
+	instancing              : Boolean = True;
 
 implementation
 uses common, Inifiles, uLevelUndo;
@@ -48,6 +53,11 @@ bkg_color.w           := F.ReadFloat('clear_color', 'a', bkg_color.w);
 undo_limit            := F.ReadInteger('history', 'undo_limit', 64);
 SetUndoLimit          (undo_limit);
 
+props_exclude_vss_ver_6 := F.ReadBool('properties', 'exclude_vss_ver_6', False);
+props_two_column        := F.ReadBool('properties', 'two_column', False);
+
+cull_distance           := F.ReadBool('rendering', 'cull_distance', True);
+
 F.Free;
 
 if not (m_move_axis in [maObject,maWorld]) then
@@ -73,6 +83,8 @@ F.WriteFloat('clear_color', 'r', bkg_color.x);
 F.WriteFloat('clear_color', 'g', bkg_color.y);
 F.WriteFloat('clear_color', 'b', bkg_color.z);
 F.WriteFloat('clear_color', 'a', bkg_color.w);
+
+F.WriteBool('rendering', 'cull_distance', cull_distance);
 
 F.Free;
 

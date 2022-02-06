@@ -1,7 +1,10 @@
 unit Konfig;
 
 interface
-uses classes, sysutils, chunkedFile, vmath;
+uses classes, sysutils, chunkedFile, vmath, fgl;
+
+type
+	TItemList = TFPList;
 
 type
 	EParamNotFound = class(Exception)
@@ -11,16 +14,27 @@ type
 	end;
 
 	TSimpleValue = class
-		name, vtype : String;
+		//name, vtype : String;
+		nametype : Longint;
 		constructor Create(const nm, tp : String); overload;
+		constructor CreateCopy(nametype : Longint);
 
 		function Copy : TSimpleValue; virtual;
+		
+		function ReadName : String;
+		procedure WriteName(const n : String);
+		function ReadVType : String;
+		procedure WriteVType(const t : String);
+		
+		property Name : String read ReadName write WriteName;
+		property VType : String read ReadVType write WriteVType;
 	end;
 	TSection = class(TSimpleValue)
-		items: TList;
+		items: TItemList;
 		constructor Create; overload;
 		constructor Create(const nm : String); overload;
 		constructor Create(const nm, tp : String); overload;
+		constructor CreateCopy(nametype : Longint);
 		destructor Destroy; override;
 
 		function Copy : TSimpleValue; override;
@@ -62,16 +76,19 @@ type
 	TIntegerValue = class(TSimpleValue)
 		num : Int64;
 		constructor Create(const nm, tp : String; i : Int64); overload;
+		constructor CreateCopy(nametype : Longint; i : Int64);
 		function Copy : TSimpleValue; override;
 	end;
 	TSingleValue = class(TSimpleValue)
 		num : Single;
 		constructor Create(const nm, tp : String; f : Single); overload;
+		constructor CreateCopy(nametype : Longint; f : Single);
 		function Copy : TSimpleValue; override;
 	end;
 	TStringValue = class(TSimpleValue)
 		str : String;
 		constructor Create(const nm, val : String); overload;
+		constructor CreateCopy(nametype : Longint; val : String);
 		function Copy : TSimpleValue; override;
 	end;
 	TByteArrayValue = class(TSimpleValue)
@@ -105,6 +122,7 @@ type
 		bool : Boolean;
 		function Copy : TSimpleValue; override;
 		constructor Create(const nm, tp : String; val : Boolean);
+		constructor CreateCopy(nametype : Longint; val : Boolean);
 	end;
 
 	TTextKonfig = class
@@ -136,8 +154,11 @@ type
 		kind : Byte; // flags (see above)
 		data : array of Byte;
 		dictionary : array of String;
+		dictionary_map : TFPGMap<String,Longint>;
 
 	public
+		destructor Destroy; override;
+	
 		function Load(stream : TStream) : Boolean; overload;
 		procedure Save(stream : TStream); overload;
 
@@ -152,13 +173,17 @@ type
 	private
 		function AddWord(const w : String) : Longint;
 		procedure CompileSection(sect : TSection; w : TMemoryWriter; ll : Boolean);
-		procedure CompileConfig(items : TList; w : TMemoryWriter; ll : Boolean);
+		procedure CompileConfig(items : TItemList; w : TMemoryWriter; ll : Boolean);
 		function DecompileSection(r : TMemoryReader; ll : Boolean) : TSection;
-		procedure DecompileConfig(items : TList; kind : Byte; r : TMemoryReader; ll : Boolean);
+		procedure DecompileConfig(items : TItemList; kind : Byte; r : TMemoryReader; ll : Boolean);
 	end;
 
 implementation
-uses uCrc, windows;
+uses uCrc, uHashTable;
+
+var
+	common_types_table : XHashTable;
+	common_names_table : XHashTable;
 
 function _IsHint(const vtype : String) : Boolean;
 begin
@@ -183,6 +208,7 @@ begin
 	(vtype = 'part_str') or
 	(vtype = 'attp_str') or
 	(vtype = 'animation_str') or
+	(vtype = 'param_str') or
 	(vtype = 'ref_coloranim') or
 	(vtype = 'ref_model') or
 	(vtype = 'sound') or
@@ -192,7 +218,8 @@ begin
 	(vtype = 'flags8') or
 	(vtype = 'flags16') or
 	(vtype = 'flags32') or
-	(vtype = 'flags64') 
+	(vtype = 'flags64') or
+	(vtype = 'tex_frame, u16*, u32')
 end;
 
 type
@@ -344,27 +371,70 @@ begin
 	vtype := tp;
 end;
 
+constructor TSimpleValue.CreateCopy(nametype : Longint);
+begin
+	self.nametype := nametype;
+end;
+
 function TSimpleValue.Copy : TSimpleValue;
 begin
-	Result := TSimpleValue.Create(name, vtype);
+	Result := TSimpleValue.CreateCopy(nametype);
+end;
+
+function TSimpleValue.ReadName : String;
+var
+	index : Integer;
+begin
+	index := (nametype and $00FFFFFF);
+	ReadName := common_names_table.Get(index);
+end;
+
+procedure TSimpleValue.WriteName(const n : String);
+var
+	idx : Integer;
+begin
+	idx := common_names_table.Add(n);
+	nametype := (nametype and $FF000000) or idx;
+end;
+
+function TSimpleValue.ReadVType : String;
+var
+	index : Integer;
+begin
+	index := (nametype and $FF000000) shr 24;
+	ReadVType := common_types_table.Get(index);
+end;
+
+procedure TSimpleValue.WriteVType(const t : String);
+var
+	idx : Integer;
+begin
+	idx := common_types_table.Add(t);
+	nametype := (nametype and $00FFFFFF) or (idx shl 24);
 end;
 
 constructor TSection.Create;
 begin
 	inherited Create('unnamed_section', 'section');
-	items := TList.Create;
+	items := TItemList.Create;
 end;
 
 constructor TSection.Create(const nm: String);
 begin
 	inherited Create(nm, 'section');
-	items := TList.Create;
+	items := TItemList.Create;
 end;
 
 constructor TSection.Create(const nm, tp: String);
 begin
 	inherited Create(nm, tp);
-	items := TList.Create;
+	items := TItemList.Create;
+end;
+
+constructor TSection.CreateCopy(nametype : Longint);
+begin
+	inherited CreateCopy(nametype);
+	items := TItemList.Create;
 end;
 
 destructor TSection.Destroy;
@@ -379,7 +449,7 @@ var
 	sect : TSection;
 	I : Integer;
 begin
-	sect := TSection.Create(name);
+	sect := TSection.CreateCopy(nametype);
 	sect.items.Count := items.Count;
 
 	for I := 0 to items.Count - 1 do
@@ -723,9 +793,15 @@ begin
 	num := i;
 end;
 
+constructor TIntegerValue.CreateCopy(nametype : Longint; i: Int64);
+begin
+	inherited CreateCopy(nametype);
+	num := i;
+end;
+
 function TIntegerValue.Copy : TSimpleValue;
 begin
-	Result := TIntegerValue.Create(name, vtype, num);
+	Result := TIntegerValue.CreateCopy(nametype, num);
 end;
 
 constructor TSingleValue.Create(const nm, tp: String; f: Single);
@@ -734,9 +810,15 @@ begin
 	num := f;
 end;
 
+constructor TSingleValue.CreateCopy(nametype : Longint; f: Single);
+begin
+	inherited CreateCopy(nametype);
+	num := f;
+end;
+
 function TSingleValue.Copy : TSimpleValue;
 begin
-	Result := TSingleValue.Create(name, vtype, num);
+	Result := TSingleValue.CreateCopy(nametype, num);
 end;
 
 constructor TStringValue.Create(const nm, val: String);
@@ -745,16 +827,22 @@ begin
 	str := val;
 end;
 
+constructor TStringValue.CreateCopy(nametype : Longint; val: String);
+begin
+	inherited CreateCopy(nametype);
+	str := val;
+end;
+
 function TStringValue.Copy : TSimpleValue;
 begin
-	Result := TStringValue.Create(name, str);
+	Result := TStringValue.CreateCopy(nametype, str);
 end;
 
 function TByteArrayValue.Copy : TSimpleValue;
 var
 	arr : TByteArrayValue;
 begin
-	arr := TByteArrayValue.Create(name, vtype);
+	arr := TByteArrayValue.CreateCopy(nametype);
 	SetLength(arr.data, Length(data));
 	Move(data[0], arr.data[0], Length(data)*Sizeof(Byte));
 
@@ -781,7 +869,7 @@ function TIntegerArrayValue.Copy : TSimpleValue;
 var
 	arr : TIntegerArrayValue;
 begin
-	arr := TIntegerArrayValue.Create(name, vtype);
+	arr := TIntegerArrayValue.CreateCopy(nametype);
 	SetLength(arr.data, Length(data));
 	Move(data[0], arr.data[0], Length(data)*Sizeof(Integer));
 
@@ -816,7 +904,7 @@ function TFloatArrayValue.Copy : TSimpleValue;
 var
 	arr : TFloatArrayValue;
 begin
-	arr := TFloatArrayValue.Create(name, vtype);
+	arr := TFloatArrayValue.CreateCopy(nametype);
 	SetLength(arr.data, Length(data));
 	Move(data[0], arr.data[0], Length(data)*Sizeof(Single));
 
@@ -925,12 +1013,24 @@ begin
 	bool := val;
 end;
 
+constructor TBoolValue.CreateCopy(nametype : Longint; val: Boolean);
+begin
+	inherited CreateCopy(nametype);
+	bool := val;
+end;
+
 function TBoolValue.Copy : TSimpleValue;
 begin
-	Result := TBoolValue.Create(name, vtype, bool);
+	Result := TBoolValue.CreateCopy(nametype, bool);
 end;
 
 // TKonfig
+destructor TKonfig.Destroy;
+begin
+	dictionary_map.Free;
+	inherited;
+end;
+
 function TKonfig.Load(stream : TStream) : Boolean;
 var
 	r : TMemoryReader;
@@ -1065,6 +1165,23 @@ function TKonfig.AddWord(const w : String) : Longint;
 var
 	I : Integer;
 begin
+	if dictionary_map = nil then
+	begin
+		dictionary_map := TFPGMap<String,Longint>.Create;
+		dictionary_map.Sorted := True;
+	end;
+	
+	if dictionary_map.Find(w, I) then
+		Result := dictionary_map.Data[I]
+	else
+	begin
+		I := Length(dictionary);
+		SetLength(dictionary, I+1);
+		dictionary[I] := w;
+		dictionary_map.Add(w, I);
+		Result := I;
+	end;
+{
 	Result := -1;
 	for I := 0 to Length(dictionary) - 1 do
 		if dictionary[I] = w then
@@ -1080,6 +1197,7 @@ begin
 		dictionary[I] := w;
 		Result := I;
 	end;
+}
 end;
 
 procedure TKonfig.CompileSection(sect: TSection; w: TMemoryWriter; ll : Boolean);
@@ -1106,7 +1224,7 @@ begin
 		w.CloseChunk;
 end;
 
-procedure TKonfig.CompileConfig(items: TList; w: TMemoryWriter; ll : Boolean);
+procedure TKonfig.CompileConfig(items: TItemList; w: TMemoryWriter; ll : Boolean);
 var
 	I, J : Integer;
 	item : TSimpleValue;
@@ -1274,7 +1392,7 @@ begin
 	Result := s;
 end;
 
-procedure TKonfig.DecompileConfig(items : TList; kind : Byte; r : TMemoryReader; ll : Boolean);
+procedure TKonfig.DecompileConfig(items : TItemList; kind : Byte; r : TMemoryReader; ll : Boolean);
 var
 	vname, vtype : String;
 	sectdata : TMemoryReader;
@@ -1541,7 +1659,7 @@ begin
 	Result := arr;
 end;
 
-procedure ParseConfig(sect : Longword; items : TList; parser : TParser);
+procedure ParseConfig(sect : Longword; items : TItemList; parser : TParser);
 var
 	t1, t2, t3, t4 : String;
 	arr : TStringArray;
@@ -1739,7 +1857,7 @@ begin
 		Result := s;
 end;
 
-procedure PrintConfig(ident : Integer; w : TMemoryWriter; items : TList);
+procedure PrintConfig(ident : Integer; w : TMemoryWriter; items : TItemList);
 var
 	I, J : Integer;
 	item : TSimpleValue;
@@ -1904,4 +2022,7 @@ begin
 	end;
 end;
 
+initialization
+	common_types_table := XHashTable.Create('Common types table', 255);
+	common_names_table := XHashTable.Create('Common names table', 16777215);
 end.

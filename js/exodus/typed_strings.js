@@ -23,7 +23,7 @@ this.get_static_data_key = function(crc)
 	{
 		if(!unknown_static_data_keys[crc])
 		{
-			print("unknown static data key found, crc ", crc);
+			print("unknown static data key found, crc 0x", crc.toString(16));
 			unknown_static_data_keys[crc] = true;
 		}
 		return "";
@@ -500,7 +500,38 @@ var static_data_keys = [
 	"_G.config.entity.wpn_uboynicheg_ng",
 	"_G.config.entity.wpn_ventil_ng",
 	"_G.config.entity.wpn_vyhlop_ng",
-	"_G.config.entity.wpn_water_worm_sputum"
+	"_G.config.entity.wpn_water_worm_sputum",
+	
+	// added in DLCs
+	"_G.config.entity.ammo_12x70mm_flamethrower_main",
+	"_G.config.entity.ammo_762x39_fmj_unlim",
+	"_G.config.entity.arm_device_dlc1",
+	"_G.config.entity.bending_tree",
+	"_G.config.entity.entity_aux_effect",
+	"_G.config.entity.flock",
+	"_G.config.entity.frog",
+	"_G.config.entity.gasmask_dlc2",
+	"_G.config.entity.hud_light",
+	"_G.config.entity.lightter_sam",
+	"_G.config.entity.mantademon",
+	"_G.config.entity.motion_detector_advanced",
+	"_G.config.entity.motor_boat",
+	"_G.config.entity.scripted_lian",
+	"_G.config.entity.sea_cucumber",
+	"_G.config.entity.static_aux_effect",
+	"_G.config.entity.water_worm",
+	"_G.config.entity.weapon_magazine_flamethrower_small_loot",
+	"_G.config.entity.wpn_ak_sammy",
+	"_G.config.entity.wpn_colt_2033",
+	"_G.config.entity.wpn_dynamite_newoin",
+	"_G.config.entity.wpn_dynamite_newoin_no_ai_sound",
+	"_G.config.entity.wpn_dynamite_yz",
+	"_G.config.entity.wpn_emp_spider_sputum",
+	"_G.config.entity.wpn_flame_low_time",
+	"_G.config.entity.wpn_flamethrower_ng_npc",
+	"_G.config.entity.wpn_water_worm_sputum",
+	"_G.config.entity.wpn_water_worm_sputum_dlc_1",
+	"_G.config.entity.wristwatch"
 ];
 
 var unknown_classes = {}

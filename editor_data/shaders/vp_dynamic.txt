@@ -147,6 +147,5 @@ if(USE_BUMP) MOV oN, Nm;
 #MOV result.color, C;
 
 if(USE_BUMP) MOV result.texcoord[4], Pv;
-if(USE_BUMP) MOV result.texcoord[5], Nv;
 
 END

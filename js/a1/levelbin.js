@@ -551,7 +551,7 @@ function ReadUObject_Explosion(e)
 	s.ReadFP32("k_head_coef");
 	s.ReadFP32("k_fire_distance_min");
 	s.ReadFP32("k_fire_distance_max");
-	s.ReadFP32("k_file_distance");
+	s.ReadFP32("k_fire_distance");
 	s.ReadFP32("k_pierce");
 	s.ReadFP32("k_tracer_scale_xy");
 	s.ReadFP32("k_tracer_scale_z");
@@ -1101,7 +1101,7 @@ function ReadAIBrainUnit(e, attacks_list)
 		//}
 		var a = attacks.ReadSection(attacks_list[i]);
 		a.ReadU8("flags0", "bool8");
-		a.ReadHintStr("vs_reference", "vs_ref, str_shared");
+		a.ReadHintStr("vs_reference", "choose");
 		a.ReadFP32("probability");
 	}
 	

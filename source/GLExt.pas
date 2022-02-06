@@ -490,6 +490,20 @@ const
   
 type
   PFNGLDRAWBUFFERSARBPROC                    = procedure (n : GLsizei; bufs : PGLenum); stdcall;
+  
+// GL_ARB_draw_elements_base_vertex
+type
+  PFNGLDRAWELEMENTSBASEVERTEXPROC            = procedure(mode : GLenum; count : GLsizei; _type : GLenum; indices : Pointer; basevertex : GLint); stdcall;
+  PFNGLDRAWRANGEELEMENTSBASEVERTEXPROC       = procedure(mode : GLenum; start, _end : GLuint; count : GLsizei; _type : GLenum; indices : Pointer; basevertex : GLint); stdcall;
+  PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC   = procedure(mode : GLenum; count : GLsizei; _type : GLenum; indices : Pointer; primcount : GLsizei; basevertex : GLint); stdcall;
+  PFNGLMULTIDRAWELEMENTSBASEVERTEXPROC       = procedure(mode : GLenum; pcount : PGLsizei; _type : GLenum; indices : PPointer; primcount : GLsizei; pbasevertex : PGLint); stdcall;
+
+// GL_ARB_instanced_arrays
+const
+  GL_VERTEX_ATTRIB_ARRAY_DIVISOR_ARB         = $88FE;
+
+type
+  PFNGLVERTEXATTRIBDIVISORARBPROC            = procedure(index : GLuint; divisor : GLuint); stdcall;
 
 ///////////////////
 var
@@ -616,19 +630,25 @@ var
   
   glDrawBuffersARB               : PFNGLDRAWBUFFERSARBPROC;
   
+  glDrawElementsBaseVertex          : PFNGLDRAWELEMENTSBASEVERTEXPROC;
+  glDrawRangeElementsBaseVertex     : PFNGLDRAWRANGEELEMENTSBASEVERTEXPROC;
+  glDrawElementsInstancedBaseVertex : PFNGLDRAWELEMENTSINSTANCEDBASEVERTEXPROC;
+  glMultiDrawElementsBaseVertex     : PFNGLMULTIDRAWELEMENTSBASEVERTEXPROC;
+  
+  glVertexAttribDivisorARB          : PFNGLVERTEXATTRIBDIVISORARBPROC;
+  
 procedure InitializeGLExtensions;
 
 implementation
 uses Windows;
 
+function wglGetProcAddress(name : PAnsiChar) : Pointer;
+begin
+  Result := Windows.wglGetProcAddress(name);
+  if Result = nil then WriteLn('!! ', name, ' = nil');
+end;
+
 procedure InitializeGLExtensions;
-
-  function wglGetProcAddress(name : PAnsiChar) : Pointer;
-  begin
-    Result := Windows.wglGetProcAddress(name);
-    if Result = nil then WriteLn('!! ', name, ' = nil');
-  end;
-
 begin
   // OpenGL 1.3
   glActiveTexture        := wglGetProcAddress('glActiveTexture');
@@ -756,6 +776,15 @@ begin
   
   // GL_ARB_draw_buffers
   glDrawBuffersARB       := wglGetProcAddress('glDrawBuffersARB');
+  
+  // GL_ARB_draw_elements_base_vertex
+  glDrawElementsBaseVertex          := wglGetProcAddress('glDrawElementsBaseVertex');
+  glDrawRangeElementsBaseVertex     := wglGetProcAddress('glDrawRangeElementsBaseVertex');
+  glDrawElementsInstancedBaseVertex := wglGetProcAddress('glDrawElementsInstancedBaseVertex');
+  glMultiDrawElementsBaseVertex     := wglGetProcAddress('glMultiDrawElementsBaseVertex');
+  
+  // GL_ARB_instanced_arrays
+  glVertexAttribDivisorARB          := wglGetProcAddress('glVertexAttribDivisorARB');
 end;
 
 end.

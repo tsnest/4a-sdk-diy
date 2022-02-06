@@ -146,7 +146,7 @@ begin
 	
 	// update selection count
 	sel_c := IupGetDialogChild(MainDialog, 'LABEL_SEL');
-	IupSetStrAttribute(sel_c, 'TITLE', PAnsiChar('Sel: ' + IntToStr(count)));
+	iup.SetStrAttribute(sel_c, 'TITLE', 'Sel: ' + IntToStr(count));
 end;
 
 procedure DeselectAll;
@@ -189,6 +189,7 @@ begin
 	
 	if sel.Count > 0 then
 	begin
+		UndoSave('Attach entities', Scene.GetSelected);
 		AttachEntities(sel, parent)
 	end else
 		IupMessage('Error', 'Nothing selected to attach');
@@ -205,11 +206,16 @@ var
 begin
 	sel := Scene.GetSelected;
 	
-	for I := 0 to Length(sel)-1 do
-		if AddShapes(parent, sel[I]) then
-			Scene.RemoveEntity(sel[I]);
-			
-	UpdateSelection;
+	if Length(sel) > 0 then
+	begin
+		UndoSave('Attach shapes');
+	
+		for I := 0 to Length(sel)-1 do
+			if AddShapes(parent, sel[I]) then
+				Scene.RemoveEntity(sel[I]);
+				
+		UpdateSelection;
+	end;
 end;
 
 procedure AttachEnvZoneTo(parent : TEnvZone);
@@ -219,11 +225,16 @@ var
 begin
 	sel := Scene.GetSelectedEZ;
 	
-	for I := 0 to Length(sel)-1 do
-		parent.AddQuads(sel[I].param_tris.data);
+	if Length(sel) > 0 then
+	begin
+		UndoSaveEnv('Attach env zones');
 		
-	uTabEnvZone.DeleteSelection;		
-	UpdateSelection;
+		for I := 0 to Length(sel)-1 do
+			parent.AddQuads(sel[I].param_tris.data);
+			
+		uTabEnvZone.DeleteSelection;		
+		UpdateSelection;
+	end;
 end;
 
 procedure RemoveEnvZoneQuad(zone : TEnvZone; id : Longint);
@@ -254,7 +265,13 @@ begin
 	LevelPath := dir; // in Engine.pas, for resource loading
 	level_path := dir;
 	
+	IupSetAttribute(MainDialog, 'ACTIVE', 'NO');
+	if TEntity.showAnimation then IupSetAttribute(anim_timer, 'RUN', 'NO');
+	
 	Scene.LevelLoad(dir);
+	
+	IupSetAttribute(MainDialog, 'ACTIVE', 'YES');
+	if TEntity.showAnimation then IupSetAttribute(anim_timer, 'RUN', 'YES');
 	
 	ResetWeather;
 	
@@ -264,11 +281,11 @@ begin
 	if Scene.GetVersion <> old_scene_ver then
 	begin
 		case Scene.GetVersion of
-			sceneVer2033:			LoadTemplates('editor_data\templates.txt');
-			sceneVerLL:				LoadTemplates('editor_data\templates_ll.txt');
-			sceneVerRedux:		LoadTemplates('editor_data\templates_redux.txt');
-			sceneVerArktika1:	LoadTemplates('editor_data\templates_a1.txt');
-			sceneVerExodus:		LoadTemplates('editor_data\templates_exodus.txt');
+			sceneVer2033:       LoadTemplates('editor_data\templates.txt');
+			sceneVerLL:         LoadTemplates('editor_data\templates_ll.txt');
+			sceneVerRedux:      LoadTemplates('editor_data\templates_redux.txt');
+			sceneVerArktika1:   LoadTemplates('editor_data\templates_a1.txt');
+			sceneVerExodus:     LoadTemplates('editor_data\templates_exodus.txt');
 		end;
 	end;
 	
@@ -955,7 +972,7 @@ var
 	shape : TPHShape;
 	m_used : Boolean;
 	
-	z : TEnvZoneArray;
+	z : TEnvZone;
 	e : TEntity;
 begin	
 	if not Assigned(Scene.ph_scene) then
@@ -1002,7 +1019,11 @@ begin
 		begin
 			if (m_t <> nil) and m_t.Activate(x, y) then
 			begin
-				UndoSave;
+				if edit_mode = emEntity then
+					UndoSave('Transformation', Scene.GetSelected)
+				else
+					UndoSaveEnv('Transformation');
+					
 				m_used := True;
 			end;
 			
@@ -1035,22 +1056,14 @@ begin
 					case edit_mode of
 						emEntity: begin
 							e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-							
 							if (e <> nil) and not e.selected then
-							begin
-								UndoSave;
 								AttachShapesTo(e);
-							end;
 						end;
 						
 						emEnvZone: begin
-							SetLength(z, 1);
-							z[0] := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
-							if (z[0] <> nil) and not z[0].selected then
-							begin
-								UndoSave;
-								AttachEnvZoneTo(z[0]);
-							end;
+							z := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
+							if (z <> nil) and not z.selected then
+								AttachEnvZoneTo(z);
 						end;
 					end;
 				end else
@@ -1062,18 +1075,17 @@ begin
 							e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
 							if (e <> nil) and e.selected and (PHGetGroup(shape) = PH_GROUP_SHAPE) then
 							begin
-							  UndoSave;
+								UndoSave('Remove shape', Scene.GetSelected);
 								RemoveShape(e, TSection(PHGetShapeUserdata(shape)));
 							end;
 						end;
 						
 						emEnvZone: begin
-							SetLength(z, 1);
-							z[0] := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
-							if (z[0] <> nil) and z[0].selected then
+							z := RaycastEnvZone(p, dir, RAYCAST_DIST, shape);
+							if (z <> nil) and z.selected then
 							begin
-								UndoSave;
-								RemoveEnvZoneQuad(z[0], Longint(PHGetShapeUserdata(shape)));
+								UndoSaveEnv('Remove env zone quad');
+								RemoveEnvZoneQuad(z, Longint(PHGetShapeUserdata(shape)));
 							end;
 						end;
 					end;
@@ -1084,12 +1096,8 @@ begin
 					if edit_mode = emEntity then
 					begin
 						e := RaycastEntity(p, dir, RAYCAST_DIST, shape);
-						
 						if (e <> nil) and not e.selected then
-						begin
-							UndoSave;					
 							AttachSelectionTo(e);
-						end;
 					end;
 				end else 
 				
@@ -1097,11 +1105,15 @@ begin
 				begin // create
 					if RaycastPoint(p, dir, RAYCAST_DIST, hit_pos, hit_nrm, shape) then
 					begin
-					  UndoSave;	
-					  
 					  case edit_mode of				
-							emEntity:  uTabEntity.CreateEntity(hit_pos, hit_nrm);
-							emEnvZone: uTabEnvZone.CreateEnvZone(hit_pos);
+							emEntity: begin 
+								UndoSave('Create entity'); 
+								uTabEntity.CreateEntity(hit_pos, hit_nrm);
+							end;
+							emEnvZone: begin
+								UndoSaveEnv('Create zone');
+								uTabEnvZone.CreateEnvZone(hit_pos);
+							end;
 						end;
 					end;
 				end else
@@ -1132,7 +1144,11 @@ begin
 
 	if ic = $FFFF then // DELETE
 	begin
-		UndoSave;
+		case edit_mode of
+			emEntity:  UndoSave('Delete entities');
+			emEnvZone: UndoSaveEnv('Delete env zone');
+		end;
+		
 		DeleteSelection;
 		
 		IupRedraw(ih, 0);
@@ -1360,9 +1376,9 @@ begin
 	IupSetAttribute(dlg, 'DIALOGTYPE', 'DIR');
 
 	if level_path <> '' then
-		IupSetStrAttribute(dlg, 'DIRECTORY', PAnsiChar(level_path))
+		iup.SetStrAttribute(dlg, 'DIRECTORY', level_path)
 	else
-		IupSetStrAttribute(dlg, 'DIRECTORY', PAnsiChar(ResourcesPath + '\maps'));
+		iup.SetStrAttribute(dlg, 'DIRECTORY', ResourcesPath + '\maps');
 
 	IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -1711,12 +1727,13 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function menu_level_make_addon_cb(ih : Ihandle) : Longint; cdecl;
+function menu_level_move2leveladdbin_cb(ih : Ihandle) : Longint; cdecl;
 var
 	arr : TEntityArray;
 begin
 	if Scene.entities <> nil then
 	begin
+		UndoSave; // or maybe better clean undo history? Not sure if it'll work fine with this
 		arr := Scene.GetSelected;
 		Scene.MakeAddon(arr, True);
 	end;
@@ -1724,16 +1741,25 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function menu_level_make_global_cb(ih : Ihandle) : Longint; cdecl;
+function menu_level_move2levelbin_cb(ih : Ihandle) : Longint; cdecl;
 var
 	arr : TEntityArray;
 begin
 	if Scene.entities <> nil then
 	begin
+		UndoSave; // or maybe better clean undo history? Not sure if it'll work fine with this
 		arr := Scene.GetSelected;
-		Scene.MakeAddon(arr, True);
+		Scene.MakeAddon(arr, False);
 	end;
 	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_level_selectleveladdbin_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Scene.SelectAddon;
+	UpdateSelection;
+	Redisplay;
 	Result := IUP_DEFAULT;
 end;
 
@@ -1834,6 +1860,22 @@ begin
 		far_plane := dist;
 		Redisplay;
 	end;
+	Result := IUP_DEFAULT;
+end;
+
+function menu_render_distance_culling_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	uLEOptions.cull_distance := not uLEOptions.cull_distance;
+	IupSetInt(ih, 'VALUE', Integer(uLEOptions.cull_distance));
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_render_instancing_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	uLEOptions.instancing := not uLEOptions.instancing;
+	IupSetInt(ih, 'VALUE', Integer(uLEOptions.instancing));
+	
 	Result := IUP_DEFAULT;
 end;
 
@@ -1966,25 +2008,28 @@ var
 begin
 	sel := Scene.GetSelected;
 	
-	UndoSave;
-	
-	for I := 0 to Length(sel)-1 do
+	if Length(sel) > 0 then
 	begin
-		mat := sel[I].Matrix;
+		UndoSave('Reset scale', sel);
 		
-		scale.x := Sqrt(mat[1,1]*mat[1,1] + mat[1,2]*mat[1,2] + mat[1,3]*mat[1,3]);
-		scale.y := Sqrt(mat[2,1]*mat[2,1] + mat[2,2]*mat[2,2] + mat[2,3]*mat[2,3]);
-		scale.z := Sqrt(mat[3,1]*mat[3,1] + mat[3,2]*mat[3,2] + mat[3,3]*mat[3,3]);
+		for I := 0 to Length(sel)-1 do
+		begin
+			mat := sel[I].Matrix;
+			
+			scale.x := Sqrt(mat[1,1]*mat[1,1] + mat[1,2]*mat[1,2] + mat[1,3]*mat[1,3]);
+			scale.y := Sqrt(mat[2,1]*mat[2,1] + mat[2,2]*mat[2,2] + mat[2,3]*mat[2,3]);
+			scale.z := Sqrt(mat[3,1]*mat[3,1] + mat[3,2]*mat[3,2] + mat[3,3]*mat[3,3]);
+			
+			mat[1,1] := mat[1,1] / scale.x; mat[1,2] := mat[1,2] / scale.x; mat[1,3] := mat[1,3] / scale.x;
+			mat[2,1] := mat[2,1] / scale.y; mat[2,2] := mat[2,2] / scale.y; mat[2,3] := mat[2,3] / scale.y;
+			mat[3,1] := mat[3,1] / scale.z; mat[3,2] := mat[3,2] / scale.z; mat[3,3] := mat[3,3] / scale.z;
+			
+			sel[I].Matrix := mat;
+		end;
 		
-		mat[1,1] := mat[1,1] / scale.x; mat[1,2] := mat[1,2] / scale.x; mat[1,3] := mat[1,3] / scale.x;
-		mat[2,1] := mat[2,1] / scale.y; mat[2,2] := mat[2,2] / scale.y; mat[2,3] := mat[2,3] / scale.y;
-		mat[3,1] := mat[3,1] / scale.z; mat[3,2] := mat[3,2] / scale.z; mat[3,3] := mat[3,3] / scale.z;
-		
-		sel[I].Matrix := mat;
+		UpdateManipulator;
+		Redisplay;
 	end;
-	
-	UpdateManipulator;
-	Redisplay;
 	
 	Result := IUP_DEFAULT;
 end;
@@ -2241,8 +2286,9 @@ begin
 			iup.MenuItem('Select entity...', menu_level_select_entity_cb), 
 			iup.MenuItem('Select entity (with IDs)...', @menu_level_select_id_cb), 
 			IupSeparator, 
-			iup.MenuItem('Make addon',  @menu_level_make_addon_cb), 
-			iup.MenuItem('Make global', @menu_level_make_global_cb), 
+			iup.MenuItem('Move selection to level.add.bin',  @menu_level_move2leveladdbin_cb), 
+			iup.MenuItem('Move selection to level.bin', @menu_level_move2levelbin_cb),
+			iup.MenuItem('Select all entities from level.add.bin', @menu_level_selectleveladdbin_cb), 
 			IupSeparator,
 			iup.MenuItem('Save && Run', @menu_level_save_n_run_cb),
 			iup.MenuItem('Run Options...', @menu_level_run_options_cb),
@@ -2253,6 +2299,8 @@ begin
 	sm_render := IupSubmenu('Render',
 		IupMenu(
 			iup.MenuItem('Set view distance', @menu_render_setfarplane_cb), 
+			iup.MenuItem('Distance culling', @menu_render_distance_culling_cb, uLEOptions.cull_distance),
+			iup.MenuItem('Instancing', @menu_render_instancing_cb, uLEOptions.cull_distance),
 			iup.MenuItem('Set background color', @menu_render_setbkcolor), 
 			IupSeparator, 
 			iup.MenuItem('Wireframe', @menu_render_wireframe_cb, useWireframe), 

@@ -1724,7 +1724,7 @@ begin
 	DefFunc(S_ReadU16Array, 'ReadU16Array');
 	DefFunc(S_ReadU32Array, 'ReadU32Array');
 	DefFunc(S_ReadFP32Array, 'ReadFP32Array');
-	DefFunc(S_ReadU16Array, 'ReadU32Array16');
+	DefFunc(S_ReadU32Array16, 'ReadU32Array16');
 	DefFunc(S_ReadU16Array16, 'ReadU16Array16');
 	DefFunc(S_ReadFP32Array16, 'ReadFP32Array16');
 	

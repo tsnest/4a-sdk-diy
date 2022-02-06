@@ -22,7 +22,7 @@ uses
 	classes, sysutils, 
 	fouramdl, skeleton, Konfig, 
 	script_editor, properties, 
-	uChoose, uEditorUtils, uEntity, uScene, uTemplates, uLevelUndo;
+	uChoose, uEditorUtils, uEntity, uScene, uTemplates, uLevelUndo, uLEOptions;
 
 var select_created : Boolean;
 
@@ -174,7 +174,7 @@ begin
 		StrPCopy(@name[0], selected[0].Name);
 		if IupGetParam('Rename entity', nil, nil, 'Name: %s'#10, @name) = 1 then
 		begin
-		  UndoSave;
+			UndoSave('Rename entity (' + selected[0].Name + ' -> ' + PAnsiChar(@name) + ')', selected);
 			selected[0].Name := PAnsiChar(@name);
 			UpdateSelection;
 		end;
@@ -186,7 +186,7 @@ end;
 
 function btn_delete_entity_cb(ih : Ihandle) : Longint; cdecl;
 begin
-  UndoSave;
+	UndoSave('Delete entities');
 	DeleteSelection;
 	Redisplay;
 	Result := IUP_DEFAULT;
@@ -194,22 +194,29 @@ end;
 
 function btn_script_cb(ih : Ihandle) : Longint; cdecl;
 var
-	s : TSimpleValue;
+	s : TSection;
+	s_copy : TSection;
 	selected : TEntityArray;
 begin
 	selected := Scene.GetSelected;
 
 	if Length(selected) = 1 then
 	begin
-	  UndoSave;
-	  
-		s := selected[0].data.GetParam('vss_ver_6', 'section');
+		s := selected[0].data.GetSect('vss_ver_6', False);
 		if s = nil then
-			s := selected[0].data.GetParam('vss_ver_7', 'section');
+			s := selected[0].data.GetSect('vss_ver_7', False);
 		
-		if s <> nil then	
-			EditScript(s as TSection)
-		else
+		if s <> nil then
+		begin
+			s_copy := s.Copy as TSection;	
+			if EditScript(s_copy) then
+			begin
+				UndoSave('Script edit', selected);
+				selected[0].data.Replace(s, s_copy);
+				UpdateSelection;
+			end else
+				s_copy.Free;
+		end else
 			WriteLn('Warning! Invalid entity, doesn''t contain vss_ver_6 or vss_ver_7 section');
 	end else
 		IupMessage('Message', 'Select just one object');
@@ -217,7 +224,15 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-procedure property_changed_cb(prop : TSimpleValue) cdecl;
+procedure property_before_change_cb(prop : TSimpleValue) cdecl;
+var
+	sel : TEntityArray;
+begin
+	sel := Scene.GetSelected;
+	UndoSave('Property changed: ''' + prop.name + ' : ' + prop.vtype + '''', sel);
+end;
+
+procedure property_after_change_cb(prop : TSimpleValue) cdecl;
 var
 	mat : TMatrix;
 	selected : TEntityArray;
@@ -278,12 +293,20 @@ var
 	s : TStringValue;
 	names : String;
 	
+	str : String;
+	
 	sel : TEntity;
 	parent : TEntity;
 	
 	skeleton : T4ASkeleton;
+	
+	before_change_cb : TPropsBeforeChangeCb;
+	after_change_cb  : TPropsAfterChangeCb;
 begin
 	Result := 1; // 0 - cancel, 1 - default editor, 2 - apply
+	
+	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(tree, 'PROPS_BEFORE_CHANGE_CB'));
+	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(tree, 'PROPS_AFTER_CHANGE_CB'));
 	
 	if prop.vtype = 'bool8' then
 	begin
@@ -337,9 +360,16 @@ begin
 		skeleton := sel.GetSkeleton;
 		if skeleton <> nil then
 		begin
-			if ChooseBone(skeleton, s.str) then
-				Result := 2
-			else
+			str := s.str;
+			if ChooseBone(skeleton, str) then
+			begin
+				before_change_cb(s);
+				s.str := str;
+				after_change_cb(s);
+				
+				properties.UpdateCaption(tree, s);
+				Result := 2;
+			end else
 				Result := 0;
 		end;
 	end;
@@ -361,9 +391,16 @@ begin
 		
 		if skeleton <> nil then
 		begin		
-			if ChooseLocator(skeleton, s.str) then
-				Result := 2
-			else
+			str := s.str;
+			if ChooseLocator(skeleton, str) then
+			begin
+				before_change_cb(s);
+				s.str := str;
+				after_change_cb(s);
+				
+				properties.UpdateCaption(tree, s);
+				Result := 2;
+			end else
 				Result := 0;
 		end;
 	end;
@@ -375,9 +412,16 @@ begin
 		skeleton := sel.GetSkeleton;
 		if skeleton <> nil then
 		begin
-			if ChooseBonePart(skeleton, s.str) then
-				Result := 2
-			else
+			str := s.str;
+			if ChooseBonePart(skeleton, str) then
+			begin
+				before_change_cb(s);
+				s.str := str;
+				after_change_cb(s);
+				
+				properties.UpdateCaption(tree, s);
+				Result := 2;
+			end else
 				Result := 0;
 		end;
 	end;
@@ -389,10 +433,15 @@ begin
 		skeleton := sel.GetSkeleton;
 		if skeleton <> nil then
 		begin
-			if ChooseAnimation(skeleton, s.str) then
+			str := s.str;
+			if ChooseAnimation(skeleton, str) then
 			begin
-				property_changed_cb(s); // hack
-				Result := 2
+				before_change_cb(s);
+				s.str := str;
+				after_change_cb(s);
+				
+				properties.UpdateCaption(tree, s);
+				Result := 2;
 			end else
 				Result := 0;
 		end;
@@ -406,9 +455,6 @@ begin
 		else
 			Result := 0;
 	end;
-	
-	if Result <> 0 then
-	 	UndoSave;
 end;
 
 function CreateTab : Ihandle;
@@ -448,8 +494,16 @@ begin
 	);
 	IupSetAttribute(fr_create, 'TITLE', 'Create');
 
-	t_props := IupSetAttributes(IupTree, 'NAME=TREE_PROPS, RASTERSIZE=200x');
-	IupSetCallback(t_props, 'PROPS_VALUECHANGED_CB', @property_changed_cb);
+	if uLEOptions.props_two_column then
+	begin
+		t_props := IupFlatTree;
+		IupSetAttribute(t_props, 'EXTRATEXTWIDTH', '200');
+	end else
+		t_props := IupTree;
+		
+	IupSetAttributes(t_props, 'NAME=TREE_PROPS, RASTERSIZE=200x');
+	IupSetCallback(t_props, 'PROPS_BEFORE_CHANGE_CB', @property_before_change_cb);
+	IupSetCallback(t_props, 'PROPS_AFTER_CHANGE_CB', @property_after_change_cb);
 	IupSetCallback(t_props, 'PROPS_EDIT_CB', @property_edit_cb);
 
 	btn_rename := iup.Button('Rename', @btn_rename_entity_cb);

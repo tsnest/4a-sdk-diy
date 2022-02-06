@@ -9,6 +9,7 @@ type
 		param_id : TIntegerValue;
 		param_pid : TIntegerValue;
 		param_matrix : TFloatArrayValue;
+		param_cull_dist : TSingleValue;
 
 		classname, FName, visual_name : String;
 		FMatrix : TMatrix;
@@ -19,7 +20,8 @@ type
 		ph_shape : TPHShape;
 
 		model : TResModel;
-		motion : T4AMotion;
+		maler : IMaler;
+		motion : I4AMotion;
 		mtlset : Longint;
 		
 		FSelected : Boolean;
@@ -40,10 +42,14 @@ type
 		
 		isWay : Boolean;
 		way_link : array[0..3] of TIntegerValue;
+		
+		visualCRC : Longword;
+		LOD : Longint;
 
 		constructor Create(owner : TPHScene; data : TSection);
 		destructor Destroy; override;
 
+		procedure PrepareDraw;
 		procedure Draw(blended, distort : Boolean; _fasthack : Boolean = False);
 		procedure DrawFlag;
 		procedure DrawShapes;
@@ -97,7 +103,7 @@ type
 	function GetCenter(arr : TEntityArray) : TVec3; overload;
 
 implementation
-uses GL, GLU, GLExt, PHGroups, sysutils, classes, Engine, Windows;
+uses GL, GLU, GLExt, PHGroups, sysutils, classes, Engine, Windows, uCrc, Math;
 
 constructor TEntity.Create(owner : TPHScene; data : TSection);
 var
@@ -117,6 +123,7 @@ begin
 	param_pid := data.GetParam('parent_id', 'u16') as TIntegerValue;
 	param_name := data.GetParam('name', 'stringz') as TStringValue;
 	param_matrix := data.GetParam('', 'pose, matrix') as TFloatArrayValue;
+	param_cull_dist := data.GetParam('cull_distance', 'fp32') as TSingleValue;
 
 	if (param_id = nil) or (param_pid = nil) or (param_name = nil) or (param_matrix = nil) then
 		raise Exception.Create('Invalid entity description');
@@ -202,46 +209,56 @@ begin
 	inherited Destroy;
 end;
 
-procedure TEntity.Draw(blended, distort : Boolean; _fasthack : Boolean);
-var
-	maler : IMaler;
-	time : Single;
+procedure TEntity.PrepareDraw;
 begin
-	glPushMatrix;
-	glMultMatrixf(@FMatrix);
+	maler := nil;
 
 	if Assigned(model) then
-	begin
-		//WriteLn('Rendering ... ', model.name);
-		
-		if (model.maler_lod0 <> nil) and (distance_sqr > 30*30) then
-			maler := model.maler_lod0
-		else if (model.maler_lod1 <> nil) and (distance_sqr > 10*10) then
-			maler := model.maler_lod1
-		else
-			maler := model.maler;
-			
-		if maler <> nil then
+	begin	
+		if Assigned(model.maler_lod0) and (distance_sqr > 30*30) then
 		begin
-		
-			if maler is TSkeletonModelMaler then
-			begin
-				if Assigned(motion) and showAnimation then
-				begin
-					time := (GetTickCount() div 33) mod motion.frame_count / motion.frame_count;
-					TSkeletonModelMaler(maler).MotionTransform(motion, time)
-				end else
-					TSkeletonModelMaler(maler).ResetTransform;
-			end;
-		
-			if _fasthack then
-				maler.Draw2(mtlset, self.selected, blended, distort)
-			else
-				maler.Draw(mtlset, self.selected, blended, distort);
+			maler := model.maler_lod0;
+			LOD := 0;
+		end else 
+		if Assigned(model.maler_lod1) and (distance_sqr > 10*10) then
+		begin
+			maler := model.maler_lod1;
+			LOD := 1;
+		end else
+		begin
+			maler := model.maler;
+			LOD := 2;
 		end;
 	end;
+end;
 
-	glPopMatrix;
+procedure TEntity.Draw(blended, distort : Boolean; _fasthack : Boolean);
+var
+	time : Single;
+begin
+	if Assigned(maler) then
+	begin
+	
+		if maler is TSkeletonModelMaler then
+		begin
+			if Assigned(motion) and showAnimation then
+			begin
+				time := FMod(GetTickCount() / 1000, motion.LengthSec) / motion.LengthSec;
+				TSkeletonModelMaler(maler).MotionTransform(motion, time)
+			end else
+				TSkeletonModelMaler(maler).ResetTransform;
+		end;
+	
+		glPushMatrix;
+		glMultMatrixf(@FMatrix);
+			
+		if _fasthack then
+			maler.Draw2(mtlset, self.selected, blended, distort)
+		else
+			maler.Draw(mtlset, self.selected, blended, distort);
+			
+		glPopMatrix;
+	end;
 end;
 
 procedure TEntity.DrawFlag;
@@ -767,6 +784,7 @@ begin
 	model := nil;
 	
 	visual_name := v;
+	visualCRC := GetStringCrc(visual_name);
 	
 	at := Pos('@', v);
 	if at <> 0 then
@@ -895,15 +913,32 @@ begin
 			if FileExists(fn) then
 			begin
 				try
+					WriteLn('loading animation ''', fn, '''');
 					motion := T4AMotion.CreateAndLoad(fn);
 				except
 					on E: Exception do
-						WriteLn('Cannot set animtion to ''' + l[I] + ''', error ' + E.ClassName + ': ' + E.Message);
+						WriteLn('Cannot set animtion to ''' + fn + ''', error ' + E.ClassName + ': ' + E.Message);
+				end;
+				
+				Break;
+			end;
+			
+			fn := ResourcesPath + '\motions\' + l[I] + '\' + m + '.m2';
+			if FileExists(fn) then
+			begin
+				try
+					WriteLn('loading animation ''', fn, '''');
+					motion := T4AMotionLL.CreateAndLoad(fn);
+				except
+					on E: Exception do
+						WriteLn('Cannot set animtion to ''' + fn + ''', error ' + E.ClassName + ': ' + E.Message);
 				end;
 				
 				Break;
 			end;
 		end;
+		
+		l.Free;
 	end;
 end;
 

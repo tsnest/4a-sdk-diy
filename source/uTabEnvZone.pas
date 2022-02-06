@@ -13,7 +13,7 @@ procedure DeselectAll;
 procedure DeleteSelection;
 
 implementation
-uses sysutils, classes, Konfig, Engine, properties, uEditorUtils, uEnvZone, uScene, uLevelUndo;
+uses sysutils, classes, Konfig, Engine, properties, uEditorUtils, uEnvZone, uScene, uLevelUndo, uLEOptions;
 
 function list_zones_cb(ih : Ihandle; txt : PAnsiChar; item, state : Longint) : Longint; cdecl;
 var
@@ -31,13 +31,27 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+procedure property_before_change_cb(prop : TSimpleValue) cdecl;
+begin
+	UndoSaveEnv('Property changed: ''' + prop.name + ' : ' + prop.vtype + '''');
+end;
+
 function property_edit_cb(tree : Ihandle; parent : TSection; prop : TSimpleValue) : Longint; cdecl;
 var
 	I : Longint;
 	sect : TSection;
 	list : TStringList;
+	
+	s : TStringValue;
+	str : String;
+	
+	before_change_cb : TPropsBeforeChangeCb;
+	after_change_cb  : TPropsAfterChangeCb;
 begin
 	Result := 1; // 0 - cancel, 1 - default editor, 2 - apply
+	
+	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(tree, 'PROPS_BEFORE_CHANGE_CB'));
+	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(tree, 'PROPS_AFTER_CHANGE_CB'));
 	
 	if (prop.vtype = 'choose') and (prop.name = 'sound_eff') then
 	begin
@@ -47,9 +61,18 @@ begin
 		for I := 1 to sect.ParamCount-1 do
 			list.Add((sect.GetParam(I) as TSection).GetStr('name'));
 		
-		if EditChoose(parent.GetParam('sound_eff', 'stringz') as TStringValue, False, list, 'Select sound effect') then
+		s := parent.GetParam('sound_eff', 'stringz') as TStringValue;
+		str := s.str;
+		
+		if EditChoose(str, False, list, 'Select sound effect') then
+		begin
+			if Assigned(before_change_cb) then before_change_cb(s);
+			s.str := str;
+			if Assigned(after_change_cb) then after_change_cb(s);
+			
+			properties.UpdateCaption(tree, s);
 			Result := 2
-		else
+		end else
 			Result := 0;
 			
 		list.Free;
@@ -64,9 +87,18 @@ begin
 			if (sect.GetParam(I) is TSection) then
 				list.Add(sect.GetParam(I).name);
 		
-		if EditChooseArray(parent.GetParam('random_sounds', 'stringz') as TStringValue, list, 'Select random sounds') then
+		s := parent.GetParam('random_sounds', 'stringz') as TStringValue;
+		str := s.str;
+		
+		if EditChooseArray(str, list, 'Select random sounds') then
+		begin
+			if Assigned(before_change_cb) then before_change_cb(s);
+			s.str := str;
+			if Assigned(after_change_cb) then after_change_cb(s);
+			
+			properties.UpdateCaption(tree, s);
 			Result := 2
-		else
+		end else
 			Result := 0;
 			
 		list.Free;
@@ -80,16 +112,22 @@ begin
 		for I := 1 to sect.ParamCount-1 do
 			list.Add((sect.GetParam(I) as TSection).GetStr('name'));
 		
-		if EditChoose(parent.GetParam('sound_echo', 'stringz') as TStringValue, False, list, 'Select sound echo') then
+		s := parent.GetParam('sound_echo', 'stringz') as TStringValue;
+		str := s.str;
+		
+		if EditChoose(str, False, list, 'Select sound echo') then
+		begin
+			if Assigned(before_change_cb) then before_change_cb(s);
+			s.str := str;
+			if Assigned(after_change_cb) then after_change_cb(s);
+			
+			properties.UpdateCaption(tree, s);
 			Result := 2
-		else
+		end else
 			Result := 0;
 			
 		list.Free;
 	end;
-	
-	if Result <> 0 then
-	 	UndoSave;
 end;
 
 function btn_add_layer_cb(ih : Ihandle) : Longint; cdecl;
@@ -120,6 +158,7 @@ begin
 				data.name := name;
 				(data.GetParam('name', 'stringz') as TStringValue).str := name;
 				
+				UndoSaveEnv('Add layer ''' + name + '''');
 				selected[0].AddLayer(data);
 			end else
 				ShowError('Layer ''' + name + ''' already exist!');
@@ -150,7 +189,10 @@ begin
 			
 	I := iup.ListDialog('Remove layer', list, 0, 40,40);
 	if I <> -1 then
+	begin
+		UndoSaveEnv('Remove layer ''' + list[I] + '''');
 		selected[0].RemoveLayer(list[I]);
+	end;
 		
 	list.Free;
 	
@@ -179,14 +221,22 @@ begin
 	fr_list := IupFrame(IupVbox(list, nil));
 	IupSetAttribute(fr_list, 'TITLE', 'List');
 
-	t_props_env := IupSetAttributes(IupTree, 'NAME=TREE_PROPS_ENV, RASTERSIZE=200x');
+	if uLEOptions.props_two_column then
+	begin
+		t_props_env := IupFlatTree;
+		IupSetAttribute(t_props_env, 'EXTRATEXTWIDTH', '200');
+	end else
+		t_props_env := IupTree;
+
+	IupSetAttributes(t_props_env, 'NAME=TREE_PROPS_ENV, RASTERSIZE=200x');
 	IupSetCallback(t_props_env, 'PROPS_EDIT_CB', @property_edit_cb);
+	IupSetCallback(t_props_env, 'PROPS_BEFORE_CHANGE_CB', @property_before_change_cb);
 	
 	btn_add_layer := iup.Button('Add layer', @btn_add_layer_cb);
 	btn_remove_layer := iup.Button('Remove layer', @btn_remove_layer_cb);
 	
 	fr_zone := IupFrame(IupVBox(
-		IupHBox(btn_add_layer, btn_remove_layer, nil), 
+		IupSetAttributes(IupHBox(btn_add_layer, btn_remove_layer, nil), 'MARGIN=0x0'), 
 		t_props_env, 
 		nil
 	));

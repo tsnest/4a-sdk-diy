@@ -43,6 +43,7 @@ type
     x, y, z, d : Single;
   end;
 
+procedure Normalize(var v : TVec4); overload;
 procedure Normalize(var v : TVec3); overload;
 procedure Normalize(var v : TVec2); overload;
 function Dot(const v1 : TVec3; const v2 : TVec3) : Single; overload;
@@ -71,7 +72,9 @@ procedure Translate(var m : TMatrix; const v : TVec3); overload;
 procedure Translate(var m : TMatrix; x, y, z : Single); overload;
 procedure Scale(var m : TMatrix; const v : TVec3); overload;
 procedure Scale(var m : TMatrix; x, y, z : Single); overload;
-procedure Mul44(var a : TMatrix; const b : TMatrix);
+procedure Mul44(var a : TMatrix; const b : TMatrix); overload;
+procedure Mul44(out mat : TMatrix; const a : TMatrix; const b : TMatrix); overload;
+procedure Mul44Transpose(out mat : TMatrix; const a : TMatrix; const b : TMatrix); overload;
 procedure Invert43(var mat : TMatrix); overload;
 procedure Invert43(out mat : TMatrix; const m : TMatrix); overload;
 procedure RotateAxis(out m : TMatrix; const axis : TVec3; angle : Single); overload;
@@ -93,6 +96,17 @@ procedure QuatMul(var q : TVec4; const q2 : TVec4);
 
 implementation
 uses Math;
+
+procedure Normalize(var v : TVec4);
+var
+  len : Single;
+begin
+  len := Sqrt(v.x*v.x + v.y*v.y + v.z*v.z + v.w*v.w);
+  v.x := v.x / len;
+  v.y := v.y / len;
+  v.z := v.z / len;
+  v.w := v.w / len;
+end;
 
 procedure Normalize(var v : TVec3);
 var
@@ -467,6 +481,52 @@ begin
 	a[4,2] := m[1,2] * b[4,1] + m[2,2] * b[4,2] + m[3,2] * b[4,3] + m[4,2] * b[4,4];
 	a[4,3] := m[1,3] * b[4,1] + m[2,3] * b[4,2] + m[3,3] * b[4,3] + m[4,3] * b[4,4];
 	a[4,4] := m[1,4] * b[4,1] + m[2,4] * b[4,2] + m[3,4] * b[4,3] + m[4,4] * b[4,4];
+end;
+
+procedure Mul44(out mat : TMatrix; const a : TMatrix; const b : TMatrix);
+begin
+	mat[1,1] := a[1,1] * b[1,1] + a[2,1] * b[1,2] + a[3,1] * b[1,3] + a[4,1] * b[1,4];
+	mat[1,2] := a[1,2] * b[1,1] + a[2,2] * b[1,2] + a[3,2] * b[1,3] + a[4,2] * b[1,4];
+	mat[1,3] := a[1,3] * b[1,1] + a[2,3] * b[1,2] + a[3,3] * b[1,3] + a[4,3] * b[1,4];
+	mat[1,4] := a[1,4] * b[1,1] + a[2,4] * b[1,2] + a[3,4] * b[1,3] + a[4,4] * b[1,4];
+	
+	mat[2,1] := a[1,1] * b[2,1] + a[2,1] * b[2,2] + a[3,1] * b[2,3] + a[4,1] * b[2,4];
+	mat[2,2] := a[1,2] * b[2,1] + a[2,2] * b[2,2] + a[3,2] * b[2,3] + a[4,2] * b[2,4];
+	mat[2,3] := a[1,3] * b[2,1] + a[2,3] * b[2,2] + a[3,3] * b[2,3] + a[4,3] * b[2,4];
+	mat[2,4] := a[1,4] * b[2,1] + a[2,4] * b[2,2] + a[3,4] * b[2,3] + a[4,4] * b[2,4];
+	
+	mat[3,1] := a[1,1] * b[3,1] + a[2,1] * b[3,2] + a[3,1] * b[3,3] + a[4,1] * b[3,4];
+	mat[3,2] := a[1,2] * b[3,1] + a[2,2] * b[3,2] + a[3,2] * b[3,3] + a[4,2] * b[3,4];
+	mat[3,3] := a[1,3] * b[3,1] + a[2,3] * b[3,2] + a[3,3] * b[3,3] + a[4,3] * b[3,4];
+	mat[3,4] := a[1,4] * b[3,1] + a[2,4] * b[3,2] + a[3,4] * b[3,3] + a[4,4] * b[3,4];
+	
+	mat[4,1] := a[1,1] * b[4,1] + a[2,1] * b[4,2] + a[3,1] * b[4,3] + a[4,1] * b[4,4];
+	mat[4,2] := a[1,2] * b[4,1] + a[2,2] * b[4,2] + a[3,2] * b[4,3] + a[4,2] * b[4,4];
+	mat[4,3] := a[1,3] * b[4,1] + a[2,3] * b[4,2] + a[3,3] * b[4,3] + a[4,3] * b[4,4];
+	mat[4,4] := a[1,4] * b[4,1] + a[2,4] * b[4,2] + a[3,4] * b[4,3] + a[4,4] * b[4,4];
+end;
+
+procedure Mul44Transpose(out mat : TMatrix; const a : TMatrix; const b : TMatrix);
+begin
+	mat[1,1] := a[1,1] * b[1,1] + a[2,1] * b[1,2] + a[3,1] * b[1,3] + a[4,1] * b[1,4];
+	mat[2,1] := a[1,2] * b[1,1] + a[2,2] * b[1,2] + a[3,2] * b[1,3] + a[4,2] * b[1,4];
+	mat[3,1] := a[1,3] * b[1,1] + a[2,3] * b[1,2] + a[3,3] * b[1,3] + a[4,3] * b[1,4];
+	mat[4,1] := a[1,4] * b[1,1] + a[2,4] * b[1,2] + a[3,4] * b[1,3] + a[4,4] * b[1,4];
+	
+	mat[1,2] := a[1,1] * b[2,1] + a[2,1] * b[2,2] + a[3,1] * b[2,3] + a[4,1] * b[2,4];
+	mat[2,2] := a[1,2] * b[2,1] + a[2,2] * b[2,2] + a[3,2] * b[2,3] + a[4,2] * b[2,4];
+	mat[3,2] := a[1,3] * b[2,1] + a[2,3] * b[2,2] + a[3,3] * b[2,3] + a[4,3] * b[2,4];
+	mat[4,2] := a[1,4] * b[2,1] + a[2,4] * b[2,2] + a[3,4] * b[2,3] + a[4,4] * b[2,4];
+	
+	mat[1,3] := a[1,1] * b[3,1] + a[2,1] * b[3,2] + a[3,1] * b[3,3] + a[4,1] * b[3,4];
+	mat[2,3] := a[1,2] * b[3,1] + a[2,2] * b[3,2] + a[3,2] * b[3,3] + a[4,2] * b[3,4];
+	mat[3,3] := a[1,3] * b[3,1] + a[2,3] * b[3,2] + a[3,3] * b[3,3] + a[4,3] * b[3,4];
+	mat[4,3] := a[1,4] * b[3,1] + a[2,4] * b[3,2] + a[3,4] * b[3,3] + a[4,4] * b[3,4];
+	
+	mat[1,4] := a[1,1] * b[4,1] + a[2,1] * b[4,2] + a[3,1] * b[4,3] + a[4,1] * b[4,4];
+	mat[2,4] := a[1,2] * b[4,1] + a[2,2] * b[4,2] + a[3,2] * b[4,3] + a[4,2] * b[4,4];
+	mat[3,4] := a[1,3] * b[4,1] + a[2,3] * b[4,2] + a[3,3] * b[4,3] + a[4,3] * b[4,4];
+	mat[4,4] := a[1,4] * b[4,1] + a[2,4] * b[4,2] + a[3,4] * b[4,3] + a[4,4] * b[4,4];
 end;
 
 procedure Invert43(var mat : TMatrix); overload;
