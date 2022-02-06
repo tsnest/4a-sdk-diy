@@ -327,7 +327,7 @@ procedure UndoSave(const reason : String = ''; mod_entities : TEntityArray = nil
 begin
 	WriteLn('UNDO SAVE - ', reason);
   RedoClear;
-  if mod_entities <> nil then
+  if mod_entities = nil then
   	UndoPush(btFullBackup)
   else
   	UndoPush(btPartial, mod_entities);
