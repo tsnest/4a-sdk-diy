@@ -12,8 +12,7 @@ type
 	IMaler = class
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); virtual; abstract;
-		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); virtual; abstract; 
-		procedure DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); virtual; abstract; 
+		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); virtual; abstract;
 	end;
 	
 	ILevelMaler = class
@@ -34,8 +33,6 @@ const
 	FP_SELFLIGHT      = 9;
 	
 	FP_SCREEN_IMAGE   = 10;
-	
-	VP_STATIC_INSTANCED = 11;
 
 var
 	useTextures : Boolean = True;
@@ -47,7 +44,6 @@ var
 	
 	bkg_color : TVec4 = (X: 0.4; Y: 0.7; Z: 0.8; W: 1.0);
 	prog : array[1..16] of GLuint;
-	instance_matrix_buffer : GLuint;
 	
 	camera_pos : TVec3;
 	frustum : array[1..6] of TPlane;
@@ -142,7 +138,7 @@ type
 	TSkinnedModelMaler = class;
 	
 	TStaticModelMaler = class(IMaler)
-		//model : T4AModelHierrarhy;
+		model : T4AModelHierrarhy;
 		materials : TMaterialSet;
 		buffers : array[1..2] of GLuint;
 		
@@ -159,7 +155,6 @@ type
 		procedure Draw(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 		procedure Draw2(mtlset : Longint = -1; selected : Boolean = False; blended : Boolean = False; distort : Boolean = False); override;
 		procedure DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
-		procedure DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean); override;
 	end;
 
 	TSkeletonModelMaler = class(IMaler)
@@ -1040,6 +1035,8 @@ var
 begin
 	inherited Create;
 
+	self.model := m;
+
 	vsize := 0;
 	isize := 0;
 	
@@ -1173,6 +1170,8 @@ var
 	I : Integer;
 	ms : TMaterialSet;
 	material : TMaterial;
+	
+	s : T4AModelSimple;
 begin
 	if (mtlset < 0) or (mtlset >= Length(mtlsets)) then 
 		ms := materials
@@ -1199,6 +1198,7 @@ begin
 	for I := 0 to self.mesh_count - 1 do
 	begin	
 		material := ms[I];
+		s := self.model.meshes[I];
 
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
@@ -1237,7 +1237,7 @@ begin
 		end;
 
 		if (blended = material.blended) and (distort = False) then
-		if selected {or (flSelected in s.editor_flags)} then
+		if selected or (flSelected in s.editor_flags) then
 		begin
 			glEnable(GL_FRAGMENT_PROGRAM_ARB);
 			glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
@@ -1275,6 +1275,8 @@ var
 	
 	ms : TMaterialSet;
 	material : TMaterial;
+	
+	s : T4AModelSimple;
 begin
 	if (mtlset < 0) or (mtlset >= Length(self.mtlsets)) then 
 		ms := self.materials
@@ -1300,6 +1302,7 @@ begin
 	for I := 0 to self.mesh_count - 1 do
 	begin
 		material := ms[I];
+		s := self.model.meshes[I];
 		
 		if material.visible and (blended = material.blended) and (distort = material.distort) then
 		begin
@@ -1354,7 +1357,7 @@ begin
 		for J := 0 to count - 1 do
 		begin
 			if (blended = material.blended) and (distort = False) then
-			if instances.selected[J] {or (flSelected in s.editor_flags)} then
+			if instances.selected[J] or (flSelected in s.editor_flags) then
 			begin
 				glPushMatrix;
 				glMultMatrixf(@instances.matrix[J]);
@@ -1384,131 +1387,6 @@ begin
 	end;
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-end;
-
-procedure TStaticModelMaler.DrawInstanced3(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
-var
-	I : Integer;
-	
-	ms : TMaterialSet;
-	material : TMaterial;
-begin
-	if (mtlset < 0) or (mtlset >= Length(self.mtlsets)) then 
-		ms := self.materials
-	else 
-		ms := self.mtlsets[mtlset];
-			
-	if (not blended) and (ms.n_opaque < 1) then
-		Exit;
-	if (blended) and (ms.n_blended < 1) then
-		Exit;
-	if (distort) and (ms.n_distort < 1) then
-		Exit;
-	
-	// bind model vertex attributes	
-	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
-	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(0));
-	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(12));
-	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
-	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
-	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	
-	// bind instance matrix attributes
-	glBindBuffer(GL_ARRAY_BUFFER, instance_matrix_buffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, count*Sizeof(TMatrix), @instances.Matrix);
-	
-	glVertexAttribPointerARB(5, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(0));
-	glVertexAttribPointerARB(6, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(16));
-	glVertexAttribPointerARB(7, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), Pointer(32));
-	
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	
-	// bind index buffer
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
-
-	for I := 0 to self.mesh_count - 1 do
-	begin
-		material := ms[I];
-		
-		if material.visible and (blended = material.blended) and (distort = material.distort) then
-		begin
-			if useTextures then material.Enable;
-
-			// 0, 0, 0, normal_scale (for double siding)
-			glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
-			0.0, 0.0, 0.0, 1.0);
-	
-			glDrawElementsInstancedBaseVertex(
-				GL_TRIANGLES, 
-				self.index_count[I], 
-				GL_UNSIGNED_SHORT, 
-				self.index_offset[I], 
-				count, 
-				self.base_vertex[I]
-			);
-			
-			if material.double_side then
-			begin
-				glCullFace(GL_FRONT);
-				glProgramLocalParameter4fARB(GL_VERTEX_PROGRAM_ARB, 0, 
-				0.0, 0.0, 0.0, -1.0);
-
-				glDrawElementsInstancedBaseVertex(
-					GL_TRIANGLES, 
-					self.index_count[I], 
-					GL_UNSIGNED_SHORT, 
-					self.index_offset[I], 
-					count, 
-					self.base_vertex[I]
-				);
-
-				glCullFace(GL_BACK);
-			end;
-
-			if useTextures then material.Disable;
-		end;
-	end;
-	
-	// draw selection
-	{
-	glEnable(GL_FRAGMENT_PROGRAM_ARB);
-	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, prog[FP_SELECTED]);
-	
-	glDisable(GL_CULL_FACE);
-	
-	RenderWireframe;
-	
-	for I := 0 to count - 1 do
-	begin
-		if instances.Selected[I] then
-		begin
-			// bind instance matrix attributes
-			glVertexAttribPointerARB(5, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][1,1]);
-			glVertexAttribPointerARB(6, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][2,1]);
-			glVertexAttribPointerARB(7, 4, GL_FLOAT, GL_FALSE, Sizeof(TMatrix), @instances.Matrix[I][3,1]);
-			
-			glMultiDrawElementsBaseVertex(
-				GL_TRIANGLES,
-				@self.index_count[0],
-				GL_UNSIGNED_SHORT,
-				@self.index_offset[0],
-				self.mesh_count,
-				@self.base_vertex[0]
-			);
-		end;
-	end;
-	
-	RenderDefault;
-	
-	glEnable(GL_CULL_FACE);
-
-	glBindProgramARB(GL_FRAGMENT_PROGRAM_ARB, 0);
-	glDisable(GL_FRAGMENT_PROGRAM_ARB);
-	}
-	
-	// unbind index buffer
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 end;
 
@@ -2409,8 +2287,6 @@ begin
 		LoadFP(prog[FP_WALLMARK],      'editor_data\shaders\fp_wallmark.txt');
 		LoadFP(prog[FP_SELFLIGHT],     'editor_data\shaders\fp_selflight.txt');
 		LoadFP(prog[FP_SCREEN_IMAGE],  'editor_data\shaders\fp_screen_image.txt');
-		
-		LoadVP(prog[VP_STATIC_INSTANCED], 'editor_data\shaders\vp_static_instanced.txt');
 	except
 		on E: EFOpenError do
 			IupMessage('Error', PAnsiChar(E.Message));
@@ -2461,11 +2337,6 @@ begin
 
 	glGenProgramsARB(16, @prog);
 	ReloadGLPrograms;
-	
-	glGenBuffers(1, @instance_matrix_buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, instance_matrix_buffer);
-	glBufferData(GL_ARRAY_BUFFER, 1024*Sizeof(TMatrix), nil, GL_DYNAMIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	
 	flags := glGenLists(2);
 	

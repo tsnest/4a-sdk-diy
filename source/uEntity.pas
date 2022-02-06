@@ -913,7 +913,7 @@ begin
 			if FileExists(fn) then
 			begin
 				try
-					WriteLn('loading animation ''', fn, '''');
+					//WriteLn('loading animation ''', fn, '''');
 					motion := T4AMotion.CreateAndLoad(fn);
 				except
 					on E: Exception do
@@ -927,7 +927,7 @@ begin
 			if FileExists(fn) then
 			begin
 				try
-					WriteLn('loading animation ''', fn, '''');
+					//WriteLn('loading animation ''', fn, '''');
 					motion := T4AMotionLL.CreateAndLoad(fn);
 				except
 					on E: Exception do

@@ -1871,14 +1871,6 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function menu_render_instancing_cb(ih : Ihandle) : Longint; cdecl;
-begin
-	uLEOptions.instancing := not uLEOptions.instancing;
-	IupSetInt(ih, 'VALUE', Integer(uLEOptions.instancing));
-	
-	Result := IUP_DEFAULT;
-end;
-
 function menu_render_textures_cb(ih : Ihandle) : Longint; cdecl;
 begin
 	useTextures := not useTextures;
@@ -2300,7 +2292,6 @@ begin
 		IupMenu(
 			iup.MenuItem('Set view distance', @menu_render_setfarplane_cb), 
 			iup.MenuItem('Distance culling', @menu_render_distance_culling_cb, uLEOptions.cull_distance),
-			iup.MenuItem('Instancing', @menu_render_instancing_cb, uLEOptions.cull_distance),
 			iup.MenuItem('Set background color', @menu_render_setbkcolor), 
 			IupSeparator, 
 			iup.MenuItem('Wireframe', @menu_render_wireframe_cb, useWireframe), 

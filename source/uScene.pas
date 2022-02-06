@@ -51,9 +51,9 @@ type
 		visible_instanced_static0 : TFPList; // LOD 0
 		visible_instanced_static1 : TFPList; // LOD 1
 		visible_instanced_static2 : TFPList; // LOD 2
-		visible_instanced_dynamic : TFPList;
-		
-		visible_not_instanced : TFPList;
+		visible_instanced_dynamic0 : TFPList;
+		visible_instanced_dynamic1 : TFPList;
+		visible_instanced_dynamic2 : TFPList;
 		
 		constructor Create;
 		destructor Destroy; override;
@@ -121,9 +121,9 @@ begin
 	visible_instanced_static0 := TFPList.Create;
 	visible_instanced_static1 := TFPList.Create;
 	visible_instanced_static2 := TFPList.Create;
-	visible_instanced_dynamic := TFPList.Create;
-	
-	visible_not_instanced := TFPList.Create;
+	visible_instanced_dynamic0 := TFPList.Create;
+	visible_instanced_dynamic1 := TFPList.Create;
+	visible_instanced_dynamic2 := TFPList.Create;
 end;
 
 destructor TScene.Destroy;
@@ -132,9 +132,9 @@ begin
 	visible_instanced_static0.Free;
 	visible_instanced_static1.Free;
 	visible_instanced_static2.Free;
-	visible_instanced_dynamic.Free;
-	
-	visible_not_instanced.Free;
+	visible_instanced_dynamic0.Free;
+	visible_instanced_dynamic1.Free;
+	visible_instanced_dynamic2.Free;
 end;
 
 procedure TScene.LevelLoad(const dir : String);
@@ -407,7 +407,9 @@ begin
 	visible_instanced_static0.Clear;
 	visible_instanced_static1.Clear;
 	visible_instanced_static2.Clear;
-	visible_instanced_dynamic.Clear;
+	visible_instanced_dynamic0.Clear;
+	visible_instanced_dynamic1.Clear;
+	visible_instanced_dynamic2.Clear;
 
 	if Assigned(entities) then
 	begin		
@@ -442,7 +444,11 @@ begin
 				end else
 				if Assigned(E.model) and (E.model.b_dynamic) then
 				begin
-					visible_instanced_dynamic.Add(E);
+					case E.LOD of
+						0: visible_instanced_dynamic0.Add(E);
+						1: visible_instanced_dynamic1.Add(E);
+						2: visible_instanced_dynamic2.Add(E);
+					end;
 				end;
 			end;
 		end;
@@ -451,7 +457,9 @@ begin
 		visible_instanced_static0.Sort(InstancedEntitySortCb);
 		visible_instanced_static1.Sort(InstancedEntitySortCb);
 		visible_instanced_static2.Sort(InstancedEntitySortCb);
-		visible_instanced_dynamic.Sort(InstancedEntitySortCb);
+		visible_instanced_dynamic0.Sort(InstancedEntitySortCb);
+		visible_instanced_dynamic1.Sort(InstancedEntitySortCb);
+		visible_instanced_dynamic2.Sort(InstancedEntitySortCb);
 	end;
 end;
 
@@ -521,79 +529,6 @@ begin
 	end;
 
 	// static
-if uLEOptions.instancing then
-begin
-
-	glEnableVertexAttribArrayARB(0);
-	glEnableVertexAttribArrayARB(1);
-	if useBump then glEnableVertexAttribArrayARB(2);
-	if useBump then glEnableVertexAttribArrayARB(3);
-	if useTextures then glEnableVertexAttribArrayARB(4);
-	glEnableVertexAttribArrayARB(5);
-	glEnableVertexAttribArrayARB(6);
-	glEnableVertexAttribArrayARB(7);
-	
-	glVertexAttribDivisorARB(5, 1);
-	glVertexAttribDivisorARB(6, 1);
-	glVertexAttribDivisorARB(7, 1);
-	
-	glEnable(GL_VERTEX_PROGRAM_ARB);
-	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_STATIC_INSTANCED]);
-	
-	lists[0] := visible_instanced_static0;
-	lists[1] := visible_instanced_static1;
-	lists[2] := visible_instanced_static2;
-	
-	visible_not_instanced.Clear;
-	
-	for LOD := 0 to 2 do 
-	begin
-		I := 0;
-		while I < lists[LOD].Count do
-		begin
-			E := TEntity(lists[LOD][I]);
-			J := I;
-			while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) do
-			begin
-				Mul44Transpose(
-					instances.matrix[J-I], 
-					common.modelview, 
-					TEntity(lists[LOD][J]).Matrix
-				);
-				
-				instances.selected[J-I] := TEntity(lists[LOD][J]).Selected;
-				Inc(J);
-			end;
-				
-			if (J-I) = 1 then
-				visible_not_instanced.Add(E)
-			else
-				E.maler.DrawInstanced3(E.mtlset, J-I, instances, False, False);
-			
-			I := J;
-		end;
-	end;
-
-	// end of static rendering
-	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
-	glDisable(GL_VERTEX_PROGRAM_ARB);
-
-	glDisableVertexAttribArrayARB(0);
-	glDisableVertexAttribArrayARB(1);
-	if useBump then glDisableVertexAttribArrayARB(2);
-	if useBump then glDisableVertexAttribArrayARB(3);
-	if useTextures then glDisableVertexAttribArrayARB(4);
-	glDisableVertexAttribArrayARB(5);
-	glDisableVertexAttribArrayARB(6);
-	glDisableVertexAttribArrayARB(7);
-	
-	glVertexAttribDivisorARB(5, 0);
-	glVertexAttribDivisorARB(6, 0);
-	glVertexAttribDivisorARB(7, 0);
-
-end else // not real instancing
-begin
-
 	glEnableVertexAttribArrayARB(0);
 	glEnableVertexAttribArrayARB(1);
 	if useBump then glEnableVertexAttribArrayARB(2);
@@ -606,8 +541,6 @@ begin
 	lists[0] := visible_instanced_static0;
 	lists[1] := visible_instanced_static1;
 	lists[2] := visible_instanced_static2;
-	
-	visible_not_instanced.Clear;
 	
 	for LOD := 0 to 2 do 
 	begin
@@ -638,34 +571,6 @@ begin
 	if useBump then glDisableVertexAttribArrayARB(2);
 	if useBump then glDisableVertexAttribArrayARB(3);
 	if useTextures then glDisableVertexAttribArrayARB(4);
-end;
-
-	// static (not instanced)
-	glEnableVertexAttribArrayARB(0);
-	glEnableVertexAttribArrayARB(1);
-	if useBump then glEnableVertexAttribArrayARB(2);
-	if useBump then glEnableVertexAttribArrayARB(3);
-	if useTextures then glEnableVertexAttribArrayARB(4);
-	
-	glEnable(GL_VERTEX_PROGRAM_ARB);
-	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_STATIC]);
-	
-	for I := 0 to visible_not_instanced.Count - 1 do 
-	begin
-		E := TEntity(visible_not_instanced[I]);
-		if Assigned(E.model) and E.model.b_static then
-			E.Draw(False, False, True);
-	end;
-
-	// end of static rendering
-	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
-	glDisable(GL_VERTEX_PROGRAM_ARB);
-
-	glDisableVertexAttribArrayARB(0);
-	glDisableVertexAttribArrayARB(1);
-	if useBump then glDisableVertexAttribArrayARB(2);
-	if useBump then glDisableVertexAttribArrayARB(3);
-	if useTextures then glDisableVertexAttribArrayARB(4);
 	
 	// dynamic
 	glEnableVertexAttribArrayARB(0);
@@ -679,6 +584,7 @@ end;
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_DYNAMIC]);
 	
+	
 	if TEntity.showAnimation then
 	begin
 		for I := visible.Count-1 downto 0 do
@@ -690,21 +596,28 @@ end;
 		end;
 	end else
 	begin
-		I := 0;
-		while I < visible_instanced_dynamic.Count do
+		lists[0] := visible_instanced_dynamic0;
+		lists[1] := visible_instanced_dynamic1;
+		lists[2] := visible_instanced_dynamic2;
+		
+		for LOD := 0 to 2 do 
 		begin
-			E := TEntity(visible_instanced_dynamic[I]);
-			J := I;
-			while (J < visible_instanced_dynamic.Count) and (TEntity(visible_instanced_dynamic[J]).visualCRC = E.visualCRC) do
+			I := 0;
+			while I < lists[LOD].Count do
 			begin
-				instances.matrix[J-I] := TEntity(visible_instanced_dynamic[J]).Matrix;
-				instances.selected[J-I] := TEntity(visible_instanced_dynamic[J]).Selected;
-				Inc(J);
-			end;
+				E := TEntity(lists[LOD][I]);
+				J := I;
+				while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) do
+				begin
+					instances.matrix[J-I] := TEntity(lists[LOD][J]).Matrix;
+					instances.selected[J-I] := TEntity(lists[LOD][J]).Selected;
+					Inc(J);
+				end;
+					
+				E.model.maler.DrawInstanced2(E.mtlset, J-I, instances, False, False);
 				
-			E.model.maler.DrawInstanced2(E.mtlset, J-I, instances, False, False);
-			
-			I := J;
+				I := J;
+			end;
 		end;
 	end;
 	

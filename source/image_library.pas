@@ -104,13 +104,13 @@ begin
 				AddTexture(tree, rest, ref);
 			end else // нужно создать новую
 			begin
-				iup.SetAttribute(tree, 'INSERTBRANCH'+IntToStr(ref), folder);
+				iup.SetStrAttribute(tree, 'INSERTBRANCH'+IntToStr(ref), folder);
 				Result := AddTexture(tree, rest, IupGetInt(tree, 'LASTADDNODE'));
 			end;
 		end else
 		begin
 			// нужно создать новую папку
-			iup.SetAttribute(tree, 'ADDBRANCH'+IntToStr(ref), folder);
+			iup.SetStrAttribute(tree, 'ADDBRANCH'+IntToStr(ref), folder);
 			Result := AddTexture(tree, rest, IupGetInt(tree, 'LASTADDNODE'));
 		end;
 	end else
@@ -118,11 +118,11 @@ begin
 		if iup.GetInt(tree, 'CHILDCOUNT'+IntToStr(ref)) > 0 then
 		begin
 			ref := iup.GetInt(tree, 'LAST'+IntToStr(ref+1));
-			iup.SetAttribute(tree, 'INSERTLEAF'+IntToStr(ref), name);
+			iup.SetStrAttribute(tree, 'INSERTLEAF'+IntToStr(ref), name);
 			Result := IupGetInt(tree, 'LASTADDNODE');
 		end else
 		begin
-			iup.SetAttribute(tree, 'ADDLEAF'+IntToStr(ref), name);
+			iup.SetStrAttribute(tree, 'ADDLEAF'+IntToStr(ref), name);
 			Result := IupGetInt(tree, 'LASTADDNODE');			
 		end;
 	end;
@@ -150,7 +150,7 @@ begin
 		iup.SetStrAttribute(field_width, 'TITLE', IntToStr(current_options.r_width));
 		iup.SetStrAttribute(field_height, 'TITLE', IntToStr(current_options.r_height));
 		
-		iup.SetAttribute(field_bump_name, 'VALUE', current_options.bump_name);
+		iup.SetStrAttribute(field_bump_name, 'VALUE', current_options.bump_name);
 		
 		WriteStr(s, current_options.bump_height:1:5, #0);
 		iup.SetStrAttribute(field_bump_height, 'VALUE', s);
@@ -182,7 +182,7 @@ begin
 			(current_options.avg_color and $FF000000) shr 24, #0
 		);
 		
-		iup.SetAttribute(field_avgcolor, 'BGCOLOR', s);
+		iup.SetStrAttribute(field_avgcolor, 'BGCOLOR', s);
 	end else
 	begin
 		iup.SetInt(field_type, 'VALUE', 0);
@@ -587,7 +587,7 @@ begin
 	if current_options <> nil then
 		if ChooseTexture(current_options.bump_name) then
 		begin
-			iup.SetAttribute(field_bump_name, 'VALUE', current_options.bump_name);
+			iup.SetStrAttribute(field_bump_name, 'VALUE', current_options.bump_name);
 			Modified := True;
 		end;
 			
@@ -663,7 +663,7 @@ begin
 	if current_options <> nil then
 		if ChooseTexture(current_options.det_name) then
 		begin
-			iup.SetAttribute(field_det_name, 'VALUE', current_options.det_name);
+			iup.SetStrAttribute(field_det_name, 'VALUE', current_options.det_name);
 			Modified := True;
 		end;
 			
@@ -876,7 +876,7 @@ begin
 			
 			ReadStr(s, r, g, b, a);
 			current_options.avg_color := (r shl 16) or (g shl 8) or (b) or (a shl 24);
-			iup.SetAttribute(field_avgcolor, 'BGCOLOR', s);
+			iup.SetStrAttribute(field_avgcolor, 'BGCOLOR', s);
 			
 			Modified := True;
 		end;
@@ -900,7 +900,7 @@ begin
 			(current_options.avg_color and $FF000000) shr 24, #0
 		);
 		
-		iup.SetAttribute(field_avgcolor, 'BGCOLOR', s);
+		iup.SetStrAttribute(field_avgcolor, 'BGCOLOR', s);
 		
 		Modified := True;
 	end;

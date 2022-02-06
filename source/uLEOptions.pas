@@ -22,7 +22,6 @@ var
 	props_exclude_vss_ver_6 : Boolean = False;
 	props_two_column        : Boolean = False;
 	cull_distance           : Boolean = True;
-	instancing              : Boolean = True;
 
 implementation
 uses common, Inifiles, uLevelUndo;
