@@ -19,7 +19,7 @@ for(var i = 0; descs.More(); i++)
 	var elements = d.ReadArray("elements")
 	for(var j = 0; elements.More(); j++)
 	{
-		var e = elements.ReadSection(RecStr("rec_", i, 2), false)
+		var e = elements.ReadSection(RecStr("rec_", j, 2), false)
 		e.ReadU8("flags0", "bool8")
 		e.ReadString("caption")
 		e.ReadVec4("color", "color, vec4f")
