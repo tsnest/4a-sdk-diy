@@ -40,48 +40,48 @@ function ReadVolumes(e, name)
 
 var entity_readers = {
 	// basic
-	"STATICPROP" 		: ReadUObject_Static,
- 	"STATICPROP_BREAKABLE" : ReadUObject_StaticBreakable,
-	"EFFECT" 				: ReadUObject_Effect,
-	"EFFECTM"				: ReadUObject_Effect_MLeaf,
-	"O_ENTITY" 			: ReadCEntity,
-	"o_hlamp" 			: ReadHangingLamp,
-	"O_AIPOINT" 		: ReadUObject_AIPoint,
-	"PATROL_POINT" 	: ReadPatrolPoint,
-	"VISUALSCRIPT"	: ReadUObject,
-	"O_BASEZONE"		: ReadUObject_Zone,
-	"O_WATERZONE"		: ReadWaterZone,
-	"GRAB_ZONE"     : ReadGrabZone,
-	"PROXY"					: ReadUObject_Proxy,
-	"SOFT_ENTITY"		: ReadSoftEntity,
-	//"O_INTEREST"		: function(e)
+	"STATICPROP"            : ReadUObject_Static,
+ 	"STATICPROP_BREAKABLE"  : ReadUObject_StaticBreakable,
+	"EFFECT"                : ReadUObject_Effect,
+	"EFFECTM"               : ReadUObject_Effect_MLeaf,
+	"O_ENTITY"              : ReadCEntity,
+	"o_hlamp"               : ReadHangingLamp,
+	"O_AIPOINT"             : ReadUObject_AIPoint,
+	"PATROL_POINT"          : ReadPatrolPoint,
+	"VISUALSCRIPT"          : ReadUObject,
+	"O_BASEZONE"            : ReadUObject_Zone,
+	"O_WATERZONE"           : ReadWaterZone,
+	"GRAB_ZONE"             : ReadGrabZone,
+	"PROXY"                 : ReadUObject_Proxy,
+	"SOFT_ENTITY"           : ReadSoftEntity,
+	//"O_INTEREST"          : function(e)
 	//{
 	//	ReadUObject(e);
 	//	ReadInterest(e);
 	//},
-	"O_EXPLOSION"		: ReadUObject_Explosion,
-	"FORCE_FIELD"		: ReadForceField,
-	//"LADDER"				: ReadLadder,
-	//"BREAKABLE_ICE"	: ReadBreakableIce,
-	"VR_CUBE"				: ReadVRCube,
-	"VR_ENTITY"      : ReadVREntity,
-	"VIRTUAL_HAND"  : ReadCEntity,
-	"VIRTUAL_CAMERA" : ReadVirtualCamera,
-	"VIRTUAL_MONITOR" : ReadVirtualMonitor,
-	"SCRIPTED_ENTITY"  : ReadCEntity,
-	"FLEXIBLE_ENTITY"  : ReadUObject_Effect,
-	"EFFECT_PAUSABLE"  : ReadUObject_Effect,
-	"TELEPORT" : ReadTeleport,
-	"MECH_ENTITY" : ReadMechEntity,
-	"O_SCALING_ENTITY" : ReadScalingEntity,
-	"O_HELPERTEXT" : ReadHelperText,
-	"O_HELPERTEXT_VR_INFO" : ReadHelperText,
-	"O_HELPERTEXT_COUNTER" : ReadHelperTextCounter,
-	"TURRET" : ReadTurret,
-	"MAGNETIC_HOLSTER" : ReadMagneticHolster,
+	"O_EXPLOSION"           : ReadUObject_Explosion,
+	"FORCE_FIELD"           : ReadForceField,
+	//"LADDER"              : ReadLadder,
+	//"BREAKABLE_ICE"       : ReadBreakableIce,
+	"VR_CUBE"               : ReadVRCube,
+	"VR_ENTITY"             : ReadVREntity,
+	"VIRTUAL_HAND"          : ReadCEntity,
+	"VIRTUAL_CAMERA"        : ReadVirtualCamera,
+	"VIRTUAL_MONITOR"       : ReadVirtualMonitor,
+	"SCRIPTED_ENTITY"       : ReadCEntity,
+	"FLEXIBLE_ENTITY"       : ReadUObject_Effect,
+	"EFFECT_PAUSABLE"       : ReadUObject_Effect,
+	"TELEPORT"              : ReadTeleport,
+	"MECH_ENTITY"           : ReadMechEntity,
+	"O_SCALING_ENTITY"      : ReadScalingEntity,
+	"O_HELPERTEXT"          : ReadHelperText,
+	"O_HELPERTEXT_VR_INFO"  : ReadHelperText,
+	"O_HELPERTEXT_COUNTER"  : ReadHelperTextCounter,
+	"TURRET"                : ReadTurret,
+	"MAGNETIC_HOLSTER"      : ReadMagneticHolster,
 	"TORCHLIGHT_UPGRADABLE" : ReadTorchlight,
-	"PLAYERS_HANDS" : ReadUObject_Effect,
-	"O_ANIM_ENTITY" : ReadCEntity,
+	"PLAYERS_HANDS"         : ReadUObject_Effect,
+	"O_ANIM_ENTITY"         : ReadCEntity,
 }
 
 function ReadTime(e, name)
@@ -356,7 +356,7 @@ function ReadLampData(e)
 	l.ReadHintStr("color_ca", "choose")
 	l.ReadHintStr("texture", "choose")
 	l.ReadHint("faces", "flags8")
-	l.ReadU8("flags")
+	l.ReadU8("faces")
 	l.ReadU8("light_flags1", "bool8")
 	l.ReadU8("light_flags2", "bool8")
 
@@ -1439,7 +1439,7 @@ entity_readers["RAT"] = ReadSimpleNpc
 entity_readers["WOMAN"] = ReadSimpleNpc
 
 /*--------------------------------*/
-/*	Inventory Items & Devices			*/
+/*   Inventory Items & Devices    */
 /*--------------------------------*/
 function ReadInventoryItemObject(e)
 {
@@ -1572,7 +1572,7 @@ entity_readers["WEAPON_FLARE"] = function(e)
 }
 
 /*--------------------------------*/
-/*					Weapons								*/
+/*            Weapons             */
 /*--------------------------------*/
 
 // really class weapon;
@@ -1682,7 +1682,7 @@ entity_readers["VR_WEAPON_SF4"] = ReadVRWeapon
 entity_readers["VR_WEAPON_MODULAR"] = ReadVRWeapon
 
 /*--------------------------------*/
-/*					Vehicles							*/
+/*           Vehicles             */
 /*--------------------------------*/
 
 // not exist in original game, but engine supports it
