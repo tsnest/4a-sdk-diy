@@ -53,7 +53,7 @@ type
 		procedure AddVec4S16(const nm : String; const v : TVec4S16; const tp : String = 'vec4s16');
 		procedure AddBool(const nm : String; b : Boolean; const tp : String = 'bool');
 		procedure AddInt(const nm : String; val : Int64; const tp : String);
-		function	AddSect(const nm : String) : TSection;
+		function  AddSect(const nm : String) : TSection;
 		
 		function GetFloat(const nm : String; const tp : String = 'fp32') : Single; overload;
 		function GetFloat(const nm : String; def : Single; const tp : String = 'fp32') : Single; overload;
@@ -141,12 +141,12 @@ type
 	end;
 
 const
-	konfDebugInfo		= $1;
-	konfEditor			= $2;  // what does it mean ??
-	konfDiktionary	= $4;
-	konfPlain				= $8;  // also unknown
-	konfNoSections	= $10;
-	konfMultiChunk	= $20;
+	konfDebugInfo       = $1;
+	konfEditor          = $2;  // what does it mean ??
+	konfDiktionary      = $4;
+	konfPlain           = $8;  // also unknown
+	konfNoSections      = $10;
+	konfMultiChunk      = $20;
 
 type
 	TKonfig = class
@@ -1963,10 +1963,10 @@ end;
 
 function TTextKonfig.Copy : TTextKonfig;
 begin
-  if self = nil then
-    Result := nil
-  else
-	 Result := TTextKonfig.Create(TSection(root.Copy));
+	if self = nil then
+		Result := nil
+	else
+		Result := TTextKonfig.Create(TSection(root.Copy));
 end;
 
 procedure TTextKonfig.Load(const str: String);
