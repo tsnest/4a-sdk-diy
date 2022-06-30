@@ -4,11 +4,11 @@ interface
 uses Konfig;
 
 const
-	//ENTITY_VER_2033		= 16 or 17
-  ENTITY_VER_LL       = 29;
-  ENTITY_VER_REDUX		= 30;
-  ENTITY_VER_ARKTIKA1 = 43;
-  ENTITY_VER_EXODUS   = 50; // or 49
+	//ENTITY_VER_2033   = 17; // or 16
+	ENTITY_VER_LL       = 29;
+	ENTITY_VER_REDUX    = 30;
+	ENTITY_VER_ARKTIKA1 = 43;
+	ENTITY_VER_EXODUS   = 50; // or 49
 
 // automatic version detection
 function LoadLevelBin(const fn : String) : TTextKonfig;
@@ -183,107 +183,107 @@ end;
 
 function LoadLevelBin2033(const fn : String) : TTextKonfig;
 var
-  infile : TFileStream;
-  temp1, temp2 : array of byte;
-  magic, size1, size2 : Longword;
+	infile : TFileStream;
+	temp1, temp2 : array of byte;
+	magic, size1, size2 : Longword;
 
-  mem : TMemoryStream;
-  K : TKonfig;
-  TK : TTextKonfig;
+	mem : TMemoryStream;
+	K : TKonfig;
+	TK : TTextKonfig;
 begin
-  TK := nil;
+	TK := nil;
 
-  infile := TFileStream.Create(fn, fmOpenRead);
-  infile.Read(magic, Sizeof(magic));
-  if magic = LEVEL_BIN_MAGIC then // ASCII levl
-  begin
-    infile.Read(size1, Sizeof(size1));
-    SetLength(temp1, size1);
-    size2 := infile.Size - 8;
-    SetLength(temp2, size2);
-    infile.Read(temp2[0], size2);
-    //Writeln('Decompressing...');
-    m2033unp.decompress(@temp2[0], @temp1[0], size2);
+	infile := TFileStream.Create(fn, fmOpenRead);
+	infile.Read(magic, Sizeof(magic));
+	if magic = LEVEL_BIN_MAGIC then // ASCII levl
+	begin
+		infile.Read(size1, Sizeof(size1));
+		SetLength(temp1, size1);
+		size2 := infile.Size - 8;
+		SetLength(temp2, size2);
+		infile.Read(temp2[0], size2);
+		//Writeln('Decompressing...');
+		m2033unp.decompress(@temp2[0], @temp1[0], size2);
 
-    mem := TMemoryStream.Create;
-    mem.Write(temp1[0], size1);
-    mem.Seek(0, soBeginning);
-//  mem.SaveToFile('aaa.bin');
-    K := TKonfig.Create;
-    if K.Load(mem) then
-    begin
-      //TK := TTextKonfig.Create;
-      //K.Decompile(TK);
+		mem := TMemoryStream.Create;
+		mem.Write(temp1[0], size1);
+		mem.Seek(0, soBeginning);
+//		mem.SaveToFile('aaa.bin');
+		K := TKonfig.Create;
+		if K.Load(mem) then
+		begin
+			//TK := TTextKonfig.Create;
+			//K.Decompile(TK);
       
-      framework.Initialize;
+			framework.Initialize;
 			TK := framework.DecompileKonfig(K, 'js\2033\levelbin.js');
 			framework.Finalize;
-    end;
-    K.Free;
-    mem.Free;
-  end;
+		end;
+		K.Free;
+		mem.Free;
+	end;
 
-  infile.Free;
-  Result := TK;
+	infile.Free;
+	Result := TK;
 end;
 
 procedure SaveLevelBin2033(const fn : String; tk : TTextKonfig; kind : Integer);
 var
-  outfile : TFileStream;
-  mem : TMemoryStream;
-  K : TKonfig;
+	outfile : TFileStream;
+	mem : TMemoryStream;
+	K : TKonfig;
 
-  magic : Longword;
-  flags : Byte;
-  len : Longword;
+	magic : Longword;
+	flags : Byte;
+	len : Longword;
 
-  blocksize, remain, blocksizeplus9, remainplus9 : Longword;
-  blocks : Longword;
-  buf : array[0..$1FFFF] of Byte;
+	blocksize, remain, blocksizeplus9, remainplus9 : Longword;
+	blocks : Longword;
+	buf : array[0..$1FFFF] of Byte;
 begin
-  K := TKonfig.Create;
-  K.kind := kind;
-  K.Compile(tk);
+	K := TKonfig.Create;
+	K.kind := kind;
+	K.Compile(tk);
 
-  mem := TMemoryStream.Create;
-  K.Save(mem);
-  K.Free;
+	mem := TMemoryStream.Create;
+	K.Save(mem);
+	K.Free;
 
-  mem.Seek(0, soBeginning);
+	mem.Seek(0, soBeginning);
 
-//  mem := TMemoryStream.Create;
-//  mem.LoadFromFile('level.cfg.bin');
+//	mem := TMemoryStream.Create;
+//	mem.LoadFromFile('level.cfg.bin');
 
-  outfile := TFileStream.Create(fn, fmCreate);
-  magic := LEVEL_BIN_MAGIC;
-  flags := 2;
-  len := mem.Size;
-  outfile.Write(magic, Sizeof(magic));
-  outfile.Write(len, Sizeof(len));
+	outfile := TFileStream.Create(fn, fmCreate);
+	magic := LEVEL_BIN_MAGIC;
+	flags := 2;
+	len := mem.Size;
+	outfile.Write(magic, Sizeof(magic));
+	outfile.Write(len, Sizeof(len));
 
-  blocksize := $020000;
-  blocksizeplus9 := blocksize + 9;
-  blocks := len div blocksize;
-  remain := len mod blocksize;
-  remainplus9 := remain + 9;
-  while blocks > 0 do
-  begin
-    outfile.Write(flags, Sizeof(flags));
-    outfile.Write(blocksizeplus9, Sizeof(blocksizeplus9));
-    outfile.Write(blocksize, Sizeof(blocksize));
-    mem.Read(buf[0], blocksize);
-    outfile.Write(buf[0], blocksize);
-    Dec(blocks);
-  end;
+	blocksize := $020000;
+	blocksizeplus9 := blocksize + 9;
+	blocks := len div blocksize;
+	remain := len mod blocksize;
+	remainplus9 := remain + 9;
+	while blocks > 0 do
+	begin
+		outfile.Write(flags, Sizeof(flags));
+		outfile.Write(blocksizeplus9, Sizeof(blocksizeplus9));
+		outfile.Write(blocksize, Sizeof(blocksize));
+		mem.Read(buf[0], blocksize);
+		outfile.Write(buf[0], blocksize);
+		Dec(blocks);
+	end;
 
-  outfile.Write(flags, Sizeof(flags));
-  outfile.Write(remainplus9, Sizeof(remainplus9));
-  outfile.Write(remain, Sizeof(remain));
-  mem.Read(buf[0], remain);
-  outfile.Write(buf[0], remain);
+	outfile.Write(flags, Sizeof(flags));
+	outfile.Write(remainplus9, Sizeof(remainplus9));
+	outfile.Write(remain, Sizeof(remain));
+	mem.Read(buf[0], remain);
+	outfile.Write(buf[0], remain);
 
-  outfile.Free;
-  mem.Free;
+	outfile.Free;
+	mem.Free;
 end;
 
 // end Metro 2033
