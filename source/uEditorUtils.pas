@@ -16,6 +16,9 @@ function GenerateName(src : String; cond : TCondFunc) : String;
 
 function SelectColor(var clr : TVec4; alpha : Boolean = False) : Boolean;
 
+type TStringArray = array of String;
+function SplitString(const str : String; delim : Char = ','; do_trim : Boolean = True) : TStringArray;
+
 implementation
 uses sysutils;
 
@@ -135,6 +138,41 @@ begin
 		Result := False;
 
 	IupDestroy(dlg);
+end;
+
+function SplitString(const str : String; delim : Char; do_trim : Boolean) : TStringArray;
+var
+	ret : TStringArray;
+	S, E, L : Longint;
+begin		
+	SetLength(ret, 0);
+	
+	S := 1;
+	E := 1;
+	while E <= Length(str) do
+	begin	
+		if str[E] = delim then
+		begin
+			L := Length(ret);
+			SetLength(ret, L+1);
+			ret[L] := Copy(str, S, E-S);
+			if do_trim then ret[L] := Trim(ret[L]);
+			S := E+1;
+		end;
+		
+		Inc(E);
+	end;
+	
+	if E-S > 0 then
+	begin
+		L := Length(ret);
+		SetLength(ret, L+1);
+		ret[L] := Copy(str, S, E-S);
+		if do_trim then ret[L] := Trim(ret[L]);
+		S := E+1;
+	end;
+	
+	SplitString := ret;
 end;
 
 end.

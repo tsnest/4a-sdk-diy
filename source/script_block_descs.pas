@@ -35,7 +35,7 @@ function GetBlockDesc(blk : TSection; out unique : Boolean) : TBlockDesc;
 procedure CalcBlockSize(desc : TBlockDesc; font : TGLFont; out width, height : Longint);
 
 implementation
-uses classes, sysutils, Math;
+uses sysutils, Math, uEditorUtils;
 
 constructor TBlockDesc.Create;
 begin
@@ -56,7 +56,6 @@ var
 	s : TSection;
 	desc : TBlockDesc;
 	
-	names : TStringList;
 	props : TSection;
 begin
 	for I := sect.ParamCount - 1 downto 0 do
@@ -73,33 +72,22 @@ begin
 			
 			desc.clsid := s.GetStr('clsid');
 			
-			names := TStringList.Create;
-			
-			names.CommaText := s.GetStr('in_names');
-			SetLength(desc.in_names, names.Count);
-			for J := 0 to names.Count - 1 do
-				desc.in_names[J] := names[J];
-				
-			names.CommaText := s.GetStr('out_names');
-			SetLength(desc.out_names, names.Count);
-			for J := 0 to names.Count - 1 do
-				desc.out_names[J] := names[J];
-				
-			names.Free;
+			desc.in_names := SplitString(s.GetStr('in_names'), ',');
+			desc.out_names := SplitString(s.GetStr('out_names'), ',');
 			
 			props := s.GetSect('properties', False);
 			if Assigned(props) then
 				for J := 0 to props.items.Count - 1 do
 					desc.props.items.Add(TSimpleValue(props.items[J]).Copy);
 					
-			IupSetStrAttribute(tree, PAnsiChar('ADDLEAF' + IntToStr(ref)), PAnsiChar(s.name));
+			iup.SetStrAttribute(tree, 'ADDLEAF' + IntToStr(ref), s.name);
 			J := IupGetInt(tree, 'LASTADDNODE');
-			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(J)), Pointer(desc));
+			iup.SetAttribute(tree, 'USERDATA' + IntToStr(J), Pointer(desc));
 		end else
 		begin
-			IupSetAttribute(tree, PAnsiChar('ADDBRANCH' + IntToStr(ref)), PAnsiChar(s.name));
+			iup.SetStrAttribute(tree, 'ADDBRANCH' + IntToStr(ref), s.name);
 			J := IupGetInt(tree, 'LASTADDNODE');
-			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(J)), nil);
+			iup.SetAttribute(tree, 'USERDATA' + IntToStr(J), nil);
 			
 			_LoadDescs(s, tree, J);
 		end;
