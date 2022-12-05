@@ -518,7 +518,7 @@ function ReadUObject_Proxy(e)
 	while(entities.More())
 	{
 		var e = entities.ReadSection(RecStr("rec_", k++, 4), false)
-		e.ReadU16("entity")
+		e.ReadU16("entity", "entity_link, uobject_link")
 	}
 }
 
@@ -1303,7 +1303,7 @@ function ReadNpc(e)
 		static_combat.ReadVec3("point_dir");
 		
 		// virtual function static_combat_task::load_dynamic
-		e.ReadU8("static_bombat_flags", "bool8"); // NEW in Arktika.1 !!!
+		e.ReadU8("static_combat_flags", "bool8"); // NEW in Arktika.1 !!!
 		e.ReadHintStr("static_idle", "animation_str");
 		e.ReadHintStr("static_attack", "animation_str");
 		e.ReadHintStr("static_reload_idle", "animation_str");
@@ -1548,6 +1548,16 @@ function ReadWeaponItemVrAttach(e)
 	e.ReadFP32("velosity_mul")
 	e.ReadFP32("damage_mul")
 	e.ReadHintStr("preview_model", "choose")
+}
+
+entity_readers["WEAPON_ITEM_MAGAZINE"] = function(e)
+{
+	ReadWeaponItem(e)
+	
+	e.ReadHintStr("own_anim_mainspring_pos", "animation_str")
+	e.ReadHintStr("bone_part_clip", "part_str")
+	e.ReadString("bone_patron_prefix")
+	e.ReadString("s_bone_format")
 }
 
 entity_readers["WEAPON_ITEM_VR_ATTACH"] = ReadWeaponItemVrAttach

@@ -322,6 +322,39 @@ var block_readers = {
 			e.ReadU32("melee_attacks_"+i)
 		}
 	},
+	"actions/ai/follow": function(e) // not used in game, but engine supports it
+	{
+		e.ReadU16("leader", "entity_link, uobject_link")
+		e.ReadU16("wait_point", "entity_link, uobject_link")
+		e.ReadHint("flags", "flags32")
+		e.ReadU32("flags")
+		e.ReadFP32("far_distance_min")
+		e.ReadFP32("far_distance_max")
+		e.ReadFP32("follow_distance_min")
+		e.ReadFP32("follow_distance_max")
+		e.ReadFP32("near_distance_min")
+		e.ReadFP32("near_distance_max")
+		e.ReadU32("near_delay_min")
+		e.ReadU32("near_delay_max")
+		e.ReadFP32("max_distance")
+	},
+	"actions/ai/lead": function(e) // not used in game, but engine supports it
+	{
+		e.ReadU16("follower", "entity_link, uobject_link")
+		e.ReadU16("goal_point", "entity_link, uobject_link")
+		e.ReadU16("next_point", "entity_link, uobject_link")
+		e.ReadU16("wait_point", "entity_link, uobject_link")
+		e.ReadHint("flags", "flags32")
+		e.ReadU32("flags")
+		e.ReadFP32("wait_distance_min")
+		e.ReadFP32("wait_distance_max")
+		e.ReadFP32("lead_distance_min")
+		e.ReadFP32("lead_distance_max")
+		e.ReadFP32("retrieve_distance_min")
+		e.ReadFP32("retrieve_distance_max")
+		e.ReadFP32("success_distance")
+		e.ReadFP32("max_distance")
+	},
 	"actions/ai/monster face enemy": function(e)
 	{
 		e.ReadU8("flags0", "bool8")

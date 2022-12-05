@@ -8,89 +8,89 @@ var visualscript  = module("exodus\\visualscript");
 
 var entity_readers = {
 	// basic
-	"STATICPROP" 		       : ReadUObject_Static,
-	"STATICPROP_AUX_EFFECT": ReadUObject_Static_Aux_Effect,
- 	"STATICPROP_BREAKABLE" : ReadUObject_StaticBreakable,
- 	"STATICPROP_MOVABLE"   : ReadUObject_Static,
-	"EFFECT" 				       : ReadUObject_Effect,
-	"EFFECTM"				       : ReadUObject_Effect_MLeaf,
-	"O_ENTITY" 			       : ReadCEntity,
-	"SCRIPTED_ENTITY"      : ReadCEntity,
-	"o_hlamp" 			       : ReadHangingLamp,
-	"O_AIPOINT" 		       : ReadUObject_AIPoint,
-	"PATROL_POINT" 	       : ReadPatrolPoint,
-	"VISUALSCRIPT"	       : ReadUObject,
-	"O_BASEZONE"		       : ReadUObject_Zone,
-	"O_WATERZONE"		       : ReadWaterZone,
-	"PROXY"					       : ReadUObject_Proxy,
-	"SOFT_ENTITY"          : ReadSoftEntity,
-	"O_HELPERTEXT"	       : ReadHelperText,
-	"O_INTEREST"		       : function(e)
+	"STATICPROP"                 : ReadUObject_Static,
+	"STATICPROP_AUX_EFFECT"      : ReadUObject_Static_Aux_Effect,
+ 	"STATICPROP_BREAKABLE"       : ReadUObject_StaticBreakable,
+ 	"STATICPROP_MOVABLE"         : ReadUObject_Static,
+	"EFFECT"                     : ReadUObject_Effect,
+	"EFFECTM"                    : ReadUObject_Effect_MLeaf,
+	"O_ENTITY"                   : ReadCEntity,
+	"SCRIPTED_ENTITY"            : ReadCEntity,
+	"o_hlamp"                    : ReadHangingLamp,
+	"O_AIPOINT"                  : ReadUObject_AIPoint,
+	"PATROL_POINT"               : ReadPatrolPoint,
+	"VISUALSCRIPT"               : ReadUObject,
+	"O_BASEZONE"                 : ReadUObject_Zone,
+	"O_WATERZONE"                : ReadWaterZone,
+	"PROXY"                      : ReadUObject_Proxy,
+	"SOFT_ENTITY"                : ReadSoftEntity,
+	"O_HELPERTEXT"               : ReadHelperText,
+	"O_INTEREST"		         : function(e)
 	{
 		ReadUObject(e);
 		ReadInterest(e);
 	},
-	"O_EXPLOSION"          : ReadUObject_Explosion,
-	"LADDER"               : ReadLadder,
-	"WAVES_EMITTER"        : ReadWavesEmitter,
-	"FLOCK"                : ReadFlock,
-	"WALLMARK"             : ReadWallmark,
-	"AI_VISION_HELPER_ENTITY" : ReadCEntity,
-	"O_SCALING_ENTITY"     : ReadScalingEntity,
-	"BENDING_TREE"         : ReadBendingTree,
-	"WEB"                  : ReadWeb,
-	"FORCE_FIELD"          : ReadForceField,
-	"SCRIPTED_LIAN"        : ReadScriptedLian,
-	"MODIFIER"             : ReadModifier,
-	"WB_WEAPON_HOLDER"     : ReadCEntity,
-	"HUD_OBJECT"           : ReadHUDObject,
-	"HUD_LIGHT"            : ReadHUDLight,
-	"ENTITY_AUX_EFFECT"    : ReadEntityAuxEffect,
-	"CLOCK"                : ReadCEntity,
-	"RAIL_ENTITY"          : ReadRailEntity,
-	"O_ANIM_ENTITY"        : ReadCEntity,
-	"FLEXIBLE_ENTITY"      : ReadUObject_Effect,
-	"TREADMILL_TILE"       : ReadUObject_Effect,
+	"O_EXPLOSION"                : ReadUObject_Explosion,
+	"LADDER"                     : ReadLadder,
+	"WAVES_EMITTER"              : ReadWavesEmitter,
+	"FLOCK"                      : ReadFlock,
+	"WALLMARK"                   : ReadWallmark,
+	"AI_VISION_HELPER_ENTITY"    : ReadCEntity,
+	"O_SCALING_ENTITY"           : ReadScalingEntity,
+	"BENDING_TREE"               : ReadBendingTree,
+	"WEB"                        : ReadWeb,
+	"FORCE_FIELD"                : ReadForceField,
+	"SCRIPTED_LIAN"              : ReadScriptedLian,
+	"MODIFIER"                   : ReadModifier,
+	"WB_WEAPON_HOLDER"           : ReadCEntity,
+	"HUD_OBJECT"                 : ReadHUDObject,
+	"HUD_LIGHT"                  : ReadHUDLight,
+	"ENTITY_AUX_EFFECT"          : ReadEntityAuxEffect,
+	"CLOCK"                      : ReadCEntity,
+	"RAIL_ENTITY"                : ReadRailEntity,
+	"O_ANIM_ENTITY"              : ReadCEntity,
+	"FLEXIBLE_ENTITY"            : ReadUObject_Effect,
+	"TREADMILL_TILE"             : ReadUObject_Effect,
 
 	// upgrades
-	"WEAPON_ITEM_LAMP"				: ReadUpgradeItemLamp,
+	"WEAPON_ITEM_LAMP"           : ReadUpgradeItemLamp,
 	"WEAPON_ITEM_LAMP_BACKLIGHT" : ReadUpgradeItemLamp,
-	"DEVICE_UPGRADE_LAMP"			: ReadUpgradeItemLamp,
-	"WICK_VISUAL"							: ReadUpgradeItem,
-	"LIGHTER_VISUAL"					: ReadUpgradeItem,
-	"COSTUME_UPGRADE"					: ReadUpgradeItem,
-	"COMPASS"									: ReadUpgradeItem,
-	"DEVICE_UPGRADE"					: ReadUpgradeItem,
-	"VISOR"										: ReadUpgradeItem,
-	"PLAYER_TIMER_UPGRADE" 		: ReadUpgradeItem,
-	"MAP_PAD_UPGRADE"					: ReadUpgradeItem,
-	"METAL_DETECTOR_UPGRADE" 	: ReadUpgradeItem,
-	"MOTION_SENSOR_UPGRADE" 	: ReadUpgradeItem,
-	"PULSOMETER_UPGRADE" 			: ReadUpgradeItem,
-	"WEAPON_ITEM"							: ReadUpgradeItem,
-	"WEAPON_ITEM_AMMO" 				: ReadUpgradeItem,
-	"WEAPON_ITEM_SILENCER" 		: ReadUpgradeItem,	
-	"WEAPON_ITEM_OPTIC" 			: ReadUpgradeItem,
-	"WEAPON_ITEM_LASER" 			: ReadUpgradeItem,
-	"WEAPON_ITEM_VR" 					: ReadUpgradeItem,
-	"WEAPON_ITEM_PRESET" 			: ReadUpgradeItem,
-	"WEAPON_ITEM_MAGAZINE" 		: function(e)
+	"DEVICE_UPGRADE_LAMP"        : ReadUpgradeItemLamp,
+	"WICK_VISUAL"                : ReadUpgradeItem,
+	"LIGHTER_VISUAL"             : ReadUpgradeItem,
+	"COSTUME_UPGRADE"            : ReadUpgradeItem,
+	"COMPASS"                    : ReadUpgradeItem,
+	"DEVICE_UPGRADE"             : ReadUpgradeItem,
+	"VISOR"                      : ReadUpgradeItem,
+	"PLAYER_TIMER_UPGRADE"       : ReadUpgradeItem,
+	"MAP_PAD_UPGRADE"            : ReadUpgradeItem,
+	"METAL_DETECTOR_UPGRADE"     : ReadUpgradeItem,
+	"MOTION_SENSOR_UPGRADE"      : ReadUpgradeItem,
+	"PULSOMETER_UPGRADE"         : ReadUpgradeItem,
+	"WEAPON_ITEM"                : ReadUpgradeItem,
+	"WEAPON_ITEM_AMMO"           : ReadUpgradeItem,
+	"WEAPON_ITEM_SILENCER"       : ReadUpgradeItem,	
+	"WEAPON_ITEM_OPTIC"          : ReadUpgradeItem,
+	"WEAPON_ITEM_LASER"          : ReadUpgradeItem,
+	"WEAPON_ITEM_VR"             : ReadUpgradeItem,
+	"WEAPON_ITEM_PRESET"         : ReadUpgradeItem,
+	"WEAPON_ITEM_MAGAZINE"       : function(e)
 	{
 		ReadUpgradeItemMagazine(e)
 		e.ReadBool("ignore_difficulty")
 	},
-	"WEAPON_ITEM_SPEEDLOADER" : ReadUpgradeItemMagazine,
-	"WEAPON_ITEM_VR_ATTACH" 	: function(e)
+	"WEAPON_ITEM_SPEEDLOADER"    : ReadUpgradeItemMagazine,
+	"WEAPON_ITEM_VR_ATTACH"      : function(e)
 	{
 		ReadUpgradeItem(e)
 		e.ReadHint("preview_model", "choose")
 		e.ReadString("preview_model")
 	},
-	"MOTION_SENSOR_ADV_UPGRADE" : ReadUpgradeItem,
-	"WRISTWATCH"             : ReadUpgradeItem,
+	"MOTION_SENSOR_ADV_UPGRADE"  : ReadUpgradeItem,
+	"WRISTWATCH"                 : ReadUpgradeItem,
 	
-	"PLAYERS_HANDS"           : ReadUObject_Effect,
-	"HANDS_FOR_DREZINA"       : ReadUObject_Effect
+	"PLAYERS_HANDS"              : ReadUObject_Effect,
+	"HANDS_FOR_DREZINA"          : ReadUObject_Effect
 };
 
 function ReadTime(e, name)
@@ -612,7 +612,7 @@ function ReadUObject_Proxy(e)
 	while(entities.More())
 	{
 		var e = entities.ReadSection(RecStr("rec_", k++, 4), false)
-		e.ReadU16("entity")
+		e.ReadU16("entity", "entity_link, uobject_link")
 	}
 }
 
@@ -630,7 +630,7 @@ function ReadUpgradeItem(e)
 {
 	ReadInventoryItemObject(e)
 	
-  // class chud_item_container (probably)
+	// class chud_item_container (probably)
 	e.ReadBool("anim_simplification")
 	
 	// class upgrade_item

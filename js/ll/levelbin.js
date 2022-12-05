@@ -324,7 +324,7 @@ function ReadUObject_Proxy(e)
 	while(entities.More())
 	{
 		var e = entities.ReadSection(RecStr("rec_", k++, 4), false);
-		e.ReadU16("entity");
+		e.ReadU16("entity", "entity_link, uobject_link");
 	}
 }
 

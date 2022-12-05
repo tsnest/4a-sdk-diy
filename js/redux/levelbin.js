@@ -40,48 +40,48 @@ function ReadStartup(s)
 
 var entity_readers = {
 	// basic
-	"STATICPROP" 		: ReadUObject_Static,
- 	"STATICPROP_BREAKABLE" : ReadUObject_StaticBreakable,
-	"EFFECT" 				: ReadUObject_Effect,
-	"EFFECTM"				: ReadUObject_Effect,
-	"O_ENTITY" 			: ReadCEntity,
-	"o_hlamp" 			: ReadHangingLamp,
-	"O_AIPOINT" 		: ReadUObject_AIPoint,
-	"PATROL_POINT" 	: ReadPatrolPoint,
-	"VISUALSCRIPT"	: ReadUObject,
-	"O_BASEZONE"		: ReadUObject_Zone,
-	"O_WATERZONE"		: ReadWaterZone,
-	"ANIM_OBJECT"		: ReadUObject_Effect,
-	"PROXY"					: ReadUObject_Proxy,
-	"SOFT_ENTITY"		: ReadSoftEntity,
-	"O_INTEREST"		: function(e)
+	"STATICPROP"                : ReadUObject_Static,
+ 	"STATICPROP_BREAKABLE"      : ReadUObject_StaticBreakable,
+	"EFFECT"                    : ReadUObject_Effect,
+	"EFFECTM"                   : ReadUObject_Effect,
+	"O_ENTITY"                  : ReadCEntity,
+	"o_hlamp"                   : ReadHangingLamp,
+	"O_AIPOINT"                 : ReadUObject_AIPoint,
+	"PATROL_POINT"              : ReadPatrolPoint,
+	"VISUALSCRIPT"              : ReadUObject,
+	"O_BASEZONE"                : ReadUObject_Zone,
+	"O_WATERZONE"               : ReadWaterZone,
+	"ANIM_OBJECT"               : ReadUObject_Effect,
+	"PROXY"                     : ReadUObject_Proxy,
+	"SOFT_ENTITY"               : ReadSoftEntity,
+	"O_INTEREST"                : function(e)
 	{
 		ReadUObject(e);
 		ReadInterest(e);
 	},
-	"O_EXPLOSION"		: ReadUObject_Explosion,
-	"FORCE_FIELD"		: ReadForceField,
-	"LADDER"				: ReadLadder,
-	"BREAKABLE_ICE"	: ReadBreakableIce,
-	"WEB"						: ReadWeb,
-	"FLOWER"				: ReadFlower,
-	"LIAN"					: ReadCEntity,
-	"SIMPLE_NPC"		: ReadCEntity,
-	"BIOMASS_LARGE"	: ReadCEntity,
-	"BUSH"					: ReadCEntity,
-	"siege_bomb"		: ReadCEntity,
-	"STRETCHY_MAN"	: function(e)
+	"O_EXPLOSION"               : ReadUObject_Explosion,
+	"FORCE_FIELD"               : ReadForceField,
+	"LADDER"                    : ReadLadder,
+	"BREAKABLE_ICE"             : ReadBreakableIce,
+	"WEB"                       : ReadWeb,
+	"FLOWER"                    : ReadFlower,
+	"LIAN"                      : ReadCEntity,
+	"SIMPLE_NPC"                : ReadCEntity,
+	"BIOMASS_LARGE"             : ReadCEntity,
+	"BUSH"                      : ReadCEntity,
+	"siege_bomb"                : ReadCEntity,
+	"STRETCHY_MAN"              : function(e)
 	{
 		ReadCEntity(e);
 		e.ReadU8("motion_coll");
 	},
 	
-	"HANDS_FOR_DREZINA"		: ReadUObject_Effect,
-	"PLAYER_TIMER"				: ReadUObject_Effect,
-	"PLAYER_TIMER_2033"		: ReadCEntity,
-	"PLAYERS_HANDS"				: ReadUObject_Effect,
-	"PLAYERS_KNIFE"				: ReadUObject_Effect,
-	"TORCH"								: ReadHangingLamp,
+	"HANDS_FOR_DREZINA"         : ReadUObject_Effect,
+	"PLAYER_TIMER"              : ReadUObject_Effect,
+	"PLAYER_TIMER_2033"         : ReadCEntity,
+	"PLAYERS_HANDS"             : ReadUObject_Effect,
+	"PLAYERS_KNIFE"             : ReadUObject_Effect,
+	"TORCH"                     : ReadHangingLamp,
 };
 
 function ReadInterest(e)
@@ -488,7 +488,7 @@ function ReadUObject_Proxy(e)
 	while(entities.More())
 	{
 		var e = entities.ReadSection(RecStr("rec_", k++, 4), false);
-		e.ReadU16("entity");
+		e.ReadU16("entity", "entity_link, uobject_link");
 	}
 }
 
