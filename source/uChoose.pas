@@ -15,151 +15,151 @@ function ChooseParticles(var particles : String) : Boolean;
 function ChooseSound(var filename : String) : Boolean;
 
 implementation
-uses common, vmath, Engine, sysutils, classes,
+uses common, vmath, sysutils, classes, Engine,
      uScene, fouramdl,
      Iup, GL, GLU,
      framework, Konfig;
 
 // ---- Model
-     
+
 var
-  model : TResModel;
-  
-  anglex, angley : Single;
-  distance : Single = 1.0;
-  gl_font : GLuint;
-  
+	model : TResModel;
+	
+	anglex, angley : Single;
+	distance : Single = 1.0;
+	gl_font : GLuint;
+
 	meshes_dir : String;
 	material_set : String;
 
 function model_file_cb(ih : Ihandle; filename : PAnsiChar; status : PAnsiChar) : Longint; cdecl;
 var
-  gl : Ihandle;
-  fn : String;
-  I : Longint;
-  
-  width, height : Longint;
-  
-  sinx, cosx : Single;
-  siny, cosy : Single;
-  
-  m : TMatrix;
-  str : String;
-  
-  mtlset_id : Longint;
+	gl : Ihandle;
+	fn : String;
+	I : Longint;
+	
+	width, height : Longint;
+	
+	sinx, cosx : Single;
+	siny, cosy : Single;
+	
+	m : TMatrix;
+	str : String;
+	
+	mtlset_id : Longint;
 begin
 	if status = 'INIT' then
 	begin
-	  gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
-    IupGLMakeCurrent(gl);
-    
-    gl_font := glGenLists(256);
+		gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
+		IupGLMakeCurrent(gl);
+		
+		gl_font := glGenLists(256);
 		IupGLUseFont(gl, 0, 256, gl_font);
-    
+		
 		fn := IupGetAttribute(ih, 'FILE');
-    I := Pos(LowerCase(meshes_dir), LowerCase(fn));
-    if I > 0 then
-    begin
-      // cut path to meshes folder from file name
-      fn := ExtractRelativePath(meshes_dir, fn);
-      // cut extension
-      fn := ChangeFileExt(fn, '');
-    end;
-    
-    model := GetModel(fn);
+		I := Pos(LowerCase(meshes_dir), LowerCase(fn));
+		if I > 0 then
+		begin
+			// cut path to meshes folder from file name
+			fn := ExtractRelativePath(meshes_dir, fn);
+			// cut extension
+			fn := ChangeFileExt(fn, '');
+		end;
+		
+		model := GetModel(fn);
 	end;
 	
-  if status = 'FINISH' then
-  begin
-    gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
-    IupGLMakeCurrent(gl);
-    
-    glDeleteLists(gl_font, 256);
-    
-    if Assigned(model) then
-    begin
-    	if model.GetMaterialSet(material_set) < 0 then
-    		material_set := '';
-    		
-      FreeModel(model);
-      model := nil;
-    end;
-  end;
-   
-  if status = 'SELECT' then
-  begin
-    if Assigned(model) then
-    begin
-      FreeModel(model);
-      model := nil;
-    end;
-    
-    fn := filename;
-    I := Pos(LowerCase(meshes_dir), LowerCase(fn));
-    if I > 0 then
-    begin
-      // cut path to meshes folder from file name
-      fn := ExtractRelativePath(meshes_dir, fn);
-      // cut extension
-      fn := ChangeFileExt(fn, '');
-    end;
-    
-    model := GetModel(fn);
-  end;
-  
-  if status = 'PAINT' then
-  begin
-    gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
-    IupGLMakeCurrent(gl);
-    
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    
-    glAlphaFunc(GL_GEQUAL, 0.5);
-    glFrontFace(GL_CW);
-    
-    glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
-    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-    
-    width := IupGetInt(ih, 'PREVIEWWIDTH');
-    height := IupGetInt(ih, 'PREVIEWHEIGHT');
-    
-    glViewport(0, 0, width, height);
-    
-    glMatrixMode(GL_PROJECTION);    
-    PerspectiveLH(m, 70*(PI/180), width/height, 0.1, 500.0);
-    glLoadMatrixf(@m);
-    
-    glMatrixMode(GL_MODELVIEW);
-    sinx := Sin(anglex * (PI/180));
-    cosx := Cos(anglex * (PI/180));
-    siny := Sin(angley * (PI/180));
-    cosy := Cos(angley * (PI/180));
-    
-    LookAtLH(m, distance*siny*cosx, distance*sinx, distance*cosy*cosx, 0, 0, 0, 0, 1, 0);
-    glLoadMatrixf(@m);
-    
-    mtlset_id := -1;
-    
-    if Assigned(model) then
-    begin
-    	mtlset_id := model.GetMaterialSet(material_set);
-    	
-      if Assigned(model.maler) then
-      begin
-        model.maler.Draw(mtlset_id, False, False);
-        model.maler.Draw(mtlset_id, False, True);
-      end;
-    end;
-     
-    glDisable(GL_CULL_FACE);
-      
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity;
-    gluOrtho2D(0, width, height, 0);
-    
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity;
+	if status = 'FINISH' then
+	begin
+		gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
+		IupGLMakeCurrent(gl);
+		
+		glDeleteLists(gl_font, 256);
+		
+		if Assigned(model) then
+		begin
+			if model.GetMaterialSet(material_set) < 0 then
+				material_set := '';
+			
+			FreeModel(model);
+			model := nil;
+		end;
+	end;
+	
+	if status = 'SELECT' then
+	begin
+		if Assigned(model) then
+		begin
+			FreeModel(model);
+			model := nil;
+		end;
+		
+		fn := filename;
+		I := Pos(LowerCase(meshes_dir), LowerCase(fn));
+		if I > 0 then
+		begin
+			// cut path to meshes folder from file name
+			fn := ExtractRelativePath(meshes_dir, fn);
+			// cut extension
+			fn := ChangeFileExt(fn, '');
+		end;
+		
+		model := GetModel(fn);
+	end;
+	
+	if status = 'PAINT' then
+	begin
+		gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
+		IupGLMakeCurrent(gl);
+		
+		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_CULL_FACE);
+		
+		glAlphaFunc(GL_GEQUAL, 0.5);
+		glFrontFace(GL_CW);
+		
+		glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
+		glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+		
+		width := IupGetInt(ih, 'PREVIEWWIDTH');
+		height := IupGetInt(ih, 'PREVIEWHEIGHT');
+		
+		glViewport(0, 0, width, height);
+		
+		glMatrixMode(GL_PROJECTION);    
+		PerspectiveLH(m, 70*(PI/180), width/height, 0.1, 500.0);
+		glLoadMatrixf(@m);
+		
+		glMatrixMode(GL_MODELVIEW);
+		sinx := Sin(anglex * (PI/180));
+		cosx := Cos(anglex * (PI/180));
+		siny := Sin(angley * (PI/180));
+		cosy := Cos(angley * (PI/180));
+		
+		LookAtLH(m, distance*siny*cosx, distance*sinx, distance*cosy*cosx, 0, 0, 0, 0, 1, 0);
+		glLoadMatrixf(@m);
+		
+		mtlset_id := -1;
+		
+		if Assigned(model) then
+		begin
+			mtlset_id := model.GetMaterialSet(material_set);
+			
+			if Assigned(model.maler) then
+			begin
+				model.maler.Draw(mtlset_id, False, False);
+				model.maler.Draw(mtlset_id, False, True);
+			end;
+		end;
+		
+		glDisable(GL_CULL_FACE);
+		
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity;
+		gluOrtho2D(0, width, height, 0);
+		
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity;
 		
 		if (material_set <> '') and (mtlset_id >= 0) then
 			str := 'Material Set: ' + material_set
@@ -169,40 +169,40 @@ begin
 		glRasterPos2i(10, 20);
 		glListBase(gl_font);
 		glCallLists(Length(str), GL_UNSIGNED_BYTE, @str[1]);
-    
-    IupGLSwapBuffers(gl);
-  end;
-  
-  Result := IUP_DEFAULT;
+		
+		IupGLSwapBuffers(gl);
+	end;
+	
+	Result := IUP_DEFAULT;
 end;
 
 var
-  old_x, old_y : Longint;
-    
+	old_x, old_y : Longint;
+
 function model_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 begin
-  if iup_isbutton3(status) then
-  begin
-    anglex := anglex + (y - old_y);
-    angley := angley + (x - old_x);
-
-    if anglex >= 90.0 then
-      anglex := 90.0;
-    if anglex <= -90.0 then
-      anglex := -90.0;
-
-    model_file_cb(ih, nil, 'PAINT');
-  end else
-  if iup_isbutton2(status) then
-  begin
-    distance := distance + ((y - old_y) / 8);
-    model_file_cb(ih, nil, 'PAINT');
-  end;
-
-  old_x := x;
-  old_y := y;
-
-  Result := IUP_DEFAULT;
+	if iup_isbutton3(status) then
+	begin
+		anglex := anglex + (y - old_y);
+		angley := angley + (x - old_x);
+		
+		if anglex >= 90.0 then
+		anglex := 90.0;
+		if anglex <= -90.0 then
+		anglex := -90.0;
+		
+		model_file_cb(ih, nil, 'PAINT');
+	end else
+	if iup_isbutton2(status) then
+	begin
+		distance := distance + ((y - old_y) / 8);
+		model_file_cb(ih, nil, 'PAINT');
+	end;
+	
+	old_x := x;
+	old_y := y;
+	
+	Result := IUP_DEFAULT;
 end;
 
 function model_button_cb(ih : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint; cdecl;
@@ -246,10 +246,10 @@ end;
 
 function ChooseModel(var filename : String) : Boolean;
 var
-  dlg, gl, main : Ihandle;
-  fn : String;
-  
-  I : Longint;
+	dlg, gl, main : Ihandle;
+	fn : String;
+	
+	I : Longint;
 begin
 	meshes_dir := ExpandFileName(ResourcesPath + '\meshes\');
 	
@@ -266,99 +266,99 @@ begin
 	end;
 
 	dlg := IupFileDlg;
-  IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
-  IupSetStrAttribute(dlg, 'FILE', PAnsiChar(meshes_dir + fn + '.model'));
-  IupSetAttribute(dlg, 'EXTFILTER', '4A Model (*.model)|*.model|All files (*.*)|*.*');
-  
-  gl := IupGLCanvas(nil);
-  main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
-  IupSetAttributeHandle(gl, 'SHAREDCONTEXT', main);
-  IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
-  
-  IupSetAttribute(dlg, 'SHOWPREVIEW', 'YES');
-  IupSetAttributeHandle(dlg, 'PREVIEWGLCANVAS', gl);
-  
-  IupSetCallback(dlg, 'FILE_CB', @model_file_cb);
-  IupSetCallback(dlg, 'MOTION_CB', @model_motion_cb);
-  IupSetCallback(dlg, 'BUTTON_CB', @model_button_cb);
-  
-  IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
-  
-  if IupGetInt(dlg, 'STATUS') = 0 then
-  begin
-    fn := IupGetAttribute(dlg, 'VALUE');
-    I := Pos(LowerCase(meshes_dir), LowerCase(fn));
-    if I > 0 then
-    begin
-      // cut path to meshes folder from file name
-      fn := ExtractRelativePath(meshes_dir, fn);
-      // cut extension
-      fn := ChangeFileExt(fn, '');
-      // append material set (if any)
-      if material_set <> '' then
-      	fn := fn + '@' + material_set;
-      
-      filename := fn;
-      Result := True;
-    end else
-      Result := False;  
-  end else
-    Result := False;
-    
-  IupDestroy(dlg);
-  IupDestroy(gl);
+	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
+	iup.SetStrAttribute(dlg, 'FILE', meshes_dir + fn + '.model');
+	IupSetAttribute(dlg, 'EXTFILTER', '4A Model (*.model)|*.model|All files (*.*)|*.*');
+	
+	gl := IupGLCanvas(nil);
+	main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
+	IupSetAttributeHandle(gl, 'SHAREDCONTEXT', main);
+	IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
+	
+	IupSetAttribute(dlg, 'SHOWPREVIEW', 'YES');
+	IupSetAttributeHandle(dlg, 'PREVIEWGLCANVAS', gl);
+	
+	IupSetCallback(dlg, 'FILE_CB', @model_file_cb);
+	IupSetCallback(dlg, 'MOTION_CB', @model_motion_cb);
+	IupSetCallback(dlg, 'BUTTON_CB', @model_button_cb);
+	
+	IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+
+	if IupGetInt(dlg, 'STATUS') = 0 then
+	begin
+		fn := IupGetAttribute(dlg, 'VALUE');
+		I := Pos(LowerCase(meshes_dir), LowerCase(fn));
+		if I > 0 then
+		begin
+			// cut path to meshes folder from file name
+			fn := ExtractRelativePath(meshes_dir, fn);
+			// cut extension
+			fn := ChangeFileExt(fn, '');
+			// append material set (if any)
+			if material_set <> '' then
+				fn := fn + '@' + material_set;
+			
+			filename := fn;
+			Result := True;
+		end else
+			Result := False;
+	end else
+		Result := False;
+
+	IupDestroy(dlg);
+	IupDestroy(gl);
 end;
 
 // ---- Entity
 
 function entity_compare_name(e1, e2 : Pointer) : Longint;
 begin
-  entity_compare_name := AnsiCompareStr(TEntity(e1).Name, TEntity(e2).Name);
+	entity_compare_name := AnsiCompareStr(TEntity(e1).Name, TEntity(e2).Name);
 end;
 
 function entity_compare_id(e1, e2 : Pointer) : Longint;
 begin
-  entity_compare_id := TEntity(e1).ID - TEntity(e2).ID;
+	entity_compare_id := TEntity(e1).ID - TEntity(e2).ID;
 end;
 
 function ChooseEntity(out entity : TEntity; showIds : Boolean) : Boolean;
 var
-  I, ret : Integer;
-
-  sort_entities : TList;
-  names : array of String;
+	I, ret : Integer;
+	
+	sort_entities : TList;
+	names : array of String;
 begin
-  sort_entities := TList.Create;
-  sort_entities.AddList(Scene.entities);
-  
-  if showIds then
-  	sort_entities.Sort(entity_compare_id)
-  else
-  	sort_entities.Sort(entity_compare_name);
-
-  SetLength(names, sort_entities.Count+1);
-  names[0] := '<none>';
-
-  for I := 0 to sort_entities.Count - 1 do
-  begin
-    names[I+1] := TEntity(sort_entities[I]).Name;
-    if showIds then
-    	Insert(IntToStr(TEntity(sort_entities[I]).ID) + ': ', names[I+1], 1);
-  end;
-
-  ret := iup.ListDialog('Select entity', names, 1, 30, 40);
-  if ret >= 0 then
-  begin
-    if ret = 0 then
-      entity := nil
-    else
-      entity := TEntity(sort_entities[ret-1]);
-
-    Result := True;
-  end else
-    Result := False;
-
-  sort_entities.Free;
+	sort_entities := TList.Create;
+	sort_entities.AddList(Scene.entities);
+	
+	if showIds then
+		sort_entities.Sort(entity_compare_id)
+	else
+		sort_entities.Sort(entity_compare_name);
+	
+	SetLength(names, sort_entities.Count+1);
+	names[0] := '<none>';
+	
+	for I := 0 to sort_entities.Count - 1 do
+	begin
+		names[I+1] := TEntity(sort_entities[I]).Name;
+		if showIds then
+			Insert(IntToStr(TEntity(sort_entities[I]).ID) + ': ', names[I+1], 1);
+	end;
+	
+	ret := iup.ListDialog('Select entity', names, 1, 30, 40);
+	if ret >= 0 then
+	begin
+		if ret = 0 then
+			entity := nil
+	else
+		entity := TEntity(sort_entities[ret-1]);
+	
+		Result := True;
+	end else
+		Result := False;
+	
+	sort_entities.Free;
 end;
 
 // ---- Bone
@@ -582,11 +582,7 @@ begin
 		K.Load(ResourcesPath + '\particles\particles.bin');
 		
 		framework.Initialize;
-		case Engine.version of
-			eVer2033: lib := framework.DecompileKonfig(K, 'js\2033\particles.js');
-			eVerLL: lib := framework.DecompileKonfig(K, 'js\ll\particles.js');
-			else lib := nil;
-		end;
+		lib := framework.DecompileKonfig(K, 'js\particles.js');
 		framework.Finalize;
 		
 		K.Free;
@@ -608,6 +604,7 @@ begin
 		end;
 	end;
 	
+	names.Sort;
 	names.Add('<none>');
 	
 	ret := iup.ListDialog('Select particles', names, op, 25, 40);
@@ -631,10 +628,10 @@ function ChooseSound(var filename : String) : Boolean;
 var
 	sounds_dir : String;
 	
-  dlg : Ihandle;
-  fn : String;
-  
-  I : Integer;
+	dlg : Ihandle;
+	fn : String;
+
+	I : Integer;
 begin
 	sounds_dir := ExpandFileName(ResourcesPath + '\sounds\');
 
@@ -643,31 +640,31 @@ begin
 		fn := sounds_dir + filename + '.ogg';
 
 	dlg := IupFileDlg;
-  IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
-  IupSetStrAttribute(dlg, 'FILE', PAnsiChar(fn));
-  IupSetAttribute(dlg, 'EXTFILTER', 'Sound files (*.ogg, *.vba)|*.ogg;*.vba|All files (*.*)|*.*');
-  
-  IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
-  
-  if IupGetInt(dlg, 'STATUS') = 0 then
-  begin
-    fn := IupGetAttribute(dlg, 'VALUE');
-    I := Pos(LowerCase(sounds_dir), LowerCase(fn));
-    if I > 0 then
-    begin
-      // cut path to meshes folder from file name
-      fn := ExtractRelativePath(sounds_dir, fn);
-      // cut extension
-      fn := ChangeFileExt(fn, '');
-      
-      filename := fn;
-      Result := True;
-    end else
-      Result := False;  
-  end else
-    Result := False;
-    
-  IupDestroy(dlg);
+	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
+	iup.SetStrAttribute(dlg, 'FILE', fn);
+	IupSetAttribute(dlg, 'EXTFILTER', 'Sound files (*.ogg, *.vba)|*.ogg;*.vba|All files (*.*)|*.*');
+
+	IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+
+	if IupGetInt(dlg, 'STATUS') = 0 then
+	begin
+		fn := IupGetAttribute(dlg, 'VALUE');
+		I := Pos(LowerCase(sounds_dir), LowerCase(fn));
+		if I > 0 then
+		begin
+			// cut path to meshes folder from file name
+			fn := ExtractRelativePath(sounds_dir, fn);
+			// cut extension
+			fn := ChangeFileExt(fn, '');
+			
+			filename := fn;
+			Result := True;
+		end else
+			Result := False;  
+	end else
+		Result := False;
+	
+	IupDestroy(dlg);
 end;
 
 end.

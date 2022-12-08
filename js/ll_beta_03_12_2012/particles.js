@@ -297,7 +297,7 @@ function ReadActionList(effect)
 }
 
 var physx_type_preset = reader.ReadSection("physx_type_preset")
-var physx_type_preset_names = ["Light Gases", "Rigid Bodies", "Liquids", "Heavy Gases", "Viscous Liquids", "Warm Smoke"]
+var physx_type_preset_names = ["Light Gases", "Rigid Bodies", "Liquids", "Heavy Gases", "Viscous Liquids"]
 
 while(physx_type_preset_names.length)
 {
@@ -306,16 +306,12 @@ while(physx_type_preset_names.length)
 	preset.ReadBool("self_collided")
 	preset.ReadFP32("damping")
 	preset.ReadFP32("friction")
-	preset.ReadFP32("friction_static")
 	preset.ReadFP32("restitution")
 	preset.ReadBool("apply_physx_gravity")
 	preset.ReadBool("correct_moving")
 	preset.ReadFP32("stiffness")
 	preset.ReadFP32("viscosity")
 	preset.ReadFP32("density")
-	preset.ReadVec3("acceleration")
-	preset.ReadFP32("rbody_coll_ditsnace")
-	preset.ReadFP32("particles_size")
 }
 
 var effects = reader.ReadArray("effects")

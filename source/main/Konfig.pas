@@ -196,6 +196,7 @@ begin
 	(vtype = 'texture, str_shared') or
 	(vtype = 'choose_array, str_shared') or
 	(vtype = 'particles_modifier, str_shared') or
+	(vtype = 'particles_effect, str_shared') or
 	(vtype = 'particles, str_shared') or
 	(vtype = 'vs_ref, str_shared') or
 	(vtype = 'material, str_shared') or
@@ -219,7 +220,8 @@ begin
 	(vtype = 'flags16') or
 	(vtype = 'flags32') or
 	(vtype = 'flags64') or
-	(vtype = 'tex_frame, u16*, u32')
+	(vtype = 'tex_frame, u16*, u32') or
+	(vtype = 'tex_frame, u_vector<u16>')
 end;
 
 type
@@ -1354,7 +1356,7 @@ begin
 					if ll then
 						w.WriteWord(Length(floatarr.data))
 					else
-					  w.WriteLongword(Length(floatarr.data));
+						w.WriteLongword(Length(floatarr.data));
 				end;
 				
 				for J := 0 to Length(floatarr.data) - 1 do
@@ -1423,20 +1425,20 @@ var
 
 			case skind of
 			3 : begin
-						try
-							sname := r.ReadStringZ;
-							if GetStringCrc(sname) = Longint(crc) then
-								SectionComing := True;
-						except
-							SectionComing := False;
-						end;
+					try
+						sname := r.ReadStringZ;
+						if GetStringCrc(sname) = Longint(crc) then
+							SectionComing := True;
+					except
+						SectionComing := False;
 					end;
+				end;
 			5 : if remain >= 4 then begin
-						wordid := r.ReadLongword;
-						if wordid < Longword(Length(dictionary)) then
-							if GetStringCrc(dictionary[wordid]) = Longint(crc) then
-								SectionComing := True;
-					end;
+					wordid := r.ReadLongword;
+					if wordid < Longword(Length(dictionary)) then
+						if GetStringCrc(dictionary[wordid]) = Longint(crc) then
+							SectionComing := True;
+				end;
 			end;
 		end;
 
@@ -1974,8 +1976,11 @@ var
 	parser : TParser;
 begin
 	parser := TParser.Create(str);
-	ParseConfig(0, root.items, parser);
-	parser.Free;
+	try
+		ParseConfig(0, root.items, parser);
+	finally
+		parser.Free;
+	end;
 end;
 
 procedure TTextKonfig.Save(var str: string);
