@@ -19,14 +19,17 @@ var
 	version : TEngineVersion = eVerUnknown;	
 	ResourcesPath : String = 'content';
 	LevelPath : String;
-	
-	sound_params : TTextKonfig;
 
 procedure InitializeEngine;
 procedure FinalizeEngine;
 
+function GetSoundParams : TTextKonfig;
+
 implementation
 uses sysutils, framework, KonfigLibrary, texturePrefs, Texture, uWeather;
+
+var
+	sound_params : TTextKonfig;
 
 function GuessEngineVer : TEngineVersion;
 var
@@ -95,7 +98,6 @@ end;
 
 procedure InitializeEngine;
 var
-	K : TKonfig;
 	tex_prefs_version : TTBVersion;
 begin
 	if version = eVerUnknown then
@@ -152,24 +154,6 @@ begin
 	end;
 	
 	uWeather.Initialize;
-	
-	if FileExists(ResourcesPath + '\sounds\sounds.bin') then
-	begin
-		framework.Initialize;
-		K := TKonfig.Create;
-		K.Load(ResourcesPath + '\sounds\sounds.bin');
-		
-		case version of
-			eVer2033:           sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
-			eVerLLBeta15102012: sound_params := framework.DecompileKonfig(K, 'js\ll_beta_15_10_2012\sounds.js');
-			eVerLLBeta03122012,
-			eVerLL:             sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
-			eVerRedux:          sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
-		end;
-		
-		K.Free;
-		framework.Finalize;
-	end;
 end;
 
 procedure FinalizeEngine;
@@ -181,6 +165,34 @@ begin
 	FreeAndNil(texture_aliases);
 	
 	FreeAndNil(sound_params);
+end;
+
+function GetSoundParams : TTextKonfig;
+var
+	K : TKonfig;
+begin
+	if sound_params = nil then
+	begin
+		if FileExists(ResourcesPath + '\sounds\sounds.bin') then
+		begin
+			framework.Initialize;
+			K := TKonfig.Create;
+			K.Load(ResourcesPath + '\sounds\sounds.bin');
+			
+			case version of
+				eVer2033:           sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
+				eVerLLBeta15102012: sound_params := framework.DecompileKonfig(K, 'js\ll_beta_15_10_2012\sounds.js');
+				eVerLLBeta03122012,
+				eVerLL:             sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
+				eVerRedux:          sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
+			end;
+			
+			K.Free;
+			framework.Finalize;
+		end;
+	end;
+	
+	Result := sound_params;
 end;
 
 end.

@@ -55,7 +55,7 @@ begin
 	
 	if (prop.vtype = 'choose') and (prop.name = 'sound_eff') then
 	begin
-		sect := sound_params.root.GetSect('sound_effects');
+		sect := Engine.GetSoundParams().root.GetSect('sound_effects');
 		
 		list := TStringList.Create;
 		for I := 1 to sect.ParamCount-1 do
@@ -80,7 +80,7 @@ begin
 	
 	if (prop.vtype = 'choose_array, str_shared') and (prop.name = 'random_sounds') then
 	begin
-		sect := sound_params.root.GetSect('sound_schemes').GetSect('environment');
+		sect := Engine.GetSoundParams().root.GetSect('sound_schemes').GetSect('environment');
 		
 		list := TStringList.Create;
 		for I := 0 to sect.ParamCount-1 do
@@ -106,7 +106,7 @@ begin
 	
 	if (prop.vtype = 'choose') and (prop.name = 'sound_echo') then
 	begin
-		sect := sound_params.root.GetSect('echos');
+		sect := Engine.GetSoundParams().root.GetSect('echos');
 		
 		list := TStringList.Create;
 		for I := 1 to sect.ParamCount-1 do
