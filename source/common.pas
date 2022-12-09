@@ -1,12 +1,15 @@
 unit common;
 
 interface
-uses classes, GL, fouramdl, motion, vmath, texturePrefs, glfont;
+uses classes, GL, fouramdl, motion, vmath, texturePrefs, glfont, common_resource, common_texture;
+
+const
+	MAX_INSTANCES = 2048;
 
 type
 	TInstanceData = record
-		matrix   : array[0..1023] of TMatrix;
-		selected : array[0..1023] of Boolean;
+		matrix   : array[0..MAX_INSTANCES-1] of TMatrix;
+		selected : array[0..MAX_INSTANCES-1] of Boolean;
 	end;
 
 	IMaler = class
@@ -52,21 +55,6 @@ var
 	viewport : array[0..3] of GLInt;
 
 type
-	TResource = class
-		name : String;
-		refcnt : Integer;
-		constructor Create(const nm : String);
-	end;
-
-	TResTexture = class(TResource)
-		texture : GLuint;
-		params : PTextureParams;
-		params2 : PTextureParams2;
-
-		constructor Create(const nm : String; texture : GLuint);
-		destructor Destroy; override;
-	end;
-
 	TResModel = class(TResource)
 		model : T4AModel;
 		maler : IMaler;
@@ -82,8 +70,6 @@ type
 		function GetMaterialSet(const name : String) : Longint;
 	end;
 
-function GetTexture(const name : String) : TResTexture;
-procedure FreeTexture(r : TResTexture);
 function GetModel(const name : String) : TResModel;
 procedure FreeModel(r : TResModel);
 
@@ -148,6 +134,8 @@ type
 		index_count  : array of GLsizei;
 		index_offset : array of Pointer;
 		base_vertex  : array of GLint;
+		
+		vao : GLuint;
 
 		constructor Create(m : T4AModelHierrarhy; presets : P4AMAterialSetArray = nil);
 		destructor Destroy; override;
@@ -258,36 +246,9 @@ implementation
 uses sysutils, GLExt, fgl, chunkedFile, Texture, PhysX, cform_utils, Iup, skeleton, Engine;
 
 type
-	TResTextureMap  = TFPGMap<String,TResTexture>;
 	TResModelMap    = TFPGMap<String,TResModel>;
-
 var
-	textures		: TResTextureMap;
 	models			: TResModelMap;
-
-constructor TResource.Create(const nm : String);
-begin
-	inherited Create;
-	name := nm;
-	refcnt := 1;
-end;
-
-constructor TResTexture.Create(const nm : String; texture : GLuint);
-begin
-	inherited Create(nm);
-	self.texture := texture;
-
-	if texture_params <> nil then
-		params := texture_params[nm];
-	if texture_params2 <> nil then
-		params2 := texture_params2[nm];
-end;
-
-destructor TResTexture.Destroy;
-begin
-	glDeleteTextures(1, @texture);
-	inherited Destroy;
-end;
 
 constructor TResModel.Create(const nm : String; m : T4AModel);
 var
@@ -385,39 +346,6 @@ begin
 	end;
 
 	Result := ret;
-end;
-
-function GetTexture(const name : String) : TResTexture;
-var
-	idx : Longint;
-	r : TResTexture;
-
-	file_name : String;
-begin
-	if not textures.Find(name, idx) then
-	begin
-		file_name := GetRealTextureName(name);
-
-		r := TResTexture.Create(name, LoadTexture(ResourcesPath + '\textures\' + file_name));
-		textures[name] := r;
-	end else
-	begin
-		r := textures.Data[idx];
-		Inc(r.refcnt);
-	end;
-
-	Result := r;
-end;
-
-procedure FreeTexture(r : TResTexture);
-begin
-	if r <> nil then
-	begin
-		Dec(r.refcnt);
-		
-		if r.refcnt < 0 then
-		  raise Exception.Create('FreeTexture: dangling pointer to [' + r.name + ']');
-	end;
 end;
 
 procedure LoadMeshes(model : T4AModelSkeleton; const path : String);
@@ -597,34 +525,24 @@ end;
 
 procedure ClearResources;
 var 
-  I : Longint;
-  list : TList;
+	I : Longint;
+	list : TList;
 begin
-  list := TList.Create;
+	list := TList.Create;
   
-  for I := 0 to models.Count-1 do
-    if models.Data[I].refcnt < 1 then
-      list.Add(models.Data[I]);
+	for I := 0 to models.Count-1 do
+		if models.Data[I].refcnt < 1 then
+			list.Add(models.Data[I]);
       
-  for I := 0 to list.Count-1 do
-  begin
-    models.Remove(TResModel(list[I]).name);
-    TResModel(list[I]).Free;
-  end;
+	for I := 0 to list.Count-1 do
+	begin
+		models.Remove(TResModel(list[I]).name);
+		TResModel(list[I]).Free;
+	end;
     
-  list.Clear;
-  
-  for I := 0 to textures.Count-1 do
-    if textures.Data[I].refcnt < 1 then
-      list.Add(textures.Data[I]);
-      
-  for I := 0 to list.Count-1 do
-  begin
-    textures.Remove(TResTexture(list[i]).name);
-    TResTexture(list[I]).Free;
-  end;
-    
-  list.Free;  
+	list.Free;  
+	
+	ClearUnusedTextures;
 end;
 
 constructor TMaterial.Create(const texture_name : String; const shader_name : String; const model_name : String);
@@ -1112,6 +1030,27 @@ begin
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	
+	// create VAO
+	glGenVertexArrays(1, @self.vao);
+	glBindVertexArray(self.vao);
+
+	glEnableVertexAttribArrayARB(0);
+	glEnableVertexAttribArrayARB(1);
+	glEnableVertexAttribArrayARB(2);
+	glEnableVertexAttribArrayARB(3);
+	glEnableVertexAttribArrayARB(4);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
+	
+	glVertexAttribPointerARB(0, 3, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(0));
+	glVertexAttribPointerARB(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(12));
+	glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
+	glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
+	glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
+	
+	glBindVertexArray(0);
 end;
 
 destructor TStaticModelMaler.Destroy;
@@ -1123,6 +1062,7 @@ begin
 	for I := 0 to Length(mtlsets) - 1 do
 		mtlsets[I].Free;
 
+	glDeleteVertexArrays(1, @self.vao);
 	glDeleteBuffers(2, @buffers);
 
 	inherited Destroy;
@@ -1149,7 +1089,7 @@ begin
 	if useBump then glEnableVertexAttribArrayARB(2);
 	if useBump then glEnableVertexAttribArrayARB(3);
 	if useTextures then glEnableVertexAttribArrayARB(4);
-
+	
 	glEnable(GL_VERTEX_PROGRAM_ARB);
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, prog[VP_STATIC]);
 
@@ -1157,12 +1097,13 @@ begin
 
 	glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 0);
 	glDisable(GL_VERTEX_PROGRAM_ARB);
-
+	
 	glDisableVertexAttribArrayARB(0);
 	glDisableVertexAttribArrayARB(1);
 	if useBump then glDisableVertexAttribArrayARB(2);
 	if useBump then glDisableVertexAttribArrayARB(3);
 	if useTextures then glDisableVertexAttribArrayARB(4);
+	
 end;
 
 procedure TStaticModelMaler.Draw2(mtlset : Longint; selected : Boolean; blended : Boolean; distort : Boolean);
@@ -1184,8 +1125,10 @@ begin
 		Exit;
 	if (distort) and (ms.n_distort < 1) then
 		Exit;
-		
-
+	{	
+	glBindVertexArray(self.vao);
+	}	
+	
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
 	
@@ -1194,7 +1137,8 @@ begin
 	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
 	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
 	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
-
+	
+	
 	for I := 0 to self.mesh_count - 1 do
 	begin	
 		material := ms[I];
@@ -1264,9 +1208,14 @@ begin
 			glDisable(GL_FRAGMENT_PROGRAM_ARB);
 		end;
 	end;
-
+	
+	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	
+	{
+	glBindVertexArray(0);
+	}
 end;
 
 procedure TStaticModelMaler.DrawInstanced2(mtlset, count : Longint; const instances : TInstanceData; blended, distort : Boolean);
@@ -1289,7 +1238,10 @@ begin
 		Exit;
 	if (distort) and (ms.n_distort < 1) then
 		Exit;
-				
+		{
+	glBindVertexArray(self.vao);
+	}			
+	
 	glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffers[2]);
 	
@@ -1298,7 +1250,8 @@ begin
 	if useBump then glVertexAttribPointerARB(2, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(16));
 	if useBump then glVertexAttribPointerARB(3, 4, GL_UNSIGNED_BYTE, GL_TRUE, Sizeof(T4AVertStatic), Pointer(20));
 	if useTextures then glVertexAttribPointerARB(4, 2, GL_FLOAT, GL_FALSE, Sizeof(T4AVertStatic), Pointer(24));
-
+	
+	
 	for I := 0 to self.mesh_count - 1 do
 	begin
 		material := ms[I];
@@ -1386,8 +1339,13 @@ begin
 		glDisable(GL_FRAGMENT_PROGRAM_ARB);
 	end;
 
+	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	
+	{
+	glBindVertexArray(0);
+	}
 end;
 
 constructor TSkeletonModelMaler.Create(m: T4AModelSkeleton; lod : Longint);
@@ -2381,9 +2339,6 @@ begin
 end;
 
 initialization
-	textures		:= TResTextureMap.Create;
 	models			:= TResModelMap.Create;
-
-	textures.Sorted := True;
 	models.Sorted   := True;
 end.

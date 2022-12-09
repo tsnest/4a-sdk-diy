@@ -39,7 +39,7 @@ var
 	dialog : TChooseColoranim;
 begin
 	dialog := TChooseColoranim(IupGetAttribute(IupGetDialog(ih), 'TChooseColoranim->this'));
-	IupSetAttribute(ih, 'VALUESTRING', PAnsiChar(dialog.anim_name));
+	iup.SetStrAttribute(ih, 'VALUESTRING', dialog.anim_name);
 	dialog.LoadColoranim(dialog.anim_name);
 	Result := IUP_DEFAULT;
 end;
@@ -68,7 +68,7 @@ var
 	dialog : TChooseColoranim;
 begin
 	dialog := TChooseColoranim(IupGetAttribute(ih, 'TChooseColoranim->this'));
-	IupSetAttribute(dialog.dlg, 'VALUE', PAnsiChar(dialog.anim_name));
+	iup.SetStrAttribute(dialog.dlg, 'VALUE', dialog.anim_name);
 	Result := IUP_CLOSE;
 end;
 
@@ -103,7 +103,7 @@ begin
 	if K <> nil then
 	begin
 		framework.Initialize;
-		if Engine.version >= eVerLL then
+		if Engine.version >= eVerLLBeta15102012 then
 			ca_library := framework.DecompileKonfig(K, 'js\ll\color_anim_lib.js')
 		else
 			ca_library := framework.DecompileKonfig(K, 'js\2033\color_anim_lib.js');
@@ -129,18 +129,16 @@ begin
 			elem := arr.GetParam(J);
 			if elem is TSection then
 			begin
-				IupSetStrAttribute(list_anims, PAnsiChar(IntToStr(I)), PAnsiChar(elem.name));
+				iup.SetStrAttribute(list_anims, IntToStr(I), elem.name);
 				Inc(I);
 			end;
 		end;
 	end;
 	
-	IupSetStrAttribute(list_anims, PAnsiChar(IntToStr(I)), '<none>');
+	iup.SetStrAttribute(list_anims, IntToStr(I), '<none>');
 
-	btn_ok := IupButton('OK', nil);
-	btn_cancel := IupButton('Cancel', nil);
-	IupSetCallback(btn_ok, 'ACTION', @btn_ok_cb);
-	IupSetCallback(btn_cancel, 'ACTION', @btn_cancel_cb);
+	btn_ok := iup.Button('OK', @btn_ok_cb);
+	btn_cancel := iup.Button('Cancel', @btn_cancel_cb);
 	
 	label_length := IupLabel('Length: 0.0 sec, 0 keys');
 	IupSetAttribute(label_length, 'NAME', 'LABEL_LENGTH');
@@ -253,8 +251,8 @@ begin
 		end;
 	end;
 	
-	IupSetStrAttribute(IupGetDialogChild(dlg, 'LABEL_LENGTH'), 'TITLE', 
-	PAnsiChar('Length: ' + FloatToStr(anim_length / 1000) + ' sec, ' + IntToStr(Length(anim_keys)) + ' keys.')); 
+	iup.SetStrAttribute(IupGetDialogChild(dlg, 'LABEL_LENGTH'), 'TITLE', 
+	'Length: ' + FloatToStr(anim_length / 1000) + ' sec, ' + IntToStr(Length(anim_keys)) + ' keys.'); 
 end;
 
 procedure TChooseColoranim.Update;

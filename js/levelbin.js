@@ -25,7 +25,21 @@ if(entity_ver >= 30)
 if(entity_ver >= 28) //if(entity_ver >= 29)
 {
 	var levelbin_ll = module("ll\\levelbin")
-	if(startup) levelbin_ll.ReadStartup(startup, entity_ver)
-	levelbin_ll.ReadEntities(entities, entity_ver)
+	var exact_ver;
+	
+	if(entity_ver >= 29)
+	{
+		exact_ver = ENTITY_VER_29;
+	}
+	else
+	{
+		if(g_build_15_10_2012)
+			exact_ver = ENTITY_VER_28a;
+		else
+			exact_ver = ENTITY_VER_28b;
+	}
+	
+	if(startup) levelbin_ll.ReadStartup(startup, exact_ver)
+	levelbin_ll.ReadEntities(entities, exact_ver)
 } else
 	print("unsupported level.bin version!")

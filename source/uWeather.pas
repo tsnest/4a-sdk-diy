@@ -14,7 +14,7 @@ function GetWeathersList : TStringList;
 procedure RenderSky;
 
 implementation
-uses sysutils, vmath, common, GL, GLExt, Engine, Konfig, KonfigLibrary, framework;
+uses sysutils, vmath, common, common_texture, GL, GLExt, Engine, Konfig, KonfigLibrary, framework;
 
 var
 	k_env : TTextKonfig;
@@ -44,6 +44,8 @@ begin
 		
 		case Engine.version of
 			eVer2033: k_env := framework.DecompileKonfig(K, 'js\2033\environments.js');
+			eVerLLBeta15102012,
+			eVerLLBeta03122012,
 			eVerLL:   k_env := framework.DecompileKonfig(K, 'js\ll\environments.js');
 			else      k_env := nil;
 		end;

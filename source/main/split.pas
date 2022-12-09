@@ -1059,7 +1059,8 @@ var
     'static_data\71871a27_71871a27_ad2afe80', // static_data\weapon_ak_74__g.config.entity.wpn_ak74_oculus
     'static_data\9151aa6f_9151aa6f_bcc89637', // static_data\npc_fx__g.config.entity.npc_teleporting_boss
     // my invention, doesn't exist in original game
-    'static_data\24c51a9c_24c51a9c_fe860793'  // static_data\vehicle__g.config.entity.vehicle
+    'static_data\24c51a9c_24c51a9c_fe860793', // static_data\vehicle__g.config.entity.vehicle
+    'static_data\512ec1ff_512ec1ff_76e6b55a'  // static_data\weapon_item_magazine__g.config.entity.weapon_magazine
   ];
 
 

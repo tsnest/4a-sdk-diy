@@ -267,5 +267,12 @@ for (var i = 0; i < music_schemes.count; i++) {
         var l_sec = links.ReadSection()
         l_sec.ReadString("name")
         l_sec.ReadHintStr("source", "choose")
+        l_sec.ReadU32("source_bar_count")
+        l_sec.ReadU32("fade_out_time")
+        l_sec.ReadFP32("fade_out_offset")
+        l_sec.ReadU32("fade_in_time")
+        l_sec.ReadFP32("fade_in_offset")
+        l_sec.ReadU16("fade_out_type")
+        l_sec.ReadU16("fade_in_type")
     }
 }

@@ -15,7 +15,9 @@ uses
 	TextureImport,    // для импорта текстур
 	uCrc,             // для импорта текстур 
 	FileApi,          // для импорта текстур 
-	ImageLibraryOptions;
+	ImageLibraryOptions,
+	uImages,
+	uEditorUtils;     // для работы с деревом
 	
 var
 	Modified : Boolean = False;
@@ -24,9 +26,17 @@ var
 	current_texture : String;
 	current_options : PTextureParams;
 
+type
+	TViewMode = (vm2D, vm3DCube);
+
 var
 	gl_texture : GLuint;
 	gl_texture_name : String;
+	gl_viewmode : TViewMode;
+	gl_width : Longint;
+	gl_height : Longint;
+	gl_viewscale : Single = 1.0;
+	gl_viewoffsetx, gl_viewoffsety : Single;
 
 var
 	tree_textures : Ihandle;
@@ -35,98 +45,27 @@ var
 	field_type : Ihandle;
 	field_fmt : Ihandle;
 	
-  field_width : Ihandle;
-  field_height : Ihandle;
-  
-  field_bump_name : Ihandle;
-  field_bump_height : Ihandle;
-  
-  field_displ_mode : Ihandle;
-  field_parr_height : Ihandle;
-  
-  field_det_name : Ihandle;
-  field_det_u_scale : Ihandle;
-  field_det_v_scale : Ihandle;
-  field_det_int : Ihandle;
-  
-  field_animated    : Ihandle;
-  field_mip_enabled : Ihandle;
-  field_streamable : Ihandle;
-  field_priority   : Ihandle;
-  field_deprecated : Ihandle;
-  
-  field_avgcolor : Ihandle;
-
-// работать с деревьями в Iup конечно удобно пиздец 
-function PathOfTreeNode(tree : Ihandle; id : Longint) : String;
-var
-	path : String;
-begin
-	path := iup.GetAttribute(tree, 'TITLE'+IntToStr(id));
+	field_width : Ihandle;
+	field_height : Ihandle;
 	
-	while iup.GetInt(tree, 'PARENT'+IntToStr(id)) <> 0 do
-	begin
-		id := iup.GetInt(tree, 'PARENT'+IntToStr(id));
-		Insert('\', path, 1);
-		Insert(iup.GetAttribute(tree, 'TITLE'+IntToStr(id)), path, 1);
-	end;
+	field_bump_name : Ihandle;
+	field_bump_height : Ihandle;
 	
-	Result := path;
-end;
-
-function AddTexture(tree : Ihandle; name : String; ref : Longint = 0) : longint;
-var
-	folder, rest : String;
-	s : Longint;
-	next : PAnsiChar;
-begin
-	s := Pos('\', name);
-	if s <> 0 then
-	begin
-		folder := Copy(name, 1, s-1);
-		rest := Copy(name, s+1);
-		
-		if iup.GetInt(tree, 'CHILDCOUNT'+IntToStr(ref)) > 0 then
-		begin
-			ref := ref+1;
-			
-			while iup.GetAttribute(tree, 'TITLE' + IntToStr(ref)) <> folder do
-			begin
-				next := iup.GetAttribute(tree, 'NEXT' + IntToStr(ref));
-				if next <> nil then
-					ref := StrToInt(next)
-				else
-					Break;
-			end;
-			
-			if next <> nil then // нашли нужную папку
-			begin
-				AddTexture(tree, rest, ref);
-			end else // нужно создать новую
-			begin
-				iup.SetStrAttribute(tree, 'INSERTBRANCH'+IntToStr(ref), folder);
-				Result := AddTexture(tree, rest, IupGetInt(tree, 'LASTADDNODE'));
-			end;
-		end else
-		begin
-			// нужно создать новую папку
-			iup.SetStrAttribute(tree, 'ADDBRANCH'+IntToStr(ref), folder);
-			Result := AddTexture(tree, rest, IupGetInt(tree, 'LASTADDNODE'));
-		end;
-	end else
-	begin
-		if iup.GetInt(tree, 'CHILDCOUNT'+IntToStr(ref)) > 0 then
-		begin
-			ref := iup.GetInt(tree, 'LAST'+IntToStr(ref+1));
-			iup.SetStrAttribute(tree, 'INSERTLEAF'+IntToStr(ref), name);
-			Result := IupGetInt(tree, 'LASTADDNODE');
-		end else
-		begin
-			iup.SetStrAttribute(tree, 'ADDLEAF'+IntToStr(ref), name);
-			Result := IupGetInt(tree, 'LASTADDNODE');			
-		end;
-	end;
-end;
+	field_displ_mode : Ihandle;
+	field_parr_height : Ihandle;
+	
+	field_det_name : Ihandle;
+	field_det_u_scale : Ihandle;
+	field_det_v_scale : Ihandle;
+	field_det_int : Ihandle;
+	
+	field_animated    : Ihandle;
+	field_mip_enabled : Ihandle;
+	field_streamable : Ihandle;
+	field_priority   : Ihandle;
+	field_deprecated : Ihandle;
+	
+	field_avgcolor : Ihandle;
 
 procedure SelectTexture(const path : String);
 var
@@ -212,9 +151,17 @@ end;
 procedure InitializeTextureList(tree : Ihandle);
 var
 	I : Longint;
+	sl : TStringList;
 begin
+	IupSetAttribute(tree, 'AUTOREDRAW', 'NO');
+
+	sl := TStringList.Create;
 	for I := 0 to Length(texture_params.options) - 1 do
-		AddTexture(tree, texture_params.options[I].name);
+		sl.Add(texture_params.options[I].name);
+	FillTreeFromList(tree, 0, sl);
+	sl.Free;
+		
+	IupSetAttribute(tree, 'AUTOREDRAW', 'YES');
 		
 	IupSetAttribute(tree, 'TITLE0', 'Textures');
 	IupSetAttribute(tree, 'STATE0', 'EXPANDED');
@@ -233,14 +180,14 @@ begin
 	K.Compile(TK);
 	K.Save(ResourcesPath + '\textures\' + 'textures.bin');
 	
-  if PatchDirectory <> '' then
-  begin
+	if PatchDirectory <> '' then
+	begin
 		if FileExists(ResourcesPath + '\textures\textures.bin') then
 		begin
 			ForceDirectories(PatchDirectory + '\textures');
 			CopyFile(ResourcesPath + '\textures\textures.bin', PatchDirectory + '\textures\textures.bin', False);  
 		end;   		
-  end;
+	end;
 	
 	K.Free;
 	TK.Free;
@@ -392,96 +339,95 @@ begin
 		IupSetStrAttribute(dlg, 'DESCRIPTION', @sl[T][1]);
 	
 		// 1. Получим имя текстуры для textures.bin                             
-	  n := sl[T];
+		n := sl[T];
 	  
-	  if Copy(n, 1, Length(ImportDirectory)) = ImportDirectory then
-	  	n := Copy(n, Length(ImportDirectory) + 2); // ImportDirectory\tex\tex_1.dds -> tex\tex_1.dds
+		if Copy(n, 1, Length(ImportDirectory)) = ImportDirectory then
+			n := Copy(n, Length(ImportDirectory) + 2); // ImportDirectory\tex\tex_1.dds -> tex\tex_1.dds
 	  	
-	  n := LowerCase(n); // имя текстуры обязательно в нижнем регистре
-	  n := ChangeFileExt(n, '');
+		n := LowerCase(n); // имя текстуры обязательно в нижнем регистре
+		n := ChangeFileExt(n, '');
 	  
-	  // 2. Попробуем найти запись в textures.bin
-	  I := 0;
+		// 2. Попробуем найти запись в textures.bin
+		I := 0;
 	  
-	  while (I < Length(texture_params.options)) and (texture_params.options[I].name < n) do
-	  	Inc(I);
+		while (I < Length(texture_params.options)) and (texture_params.options[I].name < n) do
+			Inc(I);
 	  
-	  // 3. Добавим или изменим запись и импортируем текстуру
-	  if (I < Length(texture_params.options)) and (texture_params.options[I].name = n) then
-	  begin
-	  	ForceDirectories(ExtractFileDir(ResourcesPath + '\textures\' + n));
+		// 3. Добавим или изменим запись и импортируем текстуру
+		if (I < Length(texture_params.options)) and (texture_params.options[I].name = n) then
+		begin
+			ForceDirectories(ExtractFileDir(ResourcesPath + '\textures\' + n));
 	  
-	  	if Engine.version >= eVerLL then
+			if Engine.version >= eVerLL then
 				ImportTextureLL(sl[T], ResourcesPath + '\textures\' + n, @texture_params.options[I])
 			else
 				ImportTexture(sl[T], ResourcesPath + '\textures\' + n, @texture_params.options[I]);
 				
 			texture_params.options[I].avg_color := CalculateAvgColor(ResourcesPath + '\textures\' + n);
 	  	
-	  	Modified := True;
-	  end else
-	  begin
-	  	FillChar(new_options, Sizeof(new_options), #0);
-	  	Insert(new_options, texture_params.options, I);
+			Modified := True;
+		end else
+		begin
+			FillChar(new_options, Sizeof(new_options), #0);
+			Insert(new_options, texture_params.options, I);
 	  	
+			// установим некоторые стандартные занчения
+			texture_params.options[I].name := n;
+			texture_params.options[I].namecrc := GetStringCrc(n);
+			texture_params.options[I].streamable := True;
+			texture_params.options[I].mip_enabled := True;
+			texture_params.options[I].bump_height := 0.1;
+			texture_params.options[I].parr_height := 22;
+			texture_params.options[I].displ_mode := 2;
+			texture_params.options[I].det_u_scale := 5.0;
+			texture_params.options[I].det_v_scale := 5.0;
+			texture_params.options[I].det_int := 0.5;
 	  	
-	  	// установим некоторые стандартные занчения
-	  	texture_params.options[I].name := n;
-	  	texture_params.options[I].namecrc := GetStringCrc(n);
-	  	texture_params.options[I].streamable := True;
-	  	texture_params.options[I].mip_enabled := True;
-	  	texture_params.options[I].bump_height := 0.1;
-	  	texture_params.options[I].parr_height := 22;
-	  	texture_params.options[I].displ_mode := 2;
-	  	texture_params.options[I].det_u_scale := 5.0;
-	  	texture_params.options[I].det_v_scale := 5.0;
-	  	texture_params.options[I].det_int := 0.5;
-	  	
-	  	ForceDirectories(ExtractFileDir(ResourcesPath + '\textures\' + n));
-	  	
-	  	if Engine.version >= eVerLL then
+			ForceDirectories(ExtractFileDir(ResourcesPath + '\textures\' + n));
+			
+			if Engine.version >= eVerLL then
 				ImportTextureLL(sl[T], ResourcesPath + '\textures\' + n, @texture_params.options[I])
 			else
 				ImportTexture(sl[T], ResourcesPath + '\textures\' + n, @texture_params.options[I]);
-				
+			
 			texture_params.options[I].avg_color := CalculateAvgColor(ResourcesPath + '\textures\' + n);
-	  	
-	  	AddTexture(tree_textures, n);
-	  	Modified := True;
-	  end;
+			
+			AddTreeNode(tree_textures, n);
+			Modified := True;
+		end;
 	  
-	  dds := sl[T];
-	  MoveFile(dds, ChangeFileExt(dds, '.~dds'), True);
+		dds := sl[T];
+		MoveFile(dds, ChangeFileExt(dds, '.~dds'), True);
 	  
-	  // 4. Скопируем текстуру в папку патча
-	  if PatchDirectory <> '' then
-	  begin
-	    ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
-	        		
-	  	if texture_params.options[I].streamable then
-	  	begin
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.2048') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.1024') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.1024', PatchDirectory + '\textures\' + n + '.1024', False);
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.512') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.512', PatchDirectory + '\textures\' + n + '.512', False);
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.2048c') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.2048c', PatchDirectory + '\textures\' + n + '.2048c', False);
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.1024c') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.1024c', PatchDirectory + '\textures\' + n + '.1024c', False);
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.512c') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.512c', PatchDirectory + '\textures\' + n + '.512c', False);
-	  	end else
-	  		if FileExists(ResourcesPath + '\textures\' + n + '.dds') then
-	  			CopyFile(ResourcesPath + '\textures\' + n + '.dds', PatchDirectory + '\textures\' + n + '.dds', False);     		
-	  end;
-	  
-	  IupSetAttribute(dlg, 'INC', nil);
-  end;
+		// 4. Скопируем текстуру в папку патча
+		if PatchDirectory <> '' then
+		begin
+			ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
+		
+			if texture_params.options[I].streamable then
+			begin
+				if FileExists(ResourcesPath + '\textures\' + n + '.2048') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
+				if FileExists(ResourcesPath + '\textures\' + n + '.1024') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.1024', PatchDirectory + '\textures\' + n + '.1024', False);
+				if FileExists(ResourcesPath + '\textures\' + n + '.512') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.512', PatchDirectory + '\textures\' + n + '.512', False);
+				if FileExists(ResourcesPath + '\textures\' + n + '.2048c') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.2048c', PatchDirectory + '\textures\' + n + '.2048c', False);
+				if FileExists(ResourcesPath + '\textures\' + n + '.1024c') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.1024c', PatchDirectory + '\textures\' + n + '.1024c', False);
+				if FileExists(ResourcesPath + '\textures\' + n + '.512c') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.512c', PatchDirectory + '\textures\' + n + '.512c', False);
+			end else
+				if FileExists(ResourcesPath + '\textures\' + n + '.dds') then
+					CopyFile(ResourcesPath + '\textures\' + n + '.dds', PatchDirectory + '\textures\' + n + '.dds', False);     		
+		end;
+		
+		IupSetAttribute(dlg, 'INC', nil);
+	end;
   
-  IupDestroy(dlg);
-  sl.Free;
+	IupDestroy(dlg);
+	sl.Free;
 end;
   
 function gl_map_cb(ih : Ihandle) : Longint; cdecl;
@@ -503,6 +449,18 @@ begin
 	//glClearColor(bkg_color.x, bkg_color.y, bkg_color.z, bkg_color.w);
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+	
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity;
+	glTranslatef(-gl_viewoffsetx, -gl_viewoffsety, 0.0);
+	if gl_width > gl_height then
+		glScalef(1.0 / (gl_width / gl_height), 1.0, 1.0)
+	else
+		glScalef(1.0, 1.0 / (gl_height / gl_width), 1.0);
+	glScalef(gl_viewscale, gl_viewscale, 1.0);
+		
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity;
 
 //	sinx := Sin(anglex * (PI/180));
 //	cosx := Cos(anglex * (PI/180));
@@ -543,6 +501,44 @@ begin
 	
 	IupGLSwapBuffers(ih);
 	Result := IUP_DEFAULT;
+end;
+
+function gl_resize_cb(ih : Ihandle; w, h : Longint) : Longint; cdecl;
+begin
+	IupGLMakeCurrent(ih);
+	glViewport(0, 0, w, h);
+
+	gl_width := w;
+	gl_height := h;
+
+	Result := IUP_DEFAULT;
+end;
+
+var
+	old_x, old_y : Longint;
+
+function gl_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
+begin
+	if iup_isbutton3(status) then
+	begin
+		gl_viewoffsetx := gl_viewoffsetx - ((x - old_x) / (gl_width * 0.5));
+		gl_viewoffsety := gl_viewoffsety + ((y - old_y) / (gl_height * 0.5));
+		IupUpdate(ih);
+	end;
+	
+	old_x := x;
+	old_y := y;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function gl_wheel_cb(ih : Ihandle; delta : Single; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
+begin
+	gl_viewscale := gl_viewscale + (delta * 0.1);
+	if gl_viewscale < 0.1 then gl_viewscale := 0.1;
+	if gl_viewscale > 10.0 then gl_viewscale := 10.0;
+	IupUpdate(ih);
+	Result := IUP_DEFAULT;	
 end;
 
 function tree_selection_cb(ih : Ihandle; id, state : Longint) : Longint; cdecl;
@@ -747,37 +743,7 @@ begin
 		n := current_texture;
 	
 		try
-			if Engine.version = eVer2033 then
-			begin
-				if state = 1 then
-				begin
-					MakeStreamable_2033(ResourcesPath + '\textures\' + n + '.dds', ResourcesPath + '\textures\' + n);
-					
-					ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
-					
-      		CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
-      		CopyFile(ResourcesPath + '\textures\' + n + '.1024', PatchDirectory + '\textures\' + n + '.1024', False);
-      		CopyFile(ResourcesPath + '\textures\' + n + '.512', PatchDirectory + '\textures\' + n + '.512', False);
-					
-					DeleteFile(ResourcesPath + '\textures\' + n + '.dds');
-					DeleteFile(PatchDirectory + '\textures\' + n + '.dds');
-				end else
-				begin
-					MakeDDS_2033(ResourcesPath + '\textures\' + n);
-					
-					ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
-					
-					CopyFile(ResourcesPath + '\textures\' + n + '.dds', PatchDirectory + '\textures\' + n + '.dds', False);
-					
-					DeleteFile(ResourcesPath + '\textures\' + n + '.512');
-					DeleteFile(ResourcesPath + '\textures\' + n + '.1024');
-					DeleteFile(ResourcesPath + '\textures\' + n + '.2048');
-					DeleteFile(PatchDirectory + '\textures\' + n + '.512');
-					DeleteFile(PatchDirectory + '\textures\' + n + '.1024');
-					DeleteFile(PatchDirectory + '\textures\' + n + '.2048');
-				end;
-			end else
-			if Engine.version = eVerLL then
+			if Engine.version >= eVerLL then
 			begin
 				if state = 1 then
 				begin
@@ -785,9 +751,9 @@ begin
 					
 					ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
 					
-      		CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
-      		CopyFile(ResourcesPath + '\textures\' + n + '.1024c', PatchDirectory + '\textures\' + n + '.1024c', False);
-      		CopyFile(ResourcesPath + '\textures\' + n + '.512c', PatchDirectory + '\textures\' + n + '.512c', False);
+					CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
+					CopyFile(ResourcesPath + '\textures\' + n + '.1024c', PatchDirectory + '\textures\' + n + '.1024c', False);
+					CopyFile(ResourcesPath + '\textures\' + n + '.512c', PatchDirectory + '\textures\' + n + '.512c', False);
 					
 					DeleteFile(ResourcesPath + '\textures\' + n + '.dds');
 					DeleteFile(PatchDirectory + '\textures\' + n + '.dds');
@@ -806,6 +772,35 @@ begin
 					DeleteFile(PatchDirectory + '\textures\' + n + '.1024c');
 					DeleteFile(PatchDirectory + '\textures\' + n + '.2048');
 				end;
+			end else // 2033, build 15-10-2012, build 03-12-2012
+			begin
+				if state = 1 then
+				begin
+					MakeStreamable_2033(ResourcesPath + '\textures\' + n + '.dds', ResourcesPath + '\textures\' + n);
+					
+					ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
+					
+					CopyFile(ResourcesPath + '\textures\' + n + '.2048', PatchDirectory + '\textures\' + n + '.2048', False);
+					CopyFile(ResourcesPath + '\textures\' + n + '.1024', PatchDirectory + '\textures\' + n + '.1024', False);
+					CopyFile(ResourcesPath + '\textures\' + n + '.512', PatchDirectory + '\textures\' + n + '.512', False);
+					
+					DeleteFile(ResourcesPath + '\textures\' + n + '.dds');
+					DeleteFile(PatchDirectory + '\textures\' + n + '.dds');
+				end else
+				begin
+					MakeDDS_2033(ResourcesPath + '\textures\' + n);
+					
+					ForceDirectories(ExtractFileDir(PatchDirectory + '\textures\' + n));
+					
+					CopyFile(ResourcesPath + '\textures\' + n + '.dds', PatchDirectory + '\textures\' + n + '.dds', False);
+					
+					DeleteFile(ResourcesPath + '\textures\' + n + '.512');
+					DeleteFile(ResourcesPath + '\textures\' + n + '.1024');
+					DeleteFile(ResourcesPath + '\textures\' + n + '.2048');
+					DeleteFile(PatchDirectory + '\textures\' + n + '.512');
+					DeleteFile(PatchDirectory + '\textures\' + n + '.1024');
+					DeleteFile(PatchDirectory + '\textures\' + n + '.2048');
+				end;
 			end;
 			
 			current_options.streamable := state <> 0;
@@ -818,7 +813,7 @@ begin
 			begin
 				// reset toggle and show error
 				IupSetInt(ih, 'VALUE', (not state) and 1);
-				IupMessageError(IupGetDialog(ih), PAnsiChar(E.ClassName + ': ' + E.Message));
+				uEditorUtils.ShowError(E.ClassName + ': ' + E.Message);
 			end;
 		end;
 	end;
@@ -944,7 +939,7 @@ begin
 	
 	for I := 0 to iup.GetInt(tree_textures, 'COUNT') - 1 do
 	begin
-		if iup.GetAttribute(tree_textures, 'KIND'+IntToStr(I)) = 'LEAF' then
+		if KindOfTreeNode(tree_textures, I) = 'LEAF' then
 		begin
 			name := PathOfTreeNode(tree_textures, I);
 			
@@ -1017,13 +1012,16 @@ end;
 
 procedure CreateDialog;
 var
-  dlg : Ihandle;
-  tree : Ihandle;
-  props : Ihandle;
+	dlg : Ihandle;
+	tree : Ihandle;
+	props : Ihandle;
   
-  top_bar : Ihandle;
-  fb_settings : Ihandle;
+	top_bar : Ihandle;
+	fb_settings : Ihandle;
 begin
+	// Load icons
+	LoadImages;
+	
 	gl_canvas := IupGLCanvas(nil);
 	IupSetAttribute(gl_canvas, 'NAME', 'GL_CANVAS');
 	IupSetAttribute(gl_canvas, 'BUFFER', 'DOUBLE');
@@ -1032,20 +1030,22 @@ begin
 	IupSetAttribute(gl_canvas, 'RASTERSIZE', '512x512');
 	IupSetCallback(gl_canvas, 'ACTION', @gl_redraw_cb);
 	IupSetCallback(gl_canvas, 'MAP_CB', @gl_map_cb);
-	//IupSetCallback(gl_canvas, 'RESIZE_CB', @gl_resize_cb);
-	//IupSetCallback(gl_canvas, 'MOTION_CB', @gl_motion_cb);
+	IupSetCallback(gl_canvas, 'RESIZE_CB', @gl_resize_cb);
+	IupSetCallback(gl_canvas, 'MOTION_CB', @gl_motion_cb);
 	//IupSetCallback(gl_canvas, 'BUTTON_CB', @gl_button_cb);
+	IupSetCallback(gl_canvas, 'WHEEL_CB', @gl_wheel_cb);
 
-  tree := IupTree;
-  IupSetAttribute(tree, 'ADDEXPANDED', 'NO');
-  IupSetAttribute(tree, 'RASTERSIZE', '250x350');
-  
-  IupSetCallback(tree, 'SELECTION_CB', @tree_selection_cb);
-  
-  tree_textures := tree;
-  
-  field_type := IupList(nil); 
-  IupSetAttribute(field_type, 'DROPDOWN', 'YES');
+	tree := IupTree;
+	IupSetAttribute(tree, 'ADDEXPANDED', 'NO');
+	IupSetAttribute(tree, 'RASTERSIZE', '250x350');
+	IupSetAttribute(tree, 'IMAGELEAF', 'ICON_TEXTURE');
+	
+	IupSetCallback(tree, 'SELECTION_CB', @tree_selection_cb);
+	
+	tree_textures := tree;
+	
+	field_type := IupList(nil); 
+	IupSetAttribute(field_type, 'DROPDOWN', 'YES');
 	IupSetAttribute(field_type, '1', '2D Texture');
 	IupSetAttribute(field_type, '2', 'Detail map');
 	IupSetAttribute(field_type, '3', 'Environment map');
@@ -1053,76 +1053,76 @@ begin
 	IupSetAttribute(field_type, '5', 'Terrain');
 	IupSetAttribute(field_type, '6', 'Bump Map');
 	IupSetAttribute(field_type, '7', 'Unknown 6');
-	if Engine.version >= eVerLL then
+	if Engine.version >= eVerLLBeta15102012 then
 	begin
-			IupSetAttribute(field_type, '8', 'Terrain Mask');
-			IupSetAttribute(field_type, '9', 'Normal Map');
+		IupSetAttribute(field_type, '8', 'Terrain Mask');
+		IupSetAttribute(field_type, '9', 'Normal Map');
 	end;
 	IupSetCallback(field_type, 'ACTION', @list_ttype_cb);
   
-  field_fmt := IupLabel(''); 
-  IupSetAttribute(field_fmt, 'RASTERSIZE', '150x');
-  
-  field_width := IupLabel(''); 
-  IupSetAttribute(field_width, 'RASTERSIZE', '150x');
-  
-  field_height := IupLabel(''); 
-  IupSetAttribute(field_height, 'RASTERSIZE', '150x');
-  
-  field_bump_name   := IupText(nil);
-  IupSetAttribute(field_bump_name, 'EXPAND', 'HORIZONTAL');
-  IupSetCallback(field_bump_name, 'ACTION', @text_bump_name_cb);
-  
-  field_bump_height := IupText(nil);
-  IupSetAttribute(field_bump_height, 'EXPAND', 'HORIZONTAL');
-  IupSetAttribute(field_bump_height, 'MASK', IUP_MASK_UFLOAT);
-  IupSetCallback(field_bump_height, 'ACTION', @text_bump_height_cb);
-  
-  field_displ_mode := IupList(nil);
-  IupSetAttribute(field_displ_mode, 'DROPDOWN', 'YES');
-  IupSetAttribute(field_displ_mode, '1', 'Simple'); // названия взяты из PDB от Арктики.1
-  IupSetAttribute(field_displ_mode, '2', 'Parralax');
-  IupSetAttribute(field_displ_mode, '3', 'Displace');
-  IupSetCallback(field_displ_mode, 'ACTION', @list_displ_mode_cb);
-  
-  field_parr_height := IupText(nil);
-  IupSetAttribute(field_parr_height, 'MASK', IUP_MASK_UINT);
-  IupSetAttribute(field_parr_height, 'SPIN', 'YES');
-  IupSetAttribute(field_parr_height, 'SPINMIN', '0');
-  IupSetAttribute(field_parr_height, 'SPINMAX', '255');
-  IupSetCallback(field_parr_height, 'ACTION', @text_parr_height_cb);
-  IupSetCallback(field_parr_height, 'SPIN_CB', @spin_parr_height_cb);
-  
-  field_det_name    := IupText(nil);
-  IupSetAttribute(field_det_name, 'EXPAND', 'HORIZONTAL');
-  IupSetCallback(field_det_name, 'ACTION', @text_det_name_cb);
-  
-  field_det_u_scale := IupText(nil);
-  IupSetAttribute(field_det_u_scale, 'EXPAND', 'HORIZONTAL');
-  IupSetAttribute(field_det_u_scale, 'MASK', IUP_MASK_UFLOAT);
-  IupSetCallback(field_det_u_scale, 'ACTION', @text_det_u_scale_cb);
-  
-  field_det_v_scale := IupText(nil);
-  IupSetAttribute(field_det_v_scale, 'EXPAND', 'HORIZONTAL');
-  IupSetAttribute(field_det_v_scale, 'MASK', IUP_MASK_UFLOAT);
-  IupSetCallback(field_det_v_scale, 'ACTION', @text_det_v_scale_cb);
-  
-  field_det_int := IupText(nil);
-  IupSetAttribute(field_det_int, 'EXPAND', 'HORIZONTAL');
-  IupSetAttribute(field_det_int, 'MASK', IUP_MASK_UFLOAT);
-  IupSetCallback(field_det_int, 'ACTION', @text_det_int_cb);
-  
-  field_animated    := iup.Toggle('Здесь', @tg_animated_cb);
-  field_mip_enabled := iup.Toggle('Могла', @tg_mip_enabled_cb);
-  field_streamable  := iup.Toggle('Быть', @tg_streamable_cb);
-  field_priority    := iup.Toggle('Ваша', @tg_priority_cb);
-  field_deprecated  := iup.Toggle('Реклама', @tg_deprecated_cb);
-  
-  field_avgcolor := IupFlatButton(' ');
-  IupSetAttribute(field_avgcolor, 'EXPAND', 'HORIZONTAL');
-  IupSetCallback(field_avgcolor, 'FLAT_ACTION', @btn_avg_color_cb);
-  IupSetAttribute(field_avgcolor, 'HLCOLOR', nil);
-  IupSetAttribute(field_avgcolor, 'PSCOLOR', nil);
+	field_fmt := IupLabel(''); 
+	IupSetAttribute(field_fmt, 'RASTERSIZE', '150x');
+	
+	field_width := IupLabel(''); 
+	IupSetAttribute(field_width, 'RASTERSIZE', '150x');
+	
+	field_height := IupLabel(''); 
+	IupSetAttribute(field_height, 'RASTERSIZE', '150x');
+	
+	field_bump_name   := IupText(nil);
+	IupSetAttribute(field_bump_name, 'EXPAND', 'HORIZONTAL');
+	IupSetCallback(field_bump_name, 'ACTION', @text_bump_name_cb);
+	
+	field_bump_height := IupText(nil);
+	IupSetAttribute(field_bump_height, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(field_bump_height, 'MASK', IUP_MASK_UFLOAT);
+	IupSetCallback(field_bump_height, 'ACTION', @text_bump_height_cb);
+	
+	field_displ_mode := IupList(nil);
+	IupSetAttribute(field_displ_mode, 'DROPDOWN', 'YES');
+	IupSetAttribute(field_displ_mode, '1', 'Simple'); // названия взяты из PDB от Арктики.1
+	IupSetAttribute(field_displ_mode, '2', 'Parralax');
+	IupSetAttribute(field_displ_mode, '3', 'Displace');
+	IupSetCallback(field_displ_mode, 'ACTION', @list_displ_mode_cb);
+	
+	field_parr_height := IupText(nil);
+	IupSetAttribute(field_parr_height, 'MASK', IUP_MASK_UINT);
+	IupSetAttribute(field_parr_height, 'SPIN', 'YES');
+	IupSetAttribute(field_parr_height, 'SPINMIN', '0');
+	IupSetAttribute(field_parr_height, 'SPINMAX', '255');
+	IupSetCallback(field_parr_height, 'ACTION', @text_parr_height_cb);
+	IupSetCallback(field_parr_height, 'SPIN_CB', @spin_parr_height_cb);
+	
+	field_det_name    := IupText(nil);
+	IupSetAttribute(field_det_name, 'EXPAND', 'HORIZONTAL');
+	IupSetCallback(field_det_name, 'ACTION', @text_det_name_cb);
+	
+	field_det_u_scale := IupText(nil);
+	IupSetAttribute(field_det_u_scale, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(field_det_u_scale, 'MASK', IUP_MASK_UFLOAT);
+	IupSetCallback(field_det_u_scale, 'ACTION', @text_det_u_scale_cb);
+	
+	field_det_v_scale := IupText(nil);
+	IupSetAttribute(field_det_v_scale, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(field_det_v_scale, 'MASK', IUP_MASK_UFLOAT);
+	IupSetCallback(field_det_v_scale, 'ACTION', @text_det_v_scale_cb);
+	
+	field_det_int := IupText(nil);
+	IupSetAttribute(field_det_int, 'EXPAND', 'HORIZONTAL');
+	IupSetAttribute(field_det_int, 'MASK', IUP_MASK_UFLOAT);
+	IupSetCallback(field_det_int, 'ACTION', @text_det_int_cb);
+	
+	field_animated    := iup.Toggle('Здесь', @tg_animated_cb);
+	field_mip_enabled := iup.Toggle('Могла', @tg_mip_enabled_cb);
+	field_streamable  := iup.Toggle('Быть', @tg_streamable_cb);
+	field_priority    := iup.Toggle('Ваша', @tg_priority_cb);
+	field_deprecated  := iup.Toggle('Реклама', @tg_deprecated_cb);
+	
+	field_avgcolor := IupFlatButton(' ');
+	IupSetAttribute(field_avgcolor, 'EXPAND', 'HORIZONTAL');
+	IupSetCallback(field_avgcolor, 'FLAT_ACTION', @btn_avg_color_cb);
+	IupSetAttribute(field_avgcolor, 'HLCOLOR', nil);
+	IupSetAttribute(field_avgcolor, 'PSCOLOR', nil);
 
 	props := IupGridBox(
 		IupLabel('Type:'),   field_type,
@@ -1159,6 +1159,7 @@ begin
 	
 	fb_settings := IupFlatButton('Settings');
 	IupSetCallback(fb_settings, 'FLAT_ACTION', @fb_settings_cb);
+	IupSetAttribute(fb_settings, 'IMAGE', 'ICON_TOOLS');
 	
 	top_bar := IupHBox(
 		fb_settings, 
@@ -1168,28 +1169,29 @@ begin
 	IupSetAttribute(top_bar, 'MARGIN', '1x1');
 	IupSetAttribute(top_bar, 'PADDING', '1x1');
 
-  dlg := IupDialog(
-  	IupSetAttributes(
-  		IupSplit(
-	  		IupVBox(
-	  			tree, 
-	  			IupSetAttributes(iup.Button('Remove texture', @btn_remove_texture_cb), 'EXPAND=HORIZONTAL'),
-	  			IupSetAttributes(iup.Button('Check not existing', @btn_check_notexist_cb), 'EXPAND=HORIZONTAL'),
-	  			IupSetAttributes(iup.Button('Check new textures', @btn_check_new_cb), 'EXPAND=HORIZONTAL'),
-	  			IupSetAttributes(iup.Button('Save textures.bin', @btn_save_texturesbin_cb), 'EXPAND=HORIZONTAL'),
-	  			nil
-	  		),
-	  		IupSplit(IupVBox(top_bar, gl_canvas, nil), props)
-  		), 
-  	'NMARGIN=10x10')
-  );
-  IupSetAttribute(dlg, 'TITLE', 'Image Library');
-  IupSetCallback(dlg, 'CLOSE_CB', @dlg_close_cb);
-  IupShowXY(dlg, IUP_CURRENT, IUP_CURRENT);
+	dlg := IupDialog(
+		IupSetAttributes(
+			IupSplit(
+				IupVBox(
+					tree, 
+					IupSetAttributes(iup.Button('Remove texture', @btn_remove_texture_cb), 'EXPAND=HORIZONTAL'),
+					IupSetAttributes(iup.Button('Check not existing', @btn_check_notexist_cb), 'EXPAND=HORIZONTAL'),
+					IupSetAttributes(iup.Button('Check new textures', @btn_check_new_cb), 'EXPAND=HORIZONTAL'),
+					IupSetAttributes(iup.Button('Save textures.bin', @btn_save_texturesbin_cb), 'EXPAND=HORIZONTAL'),
+					nil
+				),
+				IupSplit(IupVBox(top_bar, gl_canvas, nil), props)
+			), 
+			'NMARGIN=10x10'
+		)
+	);
+	IupSetAttribute(dlg, 'TITLE', 'Image Library');
+	IupSetCallback(dlg, 'CLOSE_CB', @dlg_close_cb);
+	IupShowXY(dlg, IUP_CURRENT, IUP_CURRENT);
   
-  IupSetHandle('MAINDIALOG', dlg);
+	IupSetHandle('MAINDIALOG', dlg);
   
-  InitializeTextureList(tree);
+	InitializeTextureList(tree);
 end;
 
 type
@@ -1204,14 +1206,33 @@ end;
 
 var
 	dlg : Ihandle;
+	P : Longint;
 begin
 	textureQuality := 2048;
 	
 	IupOpen(nil, nil);
 	IupGLCanvasOpen;
+
+	// parse command-line
+	P := 0;
+		
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_15_10_2012') then
+	begin
+		Engine.version := eVerLLBeta15102012;
+		Inc(P);
+	end;
 	
-	if ParamCount > 0 then
-		ResourcesPath := ParamStr(1);
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_3_12_2012') then
+	begin
+		Engine.version := eVerLLBeta03122012;
+		Inc(P);
+	end;
+	
+	if ParamCount-P > 0 then
+	begin
+		ResourcesPath := ParamStr(P+1);
+		Inc(P);
+	end;
 	
 	if not FileExists(ResourcesPath + '\textures\textures.bin') then
 	begin

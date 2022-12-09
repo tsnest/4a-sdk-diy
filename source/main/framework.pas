@@ -1,12 +1,13 @@
 unit framework;
 
 interface
-uses Konfig;
+uses Konfig, Variants;
 
 procedure Initialize;
 procedure Finalize;
 
-function DecompileKonfig(K : TKonfig; const script_name : String) : TTextKonfig;
+function DecompileKonfig(K : TKonfig; script_name : String) : TTextKonfig;
+procedure DefineGlobal(const name : String; v : Variant);
 
 implementation
 uses uCrc, Konfig_reader, mujs, chunkedFile, sysutils { for FileExists };
@@ -56,6 +57,8 @@ begin
 	if module <> nil then
 	begin
 		filename := 'js\' + module + '.js';
+		if not FileExists(filename) then
+			filename := ExtractFilePath(ParamStr(0)) + filename;
 		
 		r := TMemoryReader.CreateFromFile(filename);
 		SetLength(source, r.size);
@@ -69,11 +72,11 @@ begin
 		begin
 			js_newobject(J); // our module
 			
-			js_copy(J, -2);
-			js_copy(J, -2);
+			js_copy(J, -2); // copy function (from js_ploadstring)
+			js_copy(J, -2); // copy this (from js_newobject)
 			
 			if js_pcall(J, 0) = 0 then
-				js_pop(J,1) // remove result
+				js_pop(J, 1) // remove result
 			else
 				error := True;
 		end else
@@ -86,8 +89,8 @@ begin
 			
 			js_pushnull(J);
 		end 
-		else js_copy(J, -1); // copy 'our module'
-			
+		else 
+			js_copy(J, -1); // copy 'our module'
 	end else
 	begin
 		js_report(J, 'module: invalid call');
@@ -98,22 +101,36 @@ end;
 procedure Initialize;
 var
 	J : js_State;
+	_common_js_name : String;
 begin
 	J := js_newstate(nil, nil, JS_STRICT);
 	js_setreport(J, Script_report);
 
+	js_pushglobal(J);
+
+	js_pushglobal(J);
+	js_defproperty(J, -2, '_G', JS_READONLY);
+
 	js_newcfunction(J, Script_crc32, 'crc32', 1);
-	js_setglobal(J, 'crc32');
+	js_setproperty(J, -2, 'crc32');
 
 	js_newcfunction(J, Script_print, 'print', 0);
-	js_setglobal(J, 'print');
+	js_setproperty(J, -2, 'print');
 	
 	js_newcfunction(J, Script_module, 'module', 0);
-	js_setglobal(J, 'module');
+	js_setproperty(J, -2, 'module');
+	
+	js_pop(J, 1);
 
 	if FileExists('js\_common_.js') then
-		js_dofile(J, 'js\_common_.js');
-
+		js_dofile(J, 'js\_common_.js')
+	else
+	begin
+		_common_js_name := ExtractFilePath(ParamStr(0)) + 'js\_common_.js';
+		if FileExists(_common_js_name) then
+			js_dofile(J, PAnsiChar(_common_js_name));
+	end;
+	
 	Konfig_reader.Script_Init(J);
 
 	g_state := J;
@@ -129,7 +146,7 @@ begin
 	js_freestate(J);
 end;
 
-function DecompileKonfig(K : TKonfig; const script_name : String) : TTextKonfig;
+function DecompileKonfig(K : TKonfig; script_name : String) : TTextKonfig;
 var
 	J : js_State;
 	tk : TTextKonfig;
@@ -142,6 +159,9 @@ begin
 	Konfig_reader.Script_Push(J, R);
 	js_setglobal(J, 'reader');
 
+	if not FileExists(script_name) then
+		script_name := ExtractFilePath(ParamStr(0)) + script_name;
+		
 	js_dofile(J, PAnsiChar(script_name));
 
 	js_pushundefined(J);
@@ -150,6 +170,35 @@ begin
 	// R freed by mujs
 
 	Result := tk;
+end;
+
+procedure DefineGlobal(const name : String; v : Variant);
+var
+	J : js_State;
+begin
+	J := g_state;
+	
+	case varType(v) of
+		varEmpty: js_pushundefined(J);
+		varNull: js_pushnull(J);
+		varSingle: js_pushnumber(J, Single(v));
+		varDouble: js_pushnumber(J, Double(v));
+		varShortInt: js_pushnumber(J, ShortInt(v));
+		varSmallInt: js_pushnumber(J, SmallInt(v));
+		varInteger: js_pushnumber(J, Integer(v));
+		varInt64: js_pushnumber(J, Int64(v));
+		varByte: js_pushnumber(J, Byte(v));
+		varWord: js_pushnumber(J, Word(v));
+		varLongWord: js_pushnumber(J, LongWord(v));
+		varQWord: js_pushnumber(J, QWord(v));
+		varBoolean: js_pushboolean(J, Integer(Boolean(v)));
+		varString: js_pushstring(J, PAnsiChar(String(v)));
+		else 
+			WriteLn('framework.DefineGlobal: unsupported variant type');
+			Exit;
+	end;
+	
+	js_defglobal(J, PAnsiChar(name), JS_READONLY);
 end;
 
 end.

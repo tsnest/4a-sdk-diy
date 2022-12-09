@@ -33,14 +33,11 @@ type
 
 		function ReadSection(const name : String; name_check : Boolean = True) : TKonfigReader;
 		function ReadArray(const name : String; count : PLongword = nil) : TKonfigReader;
-		function ReadArray16(const name : String; count : PLongword = nil) : TKonfigReader;
 		
 		function TryReadSection(const name : String) : TKonfigReader;
 		function TryReadArray(const name : String; count : PLongword = nil) : TKonfigReader;
-		function TryReadArray16(const name : String; count : PLongword = nil) : TKonfigReader;
 
 		function ReadName(const nm : String) : String;
-		function ReadLang(const nm : String) : String;
 		function ReadStringCrc(const nm : String; f : TStringRecoverFunc; userdata : Pointer = nil) : String;
 		procedure ReadHint(const nm : String; const tp : String);
 		function ReadHintStr(const nm : String; const tp : String) : String;
@@ -75,8 +72,8 @@ type
 		function ReadU32Array(const nm : String; const tp : String = 'u32_array') : TU32Array;
 		function ReadFP32Array(const nm : String; const tp : String = 'fp32_array') : TFP32Array;
 		function ReadU16Array16(const nm : String; const tp : String = 'u16_array') : TU16Array;
-		function ReadU32Array16(const nm : String; const tp : String = 'u32_array16') : TU32Array;
-		function ReadFP32Array16(const nm : String; const tp : String = 'fp32_array16') : TFP32Array;
+		function ReadU32Array16(const nm : String; const tp : String = 'u32_array') : TU32Array;
+		function ReadFP32Array16(const nm : String; const tp : String = 'fp32_array') : TFP32Array;
 		
 		function ReadStrArray16(const nm : String; const tp : String = 'str_array16') : TStrArray;
 		function ReadStrArray32(const nm : String; const tp : String = 'str_array32') : TStrArray;
@@ -167,21 +164,6 @@ begin
 	Result := arr;
 end;
 
-function TKonfigReader.ReadArray16(const name : String; count : PLongword) : TKonfigReader;
-var
-	arr : TKonfigReader;
-	cnt : Longword;
-begin
-	ReadHint(name, 'array');
-	arr := ReadSection(name);
-	cnt := arr.ReadU16('count');
-	
-	if count <> nil then
-		count^ := cnt;
-
-	Result := arr;
-end;
-
 function TKonfigReader.TryReadSection(const name : String) : TKonfigReader;
 var
 	sect : TKonfigReader;
@@ -235,60 +217,11 @@ begin
 		Result := nil;
 end;
 
-function TKonfigReader.TryReadArray16(const name : String; count : PLongword) : TKonfigReader;
-var
-	saved_pos : Longword;
-	sect : TKonfigReader;
-	cnt : Longword;
-begin
-	saved_pos := data.pos;
-
-	try 
-		_ReadDebugInfo(name, 'array', True);
-	except
-		on E: Exception do
-		begin
-			data.pos := saved_pos;
-			Result := nil;
-			Exit;
-		end
-	end;
-	
-	sect := _ReadSection(name, True);
-	if sect <> nil then
-	begin
-		if Assigned(dest) then
-		begin
-			dest.AddHint(name, 'array');
-			sect.dest := dest.AddSect(name);
-		end;
-		
-		cnt := sect.ReadU16('count');
-		
-		if count <> nil then
-			count^ := cnt;
-		
-		Result := sect;
-	end else
-		Result := nil;
-end;
-
 function TKonfigReader.ReadName(const nm : String) : String;
 var
 	n : String;
 begin
 	ReadHint(nm, 'name');
-	n := ReadString(nm, 'stringz');
-	if Assigned(dest) then dest.name := n;
-
-	Result := n;
-end;
-
-function TKonfigReader.ReadLang(const nm : String) : String;
-var
-	n : String;
-begin
-	ReadHint(nm, 'lang');
 	n := ReadString(nm, 'stringz');
 	if Assigned(dest) then dest.name := n;
 
@@ -990,33 +923,6 @@ begin
 	end;
 end;
 
-procedure S_ReadArray16(J : js_State); cdecl;
-var
-	this : TKonfigReader;
-	name : PAnsiChar;
-	count : Longword;
-begin
-	ArgsThis1Str(J, this, name, nil);
-
-	try
-		Script_Push(J, this.ReadArray16(name, @count));
-	
-		js_pushnumber(J, count);
-		js_setproperty(J, -2, 'count');
-	
-		if (this.bin_flags and konfNoSections) <> 0 then
-		begin	
-			// hack - store reference to parent object
-			// to guarantee it's not freed before new object
-			js_copy(J, 0);
-			js_setproperty(J, -2, '____dataref');
-		end;
-	
-	except on E: Exception do
-		js_error(J, PAnsiChar(E.Message));
-	end;
-end;
-
 procedure S_TryReadSection(J : js_State); cdecl;
 var
 	this : TKonfigReader;
@@ -1070,36 +976,6 @@ begin
 	end;
 end;
 
-procedure S_TryReadArray16(J : js_State); cdecl;
-var
-	this : TKonfigReader;
-	name : PAnsiChar;
-	count : Longword;
-begin
-	ArgsThis1Str(J, this, name, nil);
-
-	try
-		Script_Push(J, this.TryReadArray16(name, @count));
-		
-		if js_isnull(J, -1) = 0 then
-		begin
-			js_pushnumber(J, count);
-			js_setproperty(J, -2, 'count');
-		
-			if (this.bin_flags and konfNoSections) <> 0 then
-			begin	
-				// hack - store reference to parent object
-				// to guarantee it's not freed before new object
-				js_copy(J, 0);
-				js_setproperty(J, -2, '____dataref');
-			end;
-		end;
-		
-	except on E: Exception do
-		js_error(J, PAnsiChar(E.Message));
-	end;
-end;
-
 procedure S_ReadName(J : js_State); cdecl;
 var
 	this : TKonfigReader;
@@ -1109,20 +985,6 @@ begin
 
 	try
 		js_pushstring(J, PAnsiChar(this.ReadName(name)))
-	except on E: Exception do
-		js_error(J, PAnsiChar(E.Message));
-	end;
-end;
-
-procedure S_ReadLang(J : js_State); cdecl;
-var
-	this : TKonfigReader;
-	name : PAnsiChar;
-begin
-	ArgsThis1Str(J, this, name, nil);
-
-	try
-		js_pushstring(J, PAnsiChar(this.ReadLang(name)))
 	except on E: Exception do
 		js_error(J, PAnsiChar(E.Message));
 	end;
@@ -1682,14 +1544,11 @@ begin
 
 	DefFunc(S_ReadSection, 'ReadSection', 0);
 	DefFunc(S_ReadArray, 'ReadArray');
-	DefFunc(S_ReadArray16, 'ReadArray16');
 	
 	DefFunc(S_TryReadSection, 'TryReadSection');
 	DefFunc(S_TryReadArray, 'TryReadArray');
-	DefFunc(S_TryReadArray16, 'TryReadArray16');
 
 	DefFunc(S_ReadName, 'ReadName');
-	DefFunc(S_ReadLang, 'ReadLang');
 	DefFunc(S_ReadStringCrc, 'ReadStringCrc', 2);
 	DefFunc(S_ReadHint, 'ReadHint', 2);
 	DefFunc(S_ReadHintStr, 'ReadHintStr', 2);

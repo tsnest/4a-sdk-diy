@@ -73,6 +73,14 @@ procedure IupSetInt(ih : Ihandle; name : PAnsiChar; value : Longint); cdecl; ext
 function  IupGetAttribute(ih : Ihandle; name : PAnsiChar) : PAnsiChar; cdecl; external 'iup.dll';
 function  IupGetInt(ih : Ihandle; name : PAnsiChar) : Longint; cdecl; external 'iup.dll';
 
+procedure IupSetAttributeId(ih : Ihandle; name : PAnsiChar; id : Longint; value : PAnsiChar); cdecl; external 'iup.dll';
+procedure IupSetStrAttributeId(ih : Ihandle; name : PAnsiChar; id : Longint; value : PAnsiChar); cdecl; external 'iup.dll';
+procedure IupSetStrfId(ih : Ihandle; name : PAnsiChar; id : Longint; format : PAnsiChar); cdecl; external 'iup.dll'; varargs;
+procedure IupSetIntId(ih : Ihandle; name : PAnsiChar; id : Longint; value : Longint); cdecl; external 'iup.dll';
+
+function  IupGetAttributeId(ih : Ihandle; name : PAnsiChar; id : Longint) : PAnsiChar; cdecl; external 'iup.dll';
+function  IupGetIntId(ih : Ihandle; name : PAnsiChar; id : Longint) : Longint; cdecl; external 'iup.dll';
+
 function  IupGetCallback(ih : Ihandle; name : PAnsiChar) : Icallback; cdecl; external 'iup.dll';
 function  IupSetCallback(ih : Ihandle; name : PAnsiChar; func : Icallback) : Icallback; cdecl; external 'iup.dll';
 function  IupSetCallbacks(ih : Ihandle; name : PAnsiChar; func : Icallback) : PIhandle; cdecl; external 'iup.dll'; varargs;

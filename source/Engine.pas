@@ -6,14 +6,17 @@ uses Konfig;
 type
 	TEngineVersion = (
 		eVer2033,
+		eVerLLBeta15102012,
+		eVerLLBeta03122012,
 		eVerLL,
 		eVerRedux,
 		eVerArktika1,
-		eVerExodus
+		eVerExodus,
+		eVerUnknown
 	);
 
 var
-	version : TEngineVersion;	
+	version : TEngineVersion = eVerUnknown;	
 	ResourcesPath : String = 'content';
 	LevelPath : String;
 	
@@ -25,15 +28,13 @@ procedure FinalizeEngine;
 implementation
 uses sysutils, framework, KonfigLibrary, texturePrefs, Texture, uWeather;
 
-procedure InitializeEngine;
+function GuessEngineVer : TEngineVersion;
 var
 	has_scriptsbin : Boolean;
 	has_configbin : Boolean;
 	has_texturesbin : Boolean;
 	has_textures_handles_storage : Boolean;
 	has_vr_attach_base : Boolean;
-	
-	K : TKonfig;
 begin
 	has_scriptsbin := False;
 	has_configbin := False;
@@ -43,33 +44,20 @@ begin
 	
 	if FileExists(ResourcesPath + '\scripts.bin') then
 	begin
-		KonfigLibrary.Load(ResourcesPath + '\scripts.bin');
 		has_scriptsbin := True;
 	end else
 	if FileExists(ResourcesPath + '\config.bin') then
 	begin
-		KonfigLibrary.Load(ResourcesPath + '\config.bin');
 		has_configbin := True;
-	end else
-		WriteLn('KonfigLibrary not found');
+	end;
 
 	if FileExists(ResourcesPath + '\textures\textures.bin') then
 	begin
-		texture_params := TTexturesBin.Create;
-		texture_params.Load(ResourcesPath + '\textures\textures.bin');
 		has_texturesbin := True;
-	end;
-	
-	if FileExists(ResourcesPath + '\scripts\texture_aliases.bin') then
-	begin
-		texture_aliases := TTextureAliases.Create;
-		texture_aliases.Load(ResourcesPath + '\scripts\texture_aliases.bin');
 	end;
 	
 	if FileExists(ResourcesPath + '\textures_handles_storage.bin') then
 	begin
-		texture_params2 := TTexturesBin2.Create;
-		texture_params2.Load(ResourcesPath + '\textures_handles_storage.bin');
 		has_textures_handles_storage := True;
 	end;
 	
@@ -83,25 +71,84 @@ begin
 	
 	if has_scriptsbin then
 	begin
-		version := eVer2033;
+		GuessEngineVer := eVer2033;
 	end else
 	begin
 		if has_texturesbin then
 		begin
-			version := eVerLL;
+			GuessEngineVer := eVerLL;
 		end else
 		begin
 			if has_textures_handles_storage then
 			begin
-				version := eVerExodus;
+				GuessEngineVer := eVerExodus;
 			end else
 			begin
 				if has_vr_attach_base then
-					version := eVerArktika1
+					GuessEngineVer := eVerArktika1
 				else
-					version := eVerRedux;
+					GuessEngineVer := eVerRedux;
 			end;
 		end;
+	end;	
+end;
+
+procedure InitializeEngine;
+var
+	K : TKonfig;
+	tex_prefs_version : TTBVersion;
+begin
+	if version = eVerUnknown then
+		version := GuessEngineVer;
+	
+	Write('Engine version is ');
+	case version of
+		eVer2033:           Write('Metro 2033');
+		eVerLL:             Write('Metro Last Light');
+		eVerLLBeta15102012: Write('Build 2662');		
+		eVerLLBeta03122012: Write('Build 2711');
+		eVerRedux:          Write('Metro Redux');
+		eVerArktika1:       Write('Arktika.1');
+		eVerExodus:         Write('Metro Exodus');
+		eVerUnknown:        Write('Unknown');
+	end;
+	WriteLn;
+	
+	if version = eVer2033 then
+	begin
+		if FileExists(ResourcesPath + '\scripts.bin') then
+			KonfigLibrary.Load(ResourcesPath + '\scripts.bin')
+		else
+			WriteLn('content\scripts.bin not found');
+	end else
+	begin
+		if FileExists(ResourcesPath + '\config.bin') then
+			KonfigLibrary.Load(ResourcesPath + '\config.bin')
+		else
+			WriteLn('content\config.bin not found');
+	end;
+
+	if FileExists(ResourcesPath + '\textures\textures.bin') then
+	begin
+		if version in [eVerLLBeta15102012, eVerLLBeta03122012] then
+			tex_prefs_version := tbVerLLBeta15102012
+		else
+			tex_prefs_version := tbVerUnknown;
+			
+		texture_params := TTexturesBin.Create;
+		texture_params.Load(ResourcesPath + '\textures\textures.bin', tex_prefs_version);
+	end;
+	
+	if FileExists(ResourcesPath + '\scripts\texture_aliases.bin') then
+	begin
+		texture_aliases := TTextureAliases.Create;
+		texture_aliases.Load(ResourcesPath + '\scripts\texture_aliases.bin');
+	end;
+	
+	if FileExists(ResourcesPath + '\textures_handles_storage.bin') then
+	begin
+		texture_params2 := TTexturesBin2.Create;
+		texture_params2.Load(ResourcesPath + '\textures_handles_storage.bin');
 	end;
 	
 	uWeather.Initialize;
@@ -113,24 +160,16 @@ begin
 		K.Load(ResourcesPath + '\sounds\sounds.bin');
 		
 		case version of
-			eVer2033:   sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
-			eVerLL:     sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
-			eVerRedux:  sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
+			eVer2033:           sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
+			eVerLLBeta15102012: sound_params := framework.DecompileKonfig(K, 'js\ll_beta_15_10_2012\sounds.js');
+			eVerLLBeta03122012,
+			eVerLL:             sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
+			eVerRedux:          sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
 		end;
 		
 		K.Free;
 		framework.Finalize;
 	end;
-	
-	Write('Engine version is ');
-	case version of
-		eVer2033: 		Write('Metro 2033');
-		eVerLL: 			Write('Metro Last Light');
-		eVerRedux: 		Write('Metro Redux');
-		eVerArktika1: Write('Arktika.1');
-		eVerExodus: 	Write('Metro Exodus');
-	end;
-	WriteLn;
 end;
 
 procedure FinalizeEngine;

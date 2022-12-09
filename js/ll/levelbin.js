@@ -16,8 +16,16 @@ function ReadInterest(e)
 	
 	i.ReadU16("min_importance");
 	i.ReadU16("max_importance");
-	i.ReadU8("interest_type");
-	i.ReadU16("duration");
+	if(entity_ver >= ENTITY_VER_28b)
+	{
+		i.ReadU8("interest_type");
+		i.ReadU16("duration");
+	}
+	else
+	{
+		i.ReadS32("interest_type");
+		i.ReadU32("duration");
+	}
 	i.ReadFP32("speed");
 	i.ReadFP32("distance");
 }
@@ -28,8 +36,9 @@ function ReadVsRef(e, name)
 	e.ReadBool(name + "_dyn_state_exist");
 	
 	// что это означает и откуда берётся??
-	if(n === "vs\\npc\\npc_fonarik")
-		e.ReadBool("freegun");
+	if(entity_ver >= ENTITY_VER_28b)
+		if(n === "vs\\npc\\npc_fonarik")
+			e.ReadBool("freegun");
 		
 	//if(e.More())
 	//	print(n);
@@ -102,8 +111,12 @@ function ReadUObject_StaticBreakable(e)
 	e.ReadU8("die_sound_type");
 	e.ReadHintStr("die_particles", "particles, str_shared");
 	e.ReadBool("die_particles_ignore_rotation");
-	e.ReadBool("block_ai_los");
-	ReadCommonsVs(e);
+	
+	if(entity_ver > ENTITY_VER_28a)
+	{
+		e.ReadBool("block_ai_los");
+		ReadCommonsVs(e);
+	}
 }
 
 function ReadUObject_Effect(e)
@@ -113,7 +126,8 @@ function ReadUObject_Effect(e)
 	e.ReadHintStr("startup_animation", "animation_str");
 	e.ReadHintStr("bone_part", "part_id");
 	e.ReadU16("start_frame");
-	e.ReadBool("force_paused");
+	if(entity_ver > ENTITY_VER_28a) // build 2012-10-19
+		e.ReadBool("force_paused");
 	e.ReadU8("force_looped");
 	e.ReadHintStr("sound", "sound");
 	e.ReadU8("sound_volume", "fp32_q8");
@@ -449,8 +463,11 @@ function ReadLadder(e)
 	e.ReadBool("enabled");
 	e.ReadBool("custom_movement");
 	e.ReadBool("custom_civil_mode");
-	e.ReadFP32("up_angle", "angle, fp32");
-	e.ReadFP32("down_angle", "angle, fp32");
+	if(entity_ver >= ENTITY_VER_28b)
+	{
+		e.ReadFP32("up_angle", "angle, fp32");
+		e.ReadFP32("down_angle", "angle, fp32");
+	}
 }
 
 function ReadBreakableIce(e)
@@ -522,7 +539,7 @@ function ReadWeapon(e)
 {
 	ReadWeaponBase(e);
 
-	// class ?
+	// class weapon_magazined
 	e.ReadBool("ad_scope");
 	e.ReadBool("ad_kalimator");
 	e.ReadBool("ad_envg");
@@ -537,6 +554,9 @@ function ReadWeapon(e)
 	e.ReadBool("ad_magazine_2");
 	e.ReadBool("ad_noobtube");
 	e.ReadBool("ad_noobgun");
+	
+	if(entity_ver == ENTITY_VER_28a) // build 2012-10-19
+		e.ReadBool("newbs");
 }
 
 function ReadDynamite(e)
@@ -595,7 +615,7 @@ function ReadSoftEntity(e)
 {
 	ReadUObject(e);
 	
-	if(entity_ver < 29) // build 2012-12-03
+	if(entity_ver < ENTITY_VER_29) // build 2012-12-03
 		e.ReadBool("sleeping");
 	e.ReadU16("collision_group");
 	e.ReadBool("self_collision");
@@ -859,7 +879,7 @@ function ReadHuman(e, brain_unit_read_func)
 	e.ReadBool("freegun_mode");
 	e.ReadBool("scary_enabled");
 	e.ReadBool("danger_delta_enabled");
-	if(entity_ver >= 29)
+	if(entity_ver >= ENTITY_VER_29)
 	{
 		e.ReadBool("gasmask_voice");
 		e.ReadHintStr("override_voice", "choose");
@@ -888,7 +908,7 @@ function ReadNpc(e)
 	{
 		var attacks_list;
 		
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 			attacks_list = [
 				"melee_attack_360_butt", 
 				"melee_attack_360_kick",
@@ -943,7 +963,7 @@ function ReadNpc(e)
 		cc.ReadFP32("weight_delta");
 		cc.ReadFP32("fire_enemy_min");
 		cc.ReadFP32("fire_enemy_max");
-		if(entity_ver >= 29) cc.ReadU8("combat_type");
+		if(entity_ver >= ENTITY_VER_29) cc.ReadU8("combat_type");
 		var in_cover = cc.ReadSection("in_cover");
 		in_cover.ReadU32("enemy_seen_timeout");
 		in_cover.ReadU32("lookout_min");
@@ -1046,7 +1066,7 @@ function ReadWatchman(e)
 	{
 		var attacks_list;
 		
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 			attacks_list = [
 				"melee_attack_360_arm", 
 				"melee_attack_360_jaw", 
@@ -1115,7 +1135,7 @@ function ReadNosalis(e)
 			"melee_attack_run_knife"
 		];
 		
-		if(entity_ver < 29)
+		if(entity_ver < ENTITY_VER_29)
 		{
 			attacks_list.push("melee_attack_run_3m")
 			attacks_list.push("melee_attack_run_knife_3m")
@@ -1202,19 +1222,33 @@ function ReadAquaMaleBig(e)
 {
 	function ReadBrainUnit(e)
 	{
-		var attacks_list = [
-			"melee_attack_back_0",
-			"melee_attack_back_1",
-			"melee_attack_face_0",
-			"melee_attack_face_1",
-			"melee_attack_short_2",
-			"melee_attack_short_3",
-			"melee_attack_short_90l",
-			"melee_attack_long_90l",
-			"melee_attack_short_90r",
-			"melee_attack_long_90r",
-			"melee_attack_short_90_open"
-		];
+		if(entity_ver >= ENTITY_VER_28b)
+			var attacks_list = [
+				"melee_attack_back_0",
+				"melee_attack_back_1",
+				"melee_attack_face_0",
+				"melee_attack_face_1",
+				"melee_attack_short_2",
+				"melee_attack_short_3",
+				"melee_attack_short_90l",
+				"melee_attack_long_90l",
+				"melee_attack_short_90r",
+				"melee_attack_long_90r",
+				"melee_attack_short_90_open"
+			];
+		else
+			var attacks_list = [
+				"melee_attack_face_0",
+				"melee_attack_face_1",
+				"melee_attack_short_2",
+				"melee_attack_short_3",
+				"melee_attack_short_90l",
+				"melee_attack_long_90l",
+				"melee_attack_short_90r",
+				"melee_attack_long_90r",
+				"melee_attack_short_90_open"
+			];
+						
 		ReadMonsterBrainUnit(e, attacks_list);
 		
 		// brain unit
@@ -1238,7 +1272,7 @@ function ReadHarpy(e)
 	
 	ReadNpcBase(e, false, ReadBrainUnit);
 	
-	if(entity_ver >= 29)
+	if(entity_ver >= ENTITY_VER_29)
 		e.ReadBool("always_crack_ice");
 }
 
@@ -1338,127 +1372,128 @@ function ReadGrizly(e)
 
 var entity_readers = {
 	// basic
-	"STATICPROP" 		: ReadUObject_Static,
- 	"STATICPROP_BREAKABLE" : ReadUObject_StaticBreakable,
-	"EFFECT" 				: ReadUObject_Effect,
-	"EFFECTM"				: ReadUObject_Effect,
-	"O_ENTITY" 			: ReadCEntity,
-	"o_hlamp" 			: ReadHangingLamp,
-	"O_AIPOINT" 		: ReadUObject_AIPoint,
-	"PATROL_POINT" 	: ReadPatrolPoint,
-	"VISUALSCRIPT"	: ReadUObject,
-	"O_BASEZONE"		: ReadUObject_Zone,
-	"O_WATERZONE"		: ReadWaterZone,
-	"PROXY"					: ReadUObject_Proxy,
-	"SOFT_ENTITY"		: ReadSoftEntity,
-	"SOFT_ENTITY_INST" : ReadUObject, // build 2012-12-03
-	"O_INTEREST"		: function(e)
+	"STATICPROP"            : ReadUObject_Static,
+ 	"STATICPROP_BREAKABLE"  : ReadUObject_StaticBreakable,
+	"EFFECT"                : ReadUObject_Effect,
+	"EFFECTM"               : ReadUObject_Effect,
+	"O_ENTITY"              : ReadCEntity,
+	"o_hlamp"               : ReadHangingLamp,
+	"O_AIPOINT"             : ReadUObject_AIPoint,
+	"PATROL_POINT"          : ReadPatrolPoint,
+	"VISUALSCRIPT"          : ReadUObject,
+	"O_BASEZONE"            : ReadUObject_Zone,
+	"O_WATERZONE"           : ReadWaterZone,
+	"PROXY"                 : ReadUObject_Proxy,
+	"SOFT_ENTITY"           : ReadSoftEntity,
+	"SOFT_ENTITY_INST"      : ReadUObject, // build 2012-12-03
+	"O_INTEREST"            : function(e)
 	{
 		ReadUObject(e);
 		ReadInterest(e);
 	},
-	"O_EXPLOSION"		: ReadUObject_Explosion,
-	"FORCE_FIELD"		: ReadForceField,
-	"LADDER"				: ReadLadder,
-	"BREAKABLE_ICE"	: ReadBreakableIce,
-	"GATEWAY"				: ReadCEntity, // build 2012-12-03
-	"CLAYMORE_ZONE"	: ReadUObject_Restrictor,  // build 2012-12-03
-	"HEAP_ZONE"			: function(e)  // build 2012-12-03
-	{
-		ReadUObject_Restrictor(e)
-		e.ReadU8("unk_1byte_1")
-	},
+	"O_EXPLOSION"           : ReadUObject_Explosion,
+	"FORCE_FIELD"           : ReadForceField,
+	"LADDER"                : ReadLadder,
+	"BREAKABLE_ICE"         : ReadBreakableIce,
+	"GATEWAY"               : ReadCEntity, // build 2012-12-03
+	"CLAYMORE_ZONE"         : ReadUObject_Restrictor,  // build 2012-12-03
+	"HEAP_ZONE"             : ReadUObject_Zone,  // build 2012-12-03
+	"BUSH_ZONE"             : ReadUObject_Zone,
 	
 	// vehicles
-	"KULEMET"				: ReadKulemet,
-	"DREZINA_HAND"	: ReadDrezina,
-	"DREZINA_MOTO"	: ReadDrezina,
+	"KULEMET"               : ReadKulemet,
+	"DREZINA_HAND"          : ReadDrezina,
+	"DREZINA_MOTO"          : ReadDrezina,
 	
 	// flora & fauna
-	"FLOWER"				: ReadFlower,
-	"BUSH"					: ReadCEntity,
-	"NPC_FX"				: ReadNpc,
-	"WOMAN"					: ReadSimpleNpc,
-	"WOMAN_STRIP"		: ReadSimpleNpc,
-	"KID"						: ReadSimpleNpc,
-	"RAT"						: ReadSimpleNpc,
-	"WEB"						: ReadWeb,
-	"WATCHMAN"			: ReadWatchman,
-	"ARAHIND"				: ReadArahind,
-	"NOSALIS"				: ReadNosalis,
-	"NOSALIS_FEMALE": ReadNosalisFemale,
-	"AQUA_FEMALE"		: ReadAquaFemale,
-	"AQUA_MALE_SMALL" : ReadAquaMaleSmall,
-	"AQUA_MALE_BIG" : ReadAquaMaleBig,
-	"HARPY"					: ReadHarpy,
-	"DARKCHILD"			: ReadSimpleNpc,
-	"LURKER"				: ReadLurker,
-	"LIBRARIAN"			: ReadLibrarian,
-	"DARK"					: ReadDark,
-	"BIG_MOTHER"		: ReadBigMother,
-	"STRETCHY_MAN"	: function(e)
+	"FLOWER"                : ReadFlower,
+	"BUSH"                  : ReadCEntity,
+	"NPC_FX"                : ReadNpc,
+	"WOMAN"                 : ReadSimpleNpc,
+	"WOMAN_STRIP"           : ReadSimpleNpc,
+	"KID"                   : ReadSimpleNpc,
+	"RAT"                   : ReadSimpleNpc,
+	"WEB"                   : ReadWeb,
+	"WATCHMAN"              : ReadWatchman,
+	"ARAHIND"               : ReadArahind,
+	"NOSALIS"               : ReadNosalis,
+	"NOSALIS_FEMALE"        : ReadNosalisFemale,
+	"AQUA_FEMALE"           : ReadAquaFemale,
+	"AQUA_MALE_SMALL"       : ReadAquaMaleSmall,
+	"AQUA_MALE_BIG"         : ReadAquaMaleBig,
+	"HARPY"                 : ReadHarpy,
+	"DARKCHILD"             : ReadSimpleNpc,
+	"LURKER"                : ReadLurker,
+	"LIBRARIAN"             : ReadLibrarian,
+	"DARK"                  : ReadDark,
+	"BIG_MOTHER"            : ReadBigMother,
+	"STRETCHY_MAN"          : function(e)
 	{
 		ReadCEntity(e);
 		e.ReadU8("motion_coll");
 	},
-	"LIAN"					: ReadCEntity,
-	"GRIZLY"				: ReadGrizly,
+	"LIAN"                  : ReadCEntity,
+	"GRIZLY"                : ReadGrizly,
 	
 	// weapons
-	"WEAPON_RPK"		: ReadWeapon,
-	"WEAPON_AKSU"		: ReadWeapon,
-	"WEAPON_AK_74"	: ReadWeapon,
-	"WEAPON_VSV"		: ReadWeapon,
-	"WEAPON_2012"		: ReadWeapon,
-	"WEAPON_SAIGA"	: ReadWeapon,
-	"WEAPON_ASHOT"	: ReadWeapon,
-	"WEAPON_UBOYNICHEG" : ReadWeapon,
-	"WEAPON_REVOLVER" : ReadWeapon,
-	"WEAPON_VENTIL"	: function(e)
+	"WEAPON_RPK"            : ReadWeapon,
+	"WEAPON_AKSU"           : ReadWeapon,
+	"WEAPON_AK_74"          : ReadWeapon,
+	"WEAPON_VSV"            : ReadWeapon,
+	"WEAPON_2012"           : ReadWeapon,
+	"WEAPON_SAIGA"          : ReadWeapon,
+	"WEAPON_ASHOT"          : ReadWeapon,
+	"WEAPON_UBOYNICHEG"     : ReadWeapon,
+	"WEAPON_REVOLVER"       : ReadWeapon,
+	"WEAPON_VENTIL"         : function(e)
 	{
 		ReadWeapon(e);
-		e.ReadBool("ad_flashhider");
+		if(entity_ver > ENTITY_VER_28a)
+			e.ReadBool("ad_flashhider");
 	},
-	"WEAPON_ABZAC"	: function(e)
+	"WEAPON_ABZAC"          : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadBool("ad_compens");
-		e.ReadBool("ad_autofire");
+		if(entity_ver > ENTITY_VER_28a)
+			e.ReadBool("ad_autofire");
 	},
-	"WEAPON_PADONAG"	: function(e)
+	"WEAPON_PADONAG"        : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadBool("ad_autofire");
 	},
-	"WEAPON_UBLUDOK" : function(e)
+	"WEAPON_UBLUDOK"        : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadFP32("temperature");
 		e.ReadFP32("temperature_old");
 		e.ReadBool("ad_radiator");
 	},
-	"WEAPON_DUPLET"	: function(e)
+	"WEAPON_DUPLET"         : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadBool("ad_grip_base");
 		e.ReadBool("ad_grip");
 	},
-	"WEAPON_PREVED" : function(e)
+	"WEAPON_PREVED"         : function(e)
 	{
 		ReadWeapon(e);
-		e.ReadBool("ad_flashhider");
+		if(entity_ver > ENTITY_VER_28a)
+			e.ReadBool("ad_flashhider");
 	},
-	"WEAPON_DYNAMITE" : ReadDynamite,
+	"WEAPON_DYNAMITE"       : ReadDynamite,
 	"WEAPON_STICKY_DYNAMITE" : ReadDynamite,
 	"WEAPON_FLAME_DYNAMITE" : ReadDynamite,
-	"WEAPON_LAUNCHER_TIME" : ReadDynamite, // what is this?
-	"WEAPON_DAGGER" : function(e)
+	"WEAPON_C4_DYNAMITE"    : ReadDynamite, // build 2012-10-19
+	"WEAPON_LAUNCHER_TIME"  : ReadDynamite, // what is this?
+	"WEAPON_DAGGER"         : function(e)
 	{
 		ReadWeaponBase(e);
 		e.ReadU16("count");
 	},
-	"WEAPON_MACHETA" : ReadWeaponBase,
-	"WEAPON_CLAYMORE" : function(e)
+	"WEAPON_MACHETA"        : ReadWeaponBase,
+	"WEAPON_CLAYMORE"       : function(e)
 	{
 		ReadDevice(e);
 		
@@ -1467,21 +1502,45 @@ var entity_readers = {
 		e.ReadMatrix43("trigger_offset", "pose, matrix_43T");
 		e.ReadBool("active_on_level");
 	},
-	"WEAPON_TIHAR" : function(e)
+	"WEAPON_TIHAR"          : function(e)
+	{
+		ReadWeapon(e);	
+		if(entity_ver >= ENTITY_VER_28b)
+		{
+			e.ReadFP32("pressure");
+			e.ReadBool("ad_tank");
+			e.ReadBool("ad_tank_2");
+		}
+	},
+	"WEAPON_HELSING"         : function(e)
 	{
 		ReadWeapon(e);
-		e.ReadFP32("pressure");
-		e.ReadBool("ad_tank");
-		e.ReadBool("ad_tank_2");
+		if(entity_ver >= ENTITY_VER_28b)
+		{
+			e.ReadFP32("pressure");
+			e.ReadBool("ad_tank");
+			e.ReadBool("ad_tank_2");
+		}
 	},
-	"WEAPON_HELSING" : function(e)
+	"WEAPON_GATLING"        : function(e)
 	{
 		ReadWeapon(e);
-		e.ReadFP32("pressure");
-		e.ReadBool("ad_tank");
-		e.ReadBool("ad_tank_2");
+		if(entity_ver >= ENTITY_VER_28b) e.ReadFP32("pressure");
+		e.ReadBool("ad_engine");
+		if(entity_ver >= ENTITY_VER_28b) e.ReadBool("ad_engine_2");
+		e.ReadBool("ad_stabilizer");
 	},
-	"WEAPON_GATLING" : function(e)
+	"WEAPON_HELLBREATH"     : function(e)
+	{
+		ReadWeapon(e);
+		if(entity_ver >= ENTITY_VER_28b)
+		{
+			e.ReadFP32("pressure");
+			e.ReadBool("ad_battery");
+			e.ReadBool("ad_capatitor");
+		}
+	},
+	"WEAPON_FLAMETHROWER"   : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadFP32("pressure");
@@ -1489,87 +1548,72 @@ var entity_readers = {
 		e.ReadBool("ad_engine_2");
 		e.ReadBool("ad_stabilizer");
 	},
-	"WEAPON_HELLBREATH" : function(e)
-	{
-		ReadWeapon(e);
-		e.ReadFP32("pressure");
-		e.ReadBool("ad_battery");
-		e.ReadBool("ad_capatitor");
-	},
-	"WEAPON_FLAMETHROWER" : function(e)
-	{
-		ReadWeapon(e);
-		e.ReadFP32("pressure");
-		e.ReadBool("ad_engine");
-		e.ReadBool("ad_engine_2");
-		e.ReadBool("ad_stabilizer");
-	},
-	"WEAPON_VYHLOP" : function(e)
+	"WEAPON_VYHLOP"         : function(e)
 	{
 		ReadWeapon(e);
 		e.ReadBool("ad_flashhider");
 	},
-	"WEAPON_MEDVED" : function(e)
+	"WEAPON_MEDVED"         : function(e)
 	{
 		ReadWeapon(e);
 		var s = e.ReadSection("launcher");
 		s.ReadU32("noobe_ammo_loaded");
 		e.ReadBool("line");
 	},
-	"siege_bomb"		: ReadCEntity,
+	"siege_bomb"            : ReadCEntity,
 
 	// player specific items
-	"PLAYER"				: ReadPlayer,
-	"PLAYERS_HANDS"	: ReadUObject_Effect,
-	"PLAYERS_KNIFE" : ReadUObject_Effect,
-	"PLAYER_TIMER"	: ReadUObject_Effect,
-	"PLAYER_MAP"		: ReadInventoryItemObject,
-	"TORCH"					: ReadHangingLamp,
-	"CHARGER"				: ReadDevice,
-	"LIGHTER"				: ReadDevice,
-	"HANDS_FOR_DREZINA" : ReadUObject_Effect,
-	"HEAP"					: ReadHeap,
+	"PLAYER"                : ReadPlayer,
+	"PLAYERS_HANDS"         : ReadUObject_Effect,
+	"PLAYERS_KNIFE"         : ReadUObject_Effect,
+	"PLAYER_TIMER"          : ReadUObject_Effect,
+	"PLAYER_MAP"            : ReadInventoryItemObject,
+	"TORCH"                 : ReadHangingLamp,
+	"CHARGER"               : ReadDevice,
+	"LIGHTER"               : ReadDevice,
+	"HANDS_FOR_DREZINA"     : ReadUObject_Effect,
+	"HEAP"                  : ReadHeap,
 
 	// inventory items
-	"AMMO"					: function(e)
+	"AMMO"                  : function(e)
 	{
 		ReadInventoryItemObject(e);
 		e.ReadU16("box_min");
 		e.ReadU16("box_max");
 		e.ReadU16("box_value");
 	},
-	"HELSING_ARROW"	: function(e)
+	"HELSING_ARROW"         : function(e)
 	{
 		ReadInventoryItemObject(e);
 		e.ReadU16("count");
 	},
-	"FILTER"				: function(e)
+	"FILTER"                : function(e)
 	{
 		ReadDevice(e);
 		e.ReadFP32("timer");
 	},
-	"MEDKIT"				: function(e)
+	"MEDKIT"                : function(e)
 	{
 		ReadDevice(e, [], ["ampulas_num"]);
 	},
-	"GASMASK"				: function(e)
+	"GASMASK"               : function(e)
 	{
 		ReadDevice(e, ["current_time", "total_time", "hit_force", "vs_effect"]);
 		e.ReadU16("current_filter", "entity_link, uobject_link");
 	},
-	"WEAPON_ITEM"		: ReadInventoryItemObject,
-	"WEAPON_ITEM_LASER" : ReadInventoryItemObject,
+	"WEAPON_ITEM"           : ReadInventoryItemObject,
+	"WEAPON_ITEM_LASER"     : ReadInventoryItemObject,
 	"WEAPON_ITEM_NOOBETUBE" : function(e)
 	{
 		ReadInventoryItemObject(e);
 		e.ReadU32("noobe_ammo_loaded");
 	},
-	"WEAPON_ITEM_NOOBEGUN" : function(e)
+	"WEAPON_ITEM_NOOBEGUN"  : function(e)
 	{
 		ReadInventoryItemObject(e);
 		e.ReadU32("noobe_ammo_loaded");
 	},
-	"NIGHTVISION"			: ReadDevice
+	"NIGHTVISION"           : ReadDevice
 };
 
 function ReadStartup(s)

@@ -53,15 +53,15 @@ begin
 	I := IupGetInt(t, 'VALUE');
 	if I >= 0 then
 	begin
-		if IupGetAttribute(t, PAnsiChar('KIND'+IntToStr(I))) = 'BRANCH' then
-			pref := IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(I))) + '\';
+		if IupGetAttributeId(t, 'KIND', I) = 'BRANCH' then
+			pref := IupGetAttributeId(t, 'TITLE', I) + '\';
 	
-		while IupGetAttribute(t, PAnsiChar('PARENT' + IntToStr(I))) <> nil do
+		while IupGetAttributeId(t, 'PARENT', I) <> nil do
 		begin
-			I := IupGetInt(t, PAnsiChar('PARENT' + IntToStr(I)));
+			I := IupGetIntId(t, 'PARENT', I);
 			
-			if IupGetAttribute(t, PAnsiChar('KIND'+IntToStr(I))) = 'BRANCH' then
-				pref := IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(I))) + '\' + pref;
+			if IupGetAttributeId(t, 'KIND', I) = 'BRANCH' then
+				pref := IupGetAttributeId(t, 'TITLE', I) + '\' + pref;
 		end;
 	end else
 		pref := '';
@@ -120,15 +120,15 @@ begin
 	id := IupGetInt(t, 'VALUE');
 	if id >= 0 then
 	begin
-		msg := 'Are you sure to remove ''' + IupGetAttribute(t, PAnsiChar('TITLE'+IntToStr(id))) + '''?';
+		msg := 'Are you sure to remove ''' + IupGetAttributeId(t, 'TITLE', id) + '''?';
 	
 		if IupMessageAlarm(MainDialog, 'Remove template', PAnsiChar(msg), 'YESNO') = 1 then
 		begin
-			v := TSection(IupGetAttribute(t, PAnsiChar('USERDATA'+IntToStr(id))));
+			v := TSection(IupGetAttributeId(t, 'USERDATA', id));
 			DeleteTemplate(v);
 			
 			//UpdateTemplates(t);
-			IupSetAttribute(t, PAnsiChar('DELNODE'+IntToStr(id)), 'SELECTED');
+			IupSetAttributeId(t, 'DELNODE', id, 'SELECTED');
 		end;
 	end;
 
@@ -147,15 +147,14 @@ begin
 	id := IupGetInt(t, 'VALUE');
 	if id >= 0 then
 	begin
-		v := TSection(IupGetAttribute(t, PAnsiChar('USERDATA'+IntToStr(id))));
-		
+		v := TSection(IupGetAttributeId(t, 'USERDATA', id));
 		StrPCopy(@name, v.name);
 		if IupGetParam('Rename template', nil, nil, 'Name: %s'#10, @name) = 1 then
 		begin
 			v.name := StrPas(@name[0]);
 			
 			//UpdateTemplates(t);
-			IupSetAttribute(t, PAnsiChar('TITLE'+IntToStr(id)), @name);
+			IupSetStrAttributeId(t, 'TITLE', id, PAnsiChar(name));
 		end;
 	end;
 
@@ -604,7 +603,7 @@ begin
 	if node_id < 0 then
 		Exit;
 		
-	template := TSection(IupGetAttribute(t_template, PAnsiChar('USERDATA'+IntToStr(node_id))));
+	template := TSection(IupGetAttributeId(t_template, 'USERDATA', node_id));
 	transform := IupGetInt(l_transform, 'VALUE');
 						
 	// verify if it's template, not folder

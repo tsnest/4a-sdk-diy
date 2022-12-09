@@ -26,7 +26,7 @@ function ReadVS(e)
 	
 	var blocks = e.ReadSection("blocks")
 	
-	blocks.ReadU16("version")
+	blocks.ReadU16("version") // should we rely on this value when dealing with different spawn versions in this file instead of using entity_ver ? 
 	blocks.ReadU32("block_count")
 	blocks.ReadHint("array with no key", "array")
 	blocks.ReadU32("count")
@@ -76,7 +76,7 @@ function ReadActionHit(e)
 	e.ReadFP32("amount")
 	e.ReadHintStr("bone", "bone_str")
 	e.ReadU8("hit_type")
-	if(entity_ver >= 29)
+	if(entity_ver >= ENTITY_VER_29)
 		e.ReadBool("forbid_ai")
 }
 
@@ -111,7 +111,7 @@ function ReadActionPlayMotionControl(e)
 	e.ReadFP32("spd_coef")
 	e.ReadFP32("spd_coef_acc")
 	e.ReadFP32("spd_coef_decc")
-	if(entity_ver >= 29)
+	if(entity_ver >= ENTITY_VER_29)
 		e.ReadU8("flags", "bool8")
 }
 
@@ -141,6 +141,33 @@ function ReadActionSetInterest(e)
 	e.ReadU32("ignore_angle_timeout")
 }
 
+function ReadActionTextHud(e)
+{
+	e.ReadVec2("position")
+	e.ReadVec2("size")
+	e.ReadVec2("icon_position")
+	e.ReadHintStr("text", "choose")
+	e.ReadVec4("color", "color, vec4f")
+	e.ReadU8("font_size")
+	e.ReadU32("appearance_time")
+	e.ReadU32("ttl")
+	e.ReadU32("falloff_time")
+	e.ReadU8("type")
+	e.ReadString("group_id_str")
+	e.ReadU32("icon_type")
+	e.ReadU8("h_alignment")
+	e.ReadU8("v_alignment")
+	e.ReadU8("team_visibility")
+	e.ReadU8("h_alignment_i")
+	e.ReadU8("v_alignment_i")
+	e.ReadVec4("nick_color", "color, vec4f")
+	e.ReadU8("nick_font_size")
+	e.ReadU8("nick_position")
+	e.ReadU8("nick_space_count")
+	e.ReadVec2("icon_size")
+	e.ReadU8("flags", "bool8") // icon_draw_first, instant, text_depend, abb_coorsds, swap_nicktext, blink_mode, use_nickname (order ?)
+}
+
 function ReadLogicCounter(e)
 {
 	e.ReadS32("value")
@@ -159,10 +186,10 @@ var block_readers = {
 	},
 	"actions/action_dialog": function(e) // build 2012-12-03
 	{
-		e.ReadString("dialog_id") // TODO guessed names
-		e.ReadString("confirm_string")
-		e.ReadString("cancel_string")
-		e.ReadU8("flags0", "bool8")
+		e.ReadString("dialog_id")
+		e.ReadHintStr("confirm_string", "choose")
+		e.ReadHintStr("cancel_string", "choose")
+		e.ReadU8("flags0", "bool8") // esc_use, esc_use_activate, show_gold, dont_get_input
 	},
 	"actions/action_move2camera": null,
 	"actions/action_set_interest": function(e)
@@ -241,6 +268,10 @@ var block_readers = {
 		e.ReadString("name")
 		e.ReadHintStr("vs", "vs_ref, str_shared")
 	},
+	"actions/body state": function(e) // build 2012-10-19
+	{
+		e.ReadU8("body_state")
+	},
 	"actions/break_ice": null,
 	"actions/camera attach": function(e)
 	{
@@ -277,9 +308,26 @@ var block_readers = {
 	{
 		e.ReadString("cmd")
 	},
+	"actions/cover link": function(e) // build 2012-10-19
+	{
+		e.ReadS32("_cost")
+	},
+	"actions/cover type": function(e) // build 2012-10-19
+	{
+		e.ReadU8("_cover_type")
+	},
 	"actions/cover_combat": function(e)
 	{
 		e.ReadBool("make_cover_combat")
+	},
+	"actions/cover_task_params": function(e) // build 2012-10-19
+	{
+		e.ReadU32("enemy_seen_timeout")
+		e.ReadU32("lookout_min")
+		e.ReadU32("lookout_max")
+		e.ReadU32("aim_while_lookout_timeout")
+		e.ReadU32("lookout_cooldown_min")
+		e.ReadU32("lookout_cooldown_max")
 	},
 	"actions/destroy": null,
 	"actions/detach": function(e)
@@ -436,32 +484,8 @@ var block_readers = {
 		e.ReadBool("active")
 		e.ReadBool("registred")
 	},
-	"actions/engine/text_hud_ind": function(e)
-	{
-		e.ReadVec2("position")
-		e.ReadVec2("size")
-		e.ReadVec2("icon_position")
-		e.ReadHintStr("text", "choose")
-		e.ReadVec4("color", "color, vec4f")
-		e.ReadU8("font_size")
-		e.ReadU32("appearance_time")
-		e.ReadU32("ttl")
-		e.ReadU32("falloff_time")
-		e.ReadU8("type")
-		e.ReadString("group_id_str")
-		e.ReadU32("icon_type")
-		e.ReadU8("h_alignment")
-		e.ReadU8("v_alignment")
-		e.ReadU8("team_visibility")
-		e.ReadU8("h_alignment_i")
-		e.ReadU8("v_alignment_i")
-		e.ReadVec4("nick_color", "color, vec4f")
-		e.ReadU8("nick_font_size")
-		e.ReadU8("nick_position")
-		e.ReadU8("nick_space_count")
-		e.ReadVec2("icon_size")
-		e.ReadU8("flags", "bool8")
-	},
+	"actions/engine/text_hud": ReadActionTextHud, // build 2012-10-19
+	"actions/engine/text_hud_ind": ReadActionTextHud,
 	"actions/engine/texture prestream": function(e)
 	{
 		e.ReadHintStr("textures", "choose_array, str_shared")
@@ -502,7 +526,8 @@ var block_readers = {
 	},
 	"actions/entity/blink": function(e)
 	{
-		e.ReadBool("blink_prevent")
+		if(entity_ver >= ENTITY_VER_28b)
+			e.ReadBool("blink_prevent")
 	},
 	"actions/entity/move_restore": function(e)
 	{
@@ -540,7 +565,7 @@ var block_readers = {
 	{
 		ReadActionPlayParticles(e)
 		e.ReadHintStr("locator", "locator_str")
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 		{
 			e.ReadBool("force_y")
 			e.ReadFP32("force_y_val")
@@ -603,6 +628,7 @@ var block_readers = {
 	{
 		ReadActionHit(e)
 	},
+	"actions/howl": null, // build 2012-12-03
 	"actions/human/property": function(e)
 	{
 		e.ReadString("name")
@@ -616,12 +642,12 @@ var block_readers = {
 	},
 	"actions/make immortal": function(e)
 	{
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 			e.ReadBool("check_only")
 	},
 	"actions/make invul": function(e)
 	{
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 			e.ReadBool("check_only")
 	},
 	"actions/make scripted": function(e)
@@ -630,7 +656,7 @@ var block_readers = {
 	},
 	"actions/map_text": function(e)
 	{
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 		{
 			e.ReadHintStr("key", "choose")
 			e.ReadU8("type")
@@ -639,14 +665,13 @@ var block_readers = {
 		}
 		else
 		{
-			// TODO guessed names/types
 			e.ReadHintStr("key", "choose")
 			e.ReadU32("size")
 			e.ReadU32("rotation")
-			e.ReadU32("rect_1")
-			e.ReadU32("rect_2")
-			e.ReadU32("rect_3")
-			e.ReadU32("rect_4")
+			if(entity_ver >= ENTITY_VER_28b)
+				e.ReadVec4i("rect")
+			else
+				e.ReadVec4("rect")
 			e.ReadU8("line_spacing")
 			e.ReadVec4("color", "color, vec4f")
 			e.ReadBool("notify")
@@ -680,6 +705,7 @@ var block_readers = {
 		e.ReadU8("state")
 		e.ReadU32("state_timer")
 	},
+	"actions/monster/demon_ragdoll": null, // build 2012-10-19
 	"actions/monster/group_behaviour_allowed": null,
 	"actions/monster/group_behaviour_params": function(e)
 	{
@@ -691,6 +717,10 @@ var block_readers = {
 		e.ReadU8("mode")
 	},
 	"actions/monster/nosalis_female_sleep": null,
+	"actions/monster/nosalis_female_anchor": function(e) // build 2012-10-19
+	{
+		e.ReadFP32("radius")
+	},
 	"actions/monster/nosalis_female_state": function(e)
 	{
 		e.ReadU8("_state")
@@ -776,6 +806,10 @@ var block_readers = {
 		e.ReadFP32("min_shoot_dispersion_coef")
 		e.ReadFP32("max_shoot_dispersion_coef")
 	},
+	"actions/npc/group": function(e) // build 2012-10-19
+	{
+		e.ReadString("group_id")
+	},
 	"actions/npc/flinch_clear": null,
 	"actions/npc/forbid_melee_kill": null,
 	"actions/npc/free2go": null,
@@ -803,7 +837,7 @@ var block_readers = {
 			"suicide"
 		].forEach(function(hit) { e.ReadFP32(hit); })
 		
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 		{
 			[
 				"lian_slap",
@@ -880,12 +914,19 @@ var block_readers = {
 		e.ReadBool("fast_switch")
 		e.ReadBool("fast_callback")
 	},
+	"actions/play cover path ex": function(e) // build 2012-10-19
+	{
+		e.ReadBool("fast_switch")
+		e.ReadBool("fast_callback")
+	},
 	"actions/play modifier": function(e)
 	{
 		e.ReadHintStr("dbg_model", "ref_model")
 		e.ReadString("dbg_skel")
 		e.ReadHintStr("attp", "locator_str")
 		e.ReadHintStr("modifier", "particles_modifier, str_shared")
+		if(entity_ver == ENTITY_VER_28a)
+			e.ReadU16("source", "entity_link, uobject_link")
 	},
 	"actions/play motion": function(e)
 	{
@@ -1026,7 +1067,10 @@ var block_readers = {
 	},
 	"actions/player/purge_ammo": function(e)
 	{
-		e.ReadU8Array("ammo_types") // in version < 14h was u32 array
+		if(entity_ver < ENTITY_VER_28b) // if script_version < 20
+			e.ReadU32Array16("ammo_types", "u32_array")
+		else
+			e.ReadU8Array("ammo_types")
 		e.ReadBool("all")
 	},
 	"actions/player/restrictor_obstacle": null,
@@ -1040,6 +1084,7 @@ var block_readers = {
 		e.ReadBool("hands")
 		e.ReadBool("knife")
 	},
+	"actions/player/unlimited ammo": null, // build 2012-10-19
 	"actions/player/way_point": null,
 	"actions/scound_schema": function(e)
 	{
@@ -1420,9 +1465,10 @@ var block_readers = {
 		e.ReadBool("force_activation")
 		e.ReadBool("creating")
 	},
+	"trade/test my weapon": null, // build 2012-10-19
 	"trade/trade trigger": function(e)
 	{
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 		{
 			e.ReadBool("active")
 			e.ReadU8("trade_type")
@@ -1441,26 +1487,32 @@ var block_readers = {
 			e.ReadFP32("cam_track_accrue")
 			e.ReadFP32("cam_track_falloff")
 		}
-		else // build 2012-12-03
+		else if(entity_ver >= ENTITY_VER_28a) // build 2012-10-19
 		{
 			e.ReadBool("active")
 			e.ReadU8("trade_type")
 			e.ReadU32("current_object")
 			var objects_count_pre = e.ReadU32("objects_count_pre")
+			e.ReadU32("trade_slot")
 			e.ReadU32("trade_preset")
-			e.ReadU32("unk_4byte_1") // first unknown
 			e.ReadBool("need_attach")
 			for(var i = 1; i <= objects_count_pre; i++)
 			{
 				e.ReadU16("object_"+i+"_link", "entity_link, uobject_link")
+				e.ReadU16("object_"+i+"_price_link", "entity_link, uobject_link")
+				e.ReadU16("object_"+i+"_info_link", "entity_link, uobject_link")
 				e.ReadU32("object_"+i+"_needs_dlc")
-				e.ReadU32("object_"+i+"_unk_4byte_2") // second unknown
 			}
 			e.ReadU32("objects_count")
-			e.ReadU32("unk_4byte_3") // third unknown
+			e.ReadU16("custom price", "entity_link, uobject_link")
+			e.ReadU16("custom desc", "entity_link, uobject_link")
 			e.ReadBool("charity_mode")
-			e.ReadFP32("cam_track_accrue")
-			e.ReadFP32("cam_track_falloff")
+			
+			if(entity_ver >= ENTITY_VER_28b) // build 2012-12-03
+			{
+				e.ReadFP32("cam_track_accrue")
+				e.ReadFP32("cam_track_falloff")
+			}
 		}
 	},
 	"trigger/ai map leaving": function(e)
@@ -1539,6 +1591,12 @@ var block_readers = {
 		e.ReadFP32("min")
 		e.ReadFP32("max")
 	},
+	"triggers/collision": function(e) // build 2012-10-19
+	{
+		e.ReadBool("active")
+		e.ReadU32("collisions_group")
+	},
+	"triggers/continue_no_available": ReadTrigger, // build 2012-10-19
 	"triggers/debug_input": function(e)
 	{
 		e.ReadBool("active")
@@ -1551,7 +1609,7 @@ var block_readers = {
 	{
 		e.ReadBool("active")
 		e.ReadBool("player")
-		if(entity_ver >= 29)
+		if(entity_ver >= ENTITY_VER_29)
 			e.ReadBool("from_fire")
 	},
 	"triggers/engine/signal": function(e)
@@ -1624,11 +1682,15 @@ var block_readers = {
 		e.ReadU32("tid")
 		e.ReadFP32("distance")
 		e.ReadFP32("threshold")
-		e.ReadFP32("aimap_threshold")
+		if(entity_ver >= ENTITY_VER_28b) 
+			e.ReadFP32("aimap_threshold")
 		e.ReadU32("time_threshold")
 		e.ReadU8("_friend")
 		e.ReadU32("npc_type")
-		e.ReadU8("flags8", "bool8")
+		if(entity_ver >= ENTITY_VER_28b) 
+			e.ReadU8("flags8", "bool8")
+		else
+			e.ReadBool("ai_map_check")
 		e.ReadString("ex_prop")
 	},
 	"triggers/hit": function(e)
@@ -1640,7 +1702,13 @@ var block_readers = {
 		e.ReadHintStr("bone", "locator_str")
 		e.ReadFP32("range_min")
 		e.ReadFP32("range_max")
-		e.ReadBool("fly_by")
+		if(entity_ver > ENTITY_VER_28a) // build 2012-10-19
+			e.ReadBool("fly_by")
+	},
+	"triggers/illumination": function(e) // build 2012-10-19
+	{
+		e.ReadBool("active")
+		e.ReadFP32("illumination")
 	},
 	"triggers/input": function(e)
 	{
@@ -1809,6 +1877,7 @@ var block_readers = {
 		e.ReadBool("active")
 		e.ReadU8("flags", "bool8")
 	},
+	"triggers/stop_script": ReadTrigger, // build 2012-10-19
 	"triggers/time_in_game": function(e)
 	{
 		e.ReadBool("active")
@@ -1823,11 +1892,26 @@ var block_readers = {
 		e.ReadFP32("usage_distance")
 		e.ReadHintStr("use_action", "choose")
 		e.ReadVec2("use_offset")
-		e.ReadFP32("blink_distance")
-		e.ReadU8("flags8", "bool8")
+			
+		if(entity_ver >= ENTITY_VER_28b)
+		{
+			e.ReadFP32("blink_distance")
+			e.ReadU8("flags8", "bool8")
+		}
+		else
+		{
+			e.ReadBool("blink")
+			e.ReadFP32("blink_distance")
+			e.ReadBool("check_need_end")
+		}
+		
 		e.ReadU8("user_team")
 		e.ReadBool("in_reloading")
-		e.ReadU8Array("mp_classes") // in version < 14 was u32_array
+		
+		if(entity_ver >= ENTITY_VER_28b) // if script_version >= 20
+			e.ReadU8Array("mp_classes")
+		else
+			e.ReadU32Array16("mp_classes", "u32_array")
 	},
 	"triggers/velocity": function(e)
 	{

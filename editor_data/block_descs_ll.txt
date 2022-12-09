@@ -348,6 +348,17 @@ end;
 				end;
 			end;
 		end;
+		
+		'state' = begin
+			clsid : stringz = 'triggers/net/state';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'connect,map,qload,ready,play,disconnect,target';
+			
+			properties = begin
+				active : bool = True;
+			end;
+		end;
 	end;
 	
 	'game/spectator trigger-1' = begin

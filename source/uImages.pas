@@ -77,6 +77,9 @@ begin
 	LoadImage('ICON_PAUSE', 'editor_data\icons\pause.png');
 	
 	LoadImage('ICON_RUN', 'editor_data\icons\run.png');
+	
+	LoadImage('ICON_TOOLS', 'editor_data\icons\tools.png');
+	LoadImage('ICON_TEXTURE', 'editor_data\icons\texture.png');
 end;
 
 end.

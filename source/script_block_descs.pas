@@ -99,9 +99,6 @@ var
 	I : Integer;
 	k : TTextKonfig;
 begin
-	k := TTextKonfig.Create;
-	k.LoadFromFile(fn);
-	
 	SetLength(block_descs, 1);
 	
 	// block_descs[0] is default desc
@@ -112,10 +109,14 @@ begin
 	SetLength(block_descs[0].out_names, 5);
 	for I := 0 to Length(block_descs[0].out_names) - 1 do
 		block_descs[0].out_names[I] := 'out'+IntToStr(I);
-		
-	_LoadDescs(k.root, tree, -1);
-	
-	k.Free;
+
+	k := TTextKonfig.Create;
+	try
+		k.LoadFromFile(fn);		
+		_LoadDescs(k.root, tree, -1);
+	finally
+		k.Free;
+	end;
 end;
 
 procedure UnloadDescs;

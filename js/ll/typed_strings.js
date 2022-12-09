@@ -476,7 +476,26 @@ var static_data_keys = [
 	"_G.config.entity.gateway",
 	"_G.config.entity.claymore_zone",
 	"_G.config.entity.soft_entity_inst",
-	"_G.config.entity.heap_zone"
+	"_G.config.entity.heap_zone",
+	
+	// XBox Build from 19 oct 2012
+	"_G.config.entity.weapon_laser_ubludok",
+	"_G.config.entity.weapon_laser_abzac",
+	"_G.config.entity.weapon_laser_2012",
+	"_G.config.entity.weapon_laser_revolver",
+	"_G.config.entity.weapon_laser_ak_74",
+	"_G.config.entity.weapon_laser_vsv",
+	"_G.config.entity.weapon_laser_preved",
+	"_G.config.entity.weapon_laser_ventil",
+	"_G.config.entity.weapon_laser_uboynicheg",
+	"_G.config.entity.weapon_laser_duplet",
+	"_G.config.entity.weapon_laser_ashot",
+	"_G.config.entity.weapon_laser_padonag",
+	"_G.config.entity.weapon_laser_saiga",
+	"_G.config.entity.weapon_laser_tihar",
+	"_G.config.entity.wpn_c4_grenade",
+	"_G.config.entity.bush_zone",
+	"_G.config.entity.heap"
 ];
 
 var hash_table_classes = new Object;

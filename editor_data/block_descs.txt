@@ -1,10 +1,99 @@
 'actions' = begin
 
+	'action_data_add' = begin
+		clsid : stringz = 'actions/action_data_add';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'finished';
+		
+		properties = begin
+			private_data : stringz = '';
+		end;
+	end;
+	
+	'action_data_check' = begin
+		clsid : stringz = 'actions/action_data_check';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'exists';
+		
+		properties = begin
+			private_data : stringz = '';
+		end;
+	end;
+	
+	'action_data_remove' = begin
+		clsid : stringz = 'actions/action_data_remove';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'finished';
+		
+		properties = begin
+			private_data : stringz = '';
+		end;
+	end;
+	
+	'action_dialog' = begin
+		clsid : stringz = 'actions/action_dialog';
+		
+		in_names : stringz = 'activate,deactivate,activate_no_choice';
+		out_names : stringz = 'finished,yes,no';
+		
+		properties = begin
+			dialog_id : stringz = 'default_icons';
+			esc_use : bool = False;
+			esc_use_activate : bool = True;
+			confirm_string : stringz = '$armor_buy_1';
+			cancel_string : stringz = '$dont_take_ammo';
+			show_gold : bool = True;
+		end;
+	end;
+
 	'action_move2camera' = begin
 		clsid : stringz = 'actions/action_move2camera';
 		
 		in_names : stringz = 'in';
 		out_names : stringz = 'entity,finished';
+	end;
+	
+	'action_pd_add' = begin
+		clsid : stringz = 'actions/action_pd_add';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'finished';
+		
+		properties = begin
+			points : s32 = 1;
+			points_comments : stringz = 'l06_let_drezina_pass';
+		end;
+	end;
+	
+	'action_pd_check' = begin
+		clsid : stringz = 'actions/action_pd_check';
+		
+		in_names : stringz = 'in';
+		out_names : stringz = 'greater_or_equal,less';
+		
+		properties = begin
+			points : s32 = 50;
+		end;
+	end;
+	
+	'action_set_interest' = begin
+		clsid : stringz = 'actions/action_set_interest';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'target,finished,object';
+		
+		properties = begin
+			einterest_mode : u8 = 1;
+			aim_mode : u8 = 2;
+			interest_object : 'entity_link, uobject_link' = 65535;
+			interest_duration : u32 = 1000;
+			speed_coef : fp32 = 1;
+			max_angle : fp32 = 0;
+			look_probability : fp32 = 0.75;
+		end;
 	end;
 	
 	'activate-deactivate' = begin
@@ -18,34 +107,177 @@
 		end;
 	end;
 	
-	'ai/follow' = begin
-		clsid : stringz = 'actions/ai/follow';
+	'actor movement' = begin
+		clsid : stringz = 'actions/actor movement';
 		
 		in_names : stringz = 'activate,deactivate';
-		out_names : stringz = 'entity';
+		out_names : stringz = 'entity,finished';
 		
 		properties = begin
-			leader : 'entity_link, uobject_link' = 65535;
-			wait_point : 'entity_link, uobject_link' = 65535;
-			flags : flags32;
-			flags : u32 = 1;
-			far_distance_min : fp32 = 8;
-			far_distance_max : fp32 = 10;
-			follow_distance_min : fp32 = 3;
-			follow_distance_max : fp32 = 5;
-			near_distance_min : fp32 = 3;
-			near_distance_max : fp32 = 3.00099992752075;
-			near_delay_min : u32 = 5000;
-			near_delay_max : u32 = 10000;
-			max_distance : fp32 = 120;
+			speed_factor_walk : fp32 = 0.3000000119;
+			speed_factor_run : fp32 = 0.3000000119;
+			speed_factor_sprint : fp32 = 0.3000000119;
+			speed_factor_crouch : fp32 = 0.3000000119;
+			speed_factor_jump : fp32 = 0.3000000119;
+			cam_limit : bool = False;
+			cam_limit_pitch : vec2f = [-1.570796371, 1.570796371];
+			mouse_inertion : fp32 = 0;
+			invert_mouse : bool = False;
+			ignore_cam_rot : bool = False;
+		end;
+	end;
+	
+	'ai' = begin
+	
+		'cover escape' = begin
+			clsid : stringz = 'actions/ai/cover escape';
+			
+			in_names : stringz = 'activate,force_out';
+			out_names : stringz = 'entity,finished,esc_sel,ret_sel,reached,failed,->escape,->return';
+			
+			properties = begin
+				escape_min_dist : fp32 = 0.009999999776;
+				escape_max_dist : fp32 = 50;
+				escape_cover_type : u32 = 3;
+				escape_cover_wait_min : u32 = 100000;
+				escape_cover_wait_max : u32 = 100001;
+				return_min_dist : fp32 = 0.009999999776;
+				return_max_dist : fp32 = 50;
+				return_cover_type : u32 = 4;
+				return_lock_min : u32 = 2000;
+				return_lock_max : u32 = 4000;
+				angry_on_return_min : u32 = 4000;
+				angry_on_return_max : u32 = 4001;
+				movement_type : u8 = 4;
+				arrival_type : u8 = 4;
+			end;
+		end;
+	
+		'follow' = begin
+			clsid : stringz = 'actions/ai/follow';
+			
+			in_names : stringz = 'activate, deactivate, soft deactivate, wait for, resume following, ignore combat on, ignore combat off, follow face on, follow face off';
+			out_names : stringz = 'entity, finished, wait, leader near, leader far, leader OK, leader';
+			
+			properties = begin
+				leader : 'entity_link, uobject_link' = 65535;
+				wait_point : 'entity_link, uobject_link' = 65535;
+				flags : flags32;
+				flags : u32 = 1;
+				far_distance_min : fp32 = 8;
+				far_distance_max : fp32 = 10;
+				follow_distance_min : fp32 = 3;
+				follow_distance_max : fp32 = 5;
+				near_distance_min : fp32 = 3;
+				near_distance_max : fp32 = 3.00099992752075;
+				near_delay_min : u32 = 5000;
+				near_delay_max : u32 = 10000;
+				max_distance : fp32 = 120;
+			end;
+		end;
+	
+		'lead' = begin
+			clsid : stringz = 'actions/ai/lead';
+			
+			in_names : stringz = 'activate, deactivate, soft deactivate, wait for, resume leading, ignore combat on, ignore combat off';
+			out_names : stringz = 'entity, finished, wait, succeed, follower lost, follower found, follower';
+			
+			properties = begin
+				follower : 'entity_link, uobject_link' = 65535;
+				goal_point : 'entity_link, uobject_link' = 65535;
+				next_point : 'entity_link, uobject_link' = 65535;
+				wait_point : 'entity_link, uobject_link' = 65535;
+				flags : flags32;
+				flags : u32 = 8;
+				wait_distance_min : fp32 = 12;
+				wait_distance_max : fp32 = 12;
+				lead_distance_min : fp32 = 8;
+				lead_distance_max : fp32 = 10;
+				retrieve_distance_min : fp32 = 10;
+				retrieve_distance_max : fp32 = 11;
+				success_distance : fp32 = 1;
+				max_distance : fp32 = 120;
+			end;
+		end;
+		
+		'state' = begin
+			clsid : stringz = 'actions/ai/state';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'entity,finished';
+			
+			properties = begin
+				body_state : stringz = '';
+				anim_state : stringz = '';
+				movement_type : stringz = '';
+				weapon_state : stringz = 'unstrapped';
+				action : stringz = '';
+				target : 'entity_link, uobject_link' = 65535;
+				flags : flags32;
+				flags : u32 = 0;
+				anim_state_approach_speed : fp32 = 2;
+			end;
+		end;
+
+		'stop_melee_attack' = begin
+			clsid : stringz = 'actions/ai/stop_melee_attack';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'entity,finished';
+		end;	
+	
+	end;
+	
+	'alert search enable' = begin
+		clsid : stringz = 'actions/alert search enable';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+	end;
+	
+	'attach' = begin
+		clsid : stringz = 'actions/attach';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished,owner';
+		
+		properties = begin
+			owner : 'entity_link, uobject_link' = 65535;
+			bone : locator_str;
+			bone : stringz = 'loc_wpn_pistol';
+			offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -0.150000006, 1];
+			auto_offset : bool = False;
+		end;
+	end;
+	
+	'attraction' = begin
+		clsid : stringz = 'actions/attraction';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'target,satellite';
+		
+		properties = begin
+			min_distance : fp32 = 0;
+			max_distance : fp32 = 0;
+			min_power : fp32 = 600;
+			max_power : fp32 = 600;
+			near_power : fp32 = 600;
+			far_power : fp32 = 600;
+			start_time : fp32 = 0;
+			finish_time : fp32 = 0;
+			start_modif : fp32 = 1;
+			finish_modif : fp32 = 1;
+			early_modif : fp32 = 1;
+			later_modif : fp32 = 1;
+			satellite_bone : stringz = 'bip_01';
 		end;
 	end;
 	
 	'camera attach' = begin
 		clsid : stringz = 'actions/camera attach';
 		
-		in_names : stringz = 'activate,deactivate,use_rot_on,use_rot_off';
-		out_names : stringz = 'entity,finish,camera,attach_finished,detach_finished';
+		in_names : stringz = 'activate, deactivate, use rot on, use rot off';
+		out_names : stringz = 'entity, finish, camera, attach finished, detach finished';
 		
 		properties = begin
 			owner : 'entity_link, uobject_link' = 65535;
@@ -63,11 +295,22 @@
 		end;
 	end;
 	
+	'change ground holder' = begin
+		clsid : stringz = 'actions/change ground holder';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity, finished';
+		
+		properties = begin
+			ground_holder : stringz = '';
+		end;
+	end;
+	
 	'collision_group' = begin
 		clsid : stringz = 'actions/collision_group';
 		
-		in_names : stringz = 'activate';
-		out_names : stringz = 'entity';
+		in_names : stringz = 'activate, deactivate';
+		out_names : stringz = 'entity, finished';
 		
 		properties = begin
 			collisions_group : u8 = 1;
@@ -78,10 +321,21 @@
 		clsid : stringz = 'actions/console command';
 		
 		in_names : stringz = 'activate';
-		out_names : stringz = '';
+		out_names : stringz = 'entity, finished'; { why ? }
 		
 		properties = begin
 			cmd : stringz = '';
+		end;
+	end;
+	
+	'cover_combat' = begin
+		clsid : stringz = 'actions/cover_combat';
+		
+		in_names : stringz = 'activate, deactivate';
+		out_names : stringz = 'entity, finished';
+		
+		properties = begin
+			make_cover_combat : bool = True;
 		end;
 	end;
 	
@@ -89,7 +343,29 @@
 		clsid : stringz = 'actions/destroy';
 		
 		in_names : stringz = 'in';
-		out_names : stringz = 'entity';	
+		out_names : stringz = 'entity, finished';	
+	end;
+	
+	'detach' = begin
+		clsid : stringz = 'actions/detach';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity, finished, owner';
+	
+		properties = begin
+			owner : 'entity_link, uobject_link' = 65535;
+		end;
+	end;
+	
+	'detach_all' = begin
+		clsid : stringz = 'actions/detach_all';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity, finished';
+	
+		properties = begin
+			recursively : bool = False;
+		end;
 	end;
 	
 	'engine' = begin
@@ -97,8 +373,8 @@
 		'3d_text' = begin
 			clsid : stringz = 'actions/engine/3d_text';
 			
-			in_names : stringz = 'activate,deactivate';
-			out_names : stringz = 'entity,finished';
+			in_names : stringz = 'activate, deactivate';
+			out_names : stringz = 'entity, finished';
 			
 			properties = begin
 				offset : vec3f = [0, 0, 0];
@@ -110,6 +386,18 @@
 				color : 'color, vec4f' = [0.996078491210938, 0.443137288093567, 0.243137270212173, 1];
 				bone : bone_str;
 				bone : stringz = 'joint1';
+			end;
+		end;
+		
+		'achievement' = begin
+			clsid : stringz = 'actions/engine/achievement';
+			
+			in_names : stringz = 'add, remove';
+			out_names : stringz = 'completed';
+			
+			properties = begin
+				name : stringz = '';
+				border : s32 = 100;
 			end;
 		end;
 		
@@ -125,6 +413,149 @@
 			end;
 		end;
 		
+		'disable_save' = begin
+			clsid : stringz = 'actions/engine/disable_save';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity, finished'; { why? }
+		end;
+		
+		'discharge' = begin
+			clsid : stringz = 'actions/engine/discharge';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'from, to';
+			
+			properties = begin
+				model : ref_model;
+				model : stringz = 'static\weather_fx\thunderbolt_l2';
+				coloranim : choose;
+				coloranim : stringz = 'weathers\thunderbolt_03';
+				var_life_time_from : fp32 = 0.6499999762;
+				var_life_time_to : fp32 = 0.6999999881;
+				var_scale_from : fp32 = 3;
+				var_scale_to : fp32 = 5;
+			end;
+		end;
+		
+		'dlc' = begin
+			clsid : stringz = 'actions/engine/dlc';
+			
+			in_names : stringz = 'check';
+			out_names : stringz = 'out, out fail';
+			
+			properties = begin
+				offer_idx : u32 = 0;
+			end;
+		end;
+		
+		'end_cut_scene' = begin
+			clsid : stringz = 'actions/engine/end_cut_scene';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+		end;
+		
+		'lightning' = begin
+			clsid : stringz = 'actions/engine/lightning';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				model : ref_model;
+				model : stringz = 'static\weather_fx\thunderbolt_l1';
+				coloranim : choose;
+				coloranim : stringz = 'weathers\thunderbolt_00';
+				var_life_time_from : fp32 = 0.150000006;
+				var_life_time_to : fp32 = 0.3000000119;
+				var_altitude_from : 'angle, fp32' = 0.2091007531;
+				var_altitude_to : 'angle, fp32' = 0.2966335416;
+				var_longitude_from : 'angle, fp32' = -1.57079649;
+				var_longitude_to : 'angle, fp32' = 1.570796371;
+				var_scale_from : fp32 = 3;
+				var_scale_to : fp32 = 5;
+				ground_height : fp32 = 0;
+				tilt : 'angle, fp32' = 0.2966335416;
+				adjust_size : bool = True;
+			end;
+		end;
+		
+		'play video' = begin
+			clsid : stringz = 'actions/engine/play video';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				video_name : choose;
+				video_name : stringz = 'intro';
+			end;		
+		end;
+		
+		'portal throughput' = begin { affects sound? }
+			clsid : stringz = 'actions/engine/portal throughput';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				portal_name : choose;
+				portal_name : stringz = '';
+				throughput : fp32 = 1.00;	
+			end;
+		end;
+		
+		'presence' = begin { what does this block do? }
+			clsid : stringz = 'actions/engine/presence';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				context_location_id : u16 = 65535;
+				context_action_id : u16 = 65535;
+			end;
+		end;
+		
+		'quick_save' = begin
+			clsid : stringz = 'actions/engine/quick_save';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'finished';
+			
+			properties = begin
+				filename : stringz = 'auto_save';
+			end;
+		end;
+		
+		'set background music' = begin
+			clsid : stringz = 'actions/engine/set background music';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				back_music : choose;
+				back_music : stringz = 'music\omelchuk\menu_1';
+				accrue : fp32 = 0;
+				falloff : fp32 = 0;
+				volume : fp32 = 0.5;
+			end;
+		end;
+		
+		'set env cubemap' = begin
+			clsid : stringz = 'actions/engine/set env cubemap';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				cubemap : choose;
+				cubemap : stringz = 'env\env_intro';			
+			end;
+		end;
+		
 		'set env layer' = begin
 			clsid : stringz = 'actions/engine/set env layer';
 			
@@ -134,6 +565,19 @@
 			properties = begin
 				zone : stringz = 'env_zone_0000';
 				layer : stringz = 'default';
+			end;
+		end;
+		
+		'set environment' = begin
+			clsid : stringz = 'actions/engine/set environment';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				env_name : choose;
+				env_name : stringz = 'environment_l00_var_indoor';
+				blend_time : fp32 = 5;
 			end;
 		end;
 		
@@ -149,6 +593,132 @@
 			end;
 		end;
 	
+		'slowmo' = begin
+			clsid : stringz = 'actions/engine/slowmo';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = '';
+			
+			properties = begin
+				accrue : fp32 = 2;
+				falloff : fp32 = 2;
+				value : fp32 = 0.5;
+				current_value : fp32 = 0.5;
+				active : bool = False;
+				registered : bool = False;
+			end;
+		end;
+		
+		'start_cut_scene' = begin
+			clsid : stringz = 'actions/engine/start_cut_scene';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+		end;
+		
+		'volume' = begin
+			clsid : stringz = 'actions/engine/volume';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = '';
+			
+			properties = begin
+				volume : fp32 = 1;
+				time : u32 = 500;
+			end;
+		end;
+	end;
+	
+	'entity' = begin
+		'add gesture' = begin
+			clsid : stringz = 'actions/entity/add gesture';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity,finished';
+			
+			properties = begin
+				dbg_model : ref_model;
+				dbg_model : stringz = 'dynamic\human\fedor';
+				dbg_skel : stringz = 'dynamic\human\human';
+				seq_name : animation_str;
+				seq_name : stringz = 'face_kivaet';
+			end;
+		end;
+		
+		'useful for player' = begin
+			clsid : stringz = 'actions/entity/useful for player';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'entity,finished';
+			
+			properties = begin
+				flag : bool = True;
+			end;
+		end;
+	end;
+	
+	'explode' = begin
+		clsid : stringz = 'actions/explode';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished,initiator';
+		
+		properties = begin
+			amount : fp32 = 1;
+			hit_type : u8 = 4;
+		end;
+	end;
+	
+	'ext' = begin
+		'play_particles_ex' = begin
+			clsid : stringz = 'actions/ext/play_particles_ex';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity,finished';
+			
+			properties = begin
+				particles : 'particles, str_shared';
+				particles : stringz = 'campfire\small_koster';
+				locator : locator_str;
+				locator : stringz = 'bip01_r_upperarm';
+				offset : 'pose, matrix' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+			end;
+		end;
+	end;
+	
+	'find_cover' = begin
+		clsid : stringz = 'actions/find_cover';
+
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished,cover,cover_failed';
+		
+		properties = begin
+			target_range : fp32 = -1;
+			movement_type : u8 = 255;
+			arrival_type : u8 = 255;
+			do_not_unlock_cover : bool = False;
+			min_dist : fp32 = 1;
+			max_dist : fp32 = 10;
+			cover_type : u32 = 0;
+		end;
+	end;
+	
+	'force actor state' = begin
+		clsid : stringz = 'actions/force actor state';
+
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			crouch : bool = True;
+		end;
+	end;
+	
+	'freegun' = begin
+		clsid : stringz = 'actions/freegun';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
 	end;
 	
 	'goto_target' = begin
@@ -162,6 +732,24 @@
 			movement_type : u8 = 255;
 			arrival_type : u8 = 255;
 			do_not_unlock_cover : bool = False;
+		end;
+	end;
+	
+	'hint' = begin
+		clsid : stringz = 'actions/hint';
+
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = '';
+		
+		properties = begin
+			hint : stringz = '$movement';
+			show_background : bool = True;
+			undisabled : bool = False;
+			auto_size : bool = False;
+			x : fp32 = 256;
+			y : fp32 = 100;
+			width : fp32 = 512;
+			height : fp32 = 100;
 		end;
 	end;
 	
@@ -183,7 +771,7 @@
 	'link' = begin
 		clsid : stringz = 'actions/link';
 		
-		in_names : stringz = 'in';
+		in_names : stringz = 'activate,deactivate';
 		out_names : stringz = 'destantion,source';
 		
 		properties = begin
@@ -194,12 +782,109 @@
 		end;
 	end;
 	
+	'luminocity' = begin
+		clsid : stringz = 'actions/luminocity';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+	end;
+	
+	'make friend' = begin
+		clsid : stringz = 'actions/make friend';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			make_friend_type : u8 = 0;
+		end;
+	end;
+	
+	'make immortal' = begin
+		clsid : stringz = 'actions/make immortal';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+	end;
+	
+	'make scripted' = begin
+		clsid : stringz = 'actions/make scripted';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			make_scripted : bool = False;
+		end;
+	end;
+	
+	'map_text' = begin
+		clsid : stringz = 'actions/map_text';
+		
+		in_names : stringz = 'activate,deactivate';
+		out_names : stringz = 'finished';
+		
+		properties = begin
+			key : stringz = '$task_go_to_polis_main_1';
+			size : fp32 = 20;
+			rotation : fp32 = 0;
+			rect : vec4f = [70, 50, 380, 200];
+			line_spacing : u8 = 5;
+			color : 'color, vec4f' = [0, 0, 0, 1];
+		end;
+	end;
+	
+	'milestone' = begin
+		clsid : stringz = 'actions/milestone';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'finished';
+		
+		properties = begin
+			milestone : stringz = 'default';
+		end;
+	end;
+	
+	'min mental state' = begin
+		clsid : stringz = 'actions/min mental state';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished';
+		
+		properties = begin
+			mental_state : u8 = 255;
+			max_mental_state : u8 = 255;
+		end;
+	end;
+	
 	'monster' = begin
+		'set_librarian_aggro' = begin
+			clsid : stringz = 'actions/monster/set_librarian_aggro';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'librarian,finished';
+			
+			properties = begin
+				aggro_time : fp32 = 0;
+				force : bool = True;
+				do_not_increase : bool = False;
+				do_not_decrease : bool = False;
+				only_add_aggro : bool = False;
+			end;
+		end;
+		
+		'set_librarian_scripted_ex' = begin
+			clsid : stringz = 'actions/monster/set_librarian_scripted_ex';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'librarian,finished';
+		end;
+			
 		'set_lurkers_state' = begin
 			clsid : stringz = 'actions/monster/set_lurkers_state';
 			
 			in_names : stringz = 'in';
-			out_names : stringz = 'entity';
+			out_names : stringz = '*_lurker_*,finished';
 			
 			properties = begin
 				state : u8 = 0;
@@ -216,6 +901,128 @@
 		properties = begin
 			dest : 'entity_link, uobject_link' = 65535;
 			keep_move : bool = False;
+		end;
+	end;
+	
+	'movement type' = begin
+		clsid : stringz = 'actions/movement type';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished'; { 'target,finish' }
+		
+		properties = begin
+			min_movement_type : u8 = 1;
+			max_movement_type : u8 = 1;
+		end;
+	end;
+	
+	'no_combat' = begin
+		clsid : stringz = 'actions/no_combat';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'entity,finished'; { 'target,finish' }
+		
+		properties = begin
+			make_no_combat : bool = False;
+		end;
+	end;
+	
+	'npc can play motion' = begin
+		clsid : stringz = 'actions/npc can play motion';
+		
+		in_names : stringz = 'check';
+		out_names : stringz = 'entity,yes,no'; { 'target,out,out fail' }
+		
+		properties = begin
+			make_no_combat : bool = False;
+		end;
+	end;
+	
+	'npc' = begin
+	
+		'action feelings' = begin
+			clsid : stringz = 'actions/npc/action feelings';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' }
+			
+			properties = begin
+				vision : bool = True;
+			end;			
+		end;
+		
+		'biomass_attack' = begin
+			clsid : stringz = 'actions/npc/biomass_attack';
+			
+			in_names : stringz = 'activate,default_state';
+			out_names : stringz = 'target,finish,attack_target,attack_left,attack_right';		
+		end;
+		
+		'cover group' = begin
+			clsid : stringz = 'actions/npc/cover group';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' }
+			
+			properties = begin
+				cover_group : choose;
+				cover_group : stringz = 'cover_group_0000';
+				allow : u8 = 2;
+				forbid : u8 = 1;
+			end;			
+		end;
+		
+		'dark_make_angry' = begin
+			clsid : stringz = 'actions/npc/dark_make_angry';
+			
+			in_names : stringz = 'activate,deactivate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' }		
+		end;
+	
+		'dispersion' = begin
+			clsid : stringz = 'actions/npc/dispersion';         
+			
+			is_names : strings = 'activate,deactivate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' } 
+			
+			properties = begin
+				amount : fp32 = 20;
+			end;
+		end;
+		
+		'group' = begin
+			clsid : stringz = 'actions/npc/group';         
+			
+			is_names : strings = 'activate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' } 
+			
+			properties = begin
+				group_id : stringz = 'square';
+			end;
+		end;
+		
+		'obstacle' = begin
+			clsid : stringz = 'actions/npc/obstacle';         
+			
+			is_names : strings = 'activate,deactivate';
+			out_names : stringz = 'entity,finished'; { 'target,finish' } 
+			
+			properties = begin
+				obstacle : choose;
+				obstacle : stringz = 'ai_obstacle_0003';
+				add_obstacle : bool = True;
+			end;
+		end;
+	end;
+	
+	'one shot' = begin
+		clsid : stringz = 'actions/one shot';
+		
+		is_names : strings = 'activate';
+		out_names : stringz = 'entity,finished'; { 'target,finish' } 
+		
+		properties = begin
+			ai_sound : bool = True;
 		end;
 	end;
 	
@@ -276,8 +1083,8 @@
 	'play patrol path' = begin
 		clsid : stringz = 'actions/play patrol path';
 		
-		in_names : stringz = 'activate,deactivate,soft_deactivate';
-		out_names : stringz = 'entity,finished,start,path_failed,soft_finish';
+		in_names : stringz = 'activate,deactivate,soft deactivate';
+		out_names : stringz = 'entity,finished,start,failed';
 		
 		properties = begin
 			start_point : 'entity_link, uobject_link' = 65535;

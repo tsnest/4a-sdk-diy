@@ -34,16 +34,14 @@ begin
 	tk.Free;
 end;
 
-procedure DecompileLevel(inf, outf : String);
+procedure DecompileLevel(inf, outf : String; build_15_10_2012 : Boolean);
 var
 	TK : TTextKonfig;
 	tmr : TTimer;
 begin
 	tmr.Start;
-	TK := LoadLevelBin(inf);
+	TK := LoadLevelBin(inf, build_15_10_2012);
 	WriteLn('Loaded ''', inf, ''' in ', tmr.CurrentTime:10:10, 's');
-	
-	ReadLn;
 	
 	if TK <> nil then
 	begin
@@ -129,13 +127,14 @@ end;
 procedure Usage;
 begin
 	Writeln('Usage: ');
-	Writeln(#9'binunp [-l] [-ll] -d infile [outfile]');
+	Writeln(#9'binunp [-l] [-ll] [-build_15_10_2012] -d infile [outfile]');
 	Writeln(#9'binunp [-l] [-ll] [-k n] -c infile [outfile]');
 	Writeln(#9'binunp -s script infile [outfile]');
 	Writeln;
 	Writeln('-l option = compile/decompile level.bin');
 	Writeln('-ll option = compile/decompile bin from Last Light or later versions');
 	Writeln('-k option = config type, may be 3, 4, 5, 16 or 36, by default 5');
+	Writeln('-build_15_10_2012 = decompile level.bin from Metro Last Light Build 2662 (from Oct 15, 2012)');
 end;
 
 var
@@ -143,10 +142,12 @@ var
 	level : Boolean;
 	last_light : Boolean;
 	out_file : String;
+	build_15_10_2012 : Boolean;
 begin
 	kind := 5;
 	level := False;
 	last_light := False;
+	build_15_10_2012 := False;
 
 	I := 1;
 	while I <= ParamCount do
@@ -159,6 +160,8 @@ begin
 			level := True
 		else if ParamStr(I) = '-ll' then	
 			last_light := True
+		else if ParamStr(I) = '-build_15_10_2012' then
+			build_15_10_2012 := True
 		else if ParamStr(I) = '-k' then
 		begin
 			kind := StrToInt(ParamStr(I+1));
@@ -180,7 +183,7 @@ begin
 					out_file := ParamStr(I+1) + '.txt';
 								
 				if level then
-					DecompileLevel(ParamStr(I+1), out_file)
+					DecompileLevel(ParamStr(I+1), out_file, build_15_10_2012)
 				else
 					DecompileConfig(ParamStr(I+1), out_file, last_light);
 					

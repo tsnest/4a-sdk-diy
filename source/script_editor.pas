@@ -13,7 +13,7 @@ uses classes, sysutils, Iup, GL, GLU, vmath, properties,
 	skeleton, uChoose, // for properties
 	Math, // for Max
 	script_block_descs,
-	uLEOptions;
+	uLEOptions, uEditorUtils;
 
 // utility functions
 
@@ -135,19 +135,19 @@ begin
 end;
 
 const
-	SCRIPT_VER_LL				= 20;
-	SCRIPT_VER_REDUX		= 20; // version same as LL
+	SCRIPT_VER_LL       = 20;
+	SCRIPT_VER_REDUX    = 20; // version same as LL
 	SCRIPT_VER_ARKTIKA1 = 46;
-	SCRIPT_VER_EXODUS		= 55; // or 54
+	SCRIPT_VER_EXODUS   = 55; // or 54
 	
 const
-	TYPE_BLOCK 		= $01000000;
-	TYPE_LINK			= $02000000;
-	TYPE_INPOINT 	= $03000000;
-	TYPE_OUTPOINT	= $04000000;
+	TYPE_BLOCK      = $01000000;
+	TYPE_LINK       = $02000000;
+	TYPE_INPOINT    = $03000000;
+	TYPE_OUTPOINT   = $04000000;
 	
-	NAME_MASK	 = $00FFFFFF;
-	TYPE_MASK	= $FF000000;
+	NAME_MASK       = $00FFFFFF;
+	TYPE_MASK       = $FF000000;
 
 type
 	TBlock = class
@@ -158,6 +158,7 @@ type
 		free_desc : Boolean;
 		
 		props : TSection;
+		
 		
 		constructor Create(blk : TSection); overload;
 		constructor Create(desc : TBlockDesc); overload;
@@ -246,10 +247,11 @@ type
 		start_outpoint : Longint;
 		start_inpoint : Longint;
 		
+		
 		constructor Create;
 		destructor Destroy; override;
 		
-		function	ShowModal : Longint;
+		function ShowModal : Longint;
 		
 		procedure ClearScript;
 		procedure LoadScript(script : TSection);
@@ -411,12 +413,15 @@ var
 	fr_properties : Ihandle;
 	
 	toolbox : Ihandle;
+	
+	descs_fn : String;
 begin
 	inherited Create;
 	
 	main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
 
 	gl := IupGLCanvas(nil);
+	IupSetAttribute(gl, 'NAME', 'GL_CANVAS');
 	IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
 	IupSetAttributeHandle(gl, 'SHAREDCONTEXT', main);
 	IupSetAttribute(gl, 'RASTERSIZE', '800x600');
@@ -482,13 +487,21 @@ begin
 	
 	IupMap(dlg);
 	
+
 	case Scene.GetVersion of
-		sceneVer2033:		  LoadDescs('editor_data\block_descs.txt', tree_descs);
-		sceneVerLL:			  LoadDescs('editor_data\block_descs_ll.txt', tree_descs);
-		sceneVerRedux:	  LoadDescs('editor_data\block_descs_redux.txt', tree_descs);
-		sceneVerArktika1: LoadDescs('editor_data\block_descs_a1.txt', tree_descs);
-		sceneVerExodus:   LoadDescs('editor_data\block_descs_exodus.txt', tree_descs);
-		else						  LoadDescs('editor_data\block_descs.txt', tree_descs);
+		sceneVer2033:     descs_fn := 'editor_data\block_descs.txt';
+		sceneVerLL:       descs_fn := 'editor_data\block_descs_ll.txt';
+		sceneVerRedux:    descs_fn := 'editor_data\block_descs_redux.txt';
+		sceneVerArktika1: descs_fn := 'editor_data\block_descs_a1.txt';
+		sceneVerExodus:   descs_fn := 'editor_data\block_descs_exodus.txt';
+		else              descs_fn := 'editor_data\block_descs.txt';
+	end;
+	
+	try		
+		LoadDescs(descs_fn, tree_descs);
+	except 
+		on E: Exception do 
+			uEditorUtils.ShowError('Block descriptions loading failed (' + descs_fn + ')'#10 + E.Message);
 	end;
 	
 	blocks := TList.Create;
@@ -526,6 +539,7 @@ end;
 procedure TScriptEditor.ClearScript;
 var
 	I : Integer;
+	gl : Ihandle;
 begin
 	for I := 0 to blocks.Count - 1 do
 		TBlock(blocks[I]).Free;
@@ -534,6 +548,9 @@ begin
 	for I := 0 to links.Count - 1 do
 		TLink(links[I]).Free;
 	links.Clear;
+	
+	gl := IupGetDialogChild(dlg, 'GL_CANVAS');
+	IupRedraw(gl, 0);
 end;
 
 procedure TScriptEditor.LoadScript(script : TSection);
@@ -1080,7 +1097,7 @@ begin
 		WriteLn('create block 1');
 		if I > 0 then
 		begin
-			obj := TObject(IupGetAttribute(tree_descs, PAnsiChar('USERDATA' + IntToStr(I))));
+			obj := TObject(IupGetAttributeId(tree_descs, 'USERDATA', I));
 			if obj is TBlockDesc then
 			begin
 				WriteLn('create block 2 ', I);
@@ -1250,10 +1267,10 @@ begin
 		// set script version according to scene version
 		// move to constructor?
 		case Scene.GetVersion of
-			sceneVerLL: 			editor.script_version := SCRIPT_VER_LL;
-			sceneVerRedux: 		editor.script_version := SCRIPT_VER_REDUX;
-			sceneVerArktika1:	editor.script_version := SCRIPT_VER_ARKTIKA1;
-			sceneVerExodus:		editor.script_version := SCRIPT_VER_EXODUS;
+			sceneVerLL:         editor.script_version := SCRIPT_VER_LL;
+			sceneVerRedux:      editor.script_version := SCRIPT_VER_REDUX;
+			sceneVerArktika1:   editor.script_version := SCRIPT_VER_ARKTIKA1;
+			sceneVerExodus:     editor.script_version := SCRIPT_VER_EXODUS;
 		end;
 	end;
 	

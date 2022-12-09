@@ -16,7 +16,7 @@ type
 
 type
 	TScene = class
-	  level_dir : String;
+		level_dir : String;
 		level : T4ALevel;
 		level2 : T4ALevel2;
 		maler : ILevelMaler;
@@ -55,6 +55,8 @@ type
 		visible_instanced_dynamic1 : TFPList;
 		visible_instanced_dynamic2 : TFPList;
 		
+		entities_by_ids : array[0..65535] of TEntity;
+		
 		constructor Create;
 		destructor Destroy; override;
 		
@@ -76,10 +78,9 @@ type
 		
 		procedure AddEntity(e : TEntity);
 		procedure RemoveEntity(e : TEntity);
-		
+	
+		function GenerateId : Word;	
 		function EntityById(id : Word) : TEntity;
-		function GenerateId : Word;
-		
 		function EntityByName(const name : String) : TEntity;
 		
 		procedure MakeAddon(arr : TEntityArray; addon : Boolean);
@@ -113,7 +114,7 @@ var
 	Scene : TScene;
 
 implementation
-uses sysutils, GL, GLU, GLExt, Texture, levelbin, Iup, cform_utils, PHGroups, vmath, egeoms, uLEOptions;
+uses sysutils, GL, GLU, GLExt, Texture, levelbin, Iup, cform_utils, PHGroups, vmath, egeoms, uLEOptions, uEditorUtils, Engine;
 
 constructor TScene.Create;
 begin
@@ -144,15 +145,14 @@ var
 begin
 	if not FileExists(dir + '\level.bin') then
 	begin
-		IupMessageError(IupGetHandle('MAINDIALOG'),
-		PAnsiChar('There is no level.bin file in ''' + dir + '''!'));
+		uEditorUtils.ShowError('There is no level.bin file in ''' + dir + '''!');
 		Exit;
 	end;
 	
 	level_dir := dir;
 
 	// load level.bin
-	k_level := LoadLevelBin(dir + '\level.bin');
+	k_level := LoadLevelBin(dir + '\level.bin', Engine.version = eVerLLBeta15102012);
 	
 	ep := k_level.root.GetSect('entities_params', False);
 	if (ep <> nil) and (ep.GetInt('version', 0, 'u16') >= ENTITY_VER_ARKTIKA1) then
@@ -213,7 +213,7 @@ begin
 	end;
 
 	// load entities
-  LoadEntities(k_level, k_level_add, True);
+	LoadEntities(k_level, k_level_add, True);
 	
 	// load level.environemt
 	env_zones := TList.Create;
@@ -274,19 +274,25 @@ var
 	I : Longint;
 
 	ent : TSection;
-	ent_valid : Boolean;
+	E : TEntity;
 	
 	entity_count : Longint;
 	dlg : Ihandle;
+	
+	function DataValid(s : TSection) : Boolean;
+	begin
+		DataValid := (ent.GetParam('name', 'stringz') <> nil) and
+			((ent.GetParam('', 'pose, matrix_43T') <> nil) or (ent.GetParam('', 'pose, matrix') <> nil));
+	end;
 begin
-  konf := k_level;
-  konf_entities := konf.root.GetSect('entities');
+	konf := k_level;
+	konf_entities := konf.root.GetSect('entities');
   
-  if Assigned(k_level_add) then
-  begin
-    konf_add := k_level_add;
-    konf_add_entities := konf_add.root.GetSect('entities');
-  end;
+	if Assigned(k_level_add) then
+	begin
+		konf_add := k_level_add;
+		konf_add_entities := konf_add.root.GetSect('entities');
+	end;
   
 	entity_count := konf_entities.ParamCount;
 	if konf_add_entities <> nil then
@@ -294,11 +300,11 @@ begin
 	
 	if progress then
 	begin
-  	dlg := IupProgressDlg;
-  	IupSetStrAttribute(dlg, 'TITLE', 'Loading entities');
-  	IupSetInt(dlg, 'TOTALCOUNT', entity_count);
-  	IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
-  end;
+		dlg := IupProgressDlg;
+		IupSetAttribute(dlg, 'TITLE', 'Loading entities');
+		IupSetInt(dlg, 'TOTALCOUNT', entity_count);
+		IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
+	end;
 
 	entities := TList.Create;
 
@@ -308,17 +314,21 @@ begin
 		begin
 			ent := TSection(konf_entities.GetParam(I));
 
-			IupSetAttribute(dlg, 'DESCRIPTION', PAnsiChar(ent.name));
+			iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
 
-			ent_valid :=
-				(ent.GetParam('name', 'stringz') <> nil) and
-				((ent.GetParam('', 'pose, matrix_43T') <> nil) or (ent.GetParam('', 'pose, matrix') <> nil));
-
-			if ent_valid then
-				entities.Add(TEntity.Create(ph_scene, ent));
+			if DataValid(ent) then
+			begin
+				E := TEntity.Create(ph_scene, ent);
+				entities.Add(E);
+				
+				if entities_by_ids[E.ID] <> nil then
+					ShowError('Entity ID conflict between ' + E.Name + ' and ' + entities_by_ids[E.ID].Name);
+					
+				entities_by_ids[E.ID] := E; 	
+			end;
 			
 			if progress then	
-			  IupSetAttribute(dlg, 'INC', nil);
+				IupSetAttribute(dlg, 'INC', nil);
 		end;
 	end;
 
@@ -330,23 +340,27 @@ begin
 			begin
 				ent := TSection(konf_add_entities.GetParam(I));
 	
-				IupSetAttribute(dlg, 'DESCRIPTION', PAnsiChar(ent.name));
+				iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
 	
-				ent_valid :=
-					(ent.GetParam('name', 'stringz') <> nil) and
-					((ent.GetParam('', 'pose, matrix_43T') <> nil) or (ent.GetParam('', 'pose, matrix') <> nil));
-	
-				if ent_valid then
-					entities.Add(TEntity.Create(ph_scene, ent));
+				if DataValid(ent) then
+				begin
+					E := TEntity.Create(ph_scene, ent);
+					entities.Add(E);
 					
-  			if progress then	
-  			  IupSetAttribute(dlg, 'INC', nil);
+					if entities_by_ids[E.ID] <> nil then
+						ShowError('Entity ID conflict between ' + E.Name + ' and ' + entities_by_ids[E.ID].Name);
+					
+					entities_by_ids[E.ID] := E; 	
+				end;
+				
+				if progress then	
+					IupSetAttribute(dlg, 'INC', nil);
 			end;
 		end;
 	end;
 	
 	if progress then
-	 IupDestroy(dlg);
+		IupDestroy(dlg);
 	
 	//UpdateAttaches;  
 end;
@@ -367,6 +381,9 @@ begin
 	
 	FreeAndNil(konf_add);
 	konf_add_entities := nil;
+	
+	// clear entities_by_ids
+	FillChar(entities_by_ids, Sizeof(entities_by_ids), #0);
 end;
 
 function EntitySortCb(p1, p2 : Pointer) : Integer;
@@ -549,7 +566,7 @@ begin
 		begin
 			E := TEntity(lists[LOD][I]);
 			J := I;
-			while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) do
+			while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) and (J-I < MAX_INSTANCES) do
 			begin				
 				instances.matrix[J-I] := TEntity(lists[LOD][J]).Matrix;
 				instances.selected[J-I] := TEntity(lists[LOD][J]).Selected;
@@ -607,7 +624,7 @@ begin
 			begin
 				E := TEntity(lists[LOD][I]);
 				J := I;
-				while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) do
+				while (J < lists[LOD].Count) and (TEntity(lists[LOD][J]).visualCRC = E.visualCRC) and (J-I < MAX_INSTANCES) do
 				begin
 					instances.matrix[J-I] := TEntity(lists[LOD][J]).Matrix;
 					instances.selected[J-I] := TEntity(lists[LOD][J]).Selected;
@@ -752,6 +769,11 @@ procedure TScene.AddEntity(e : TEntity);
 begin
 	entities.Add(e);
 	konf_entities.items.Add(e.data);
+	
+	if entities_by_ids[e.ID] <> nil then
+		ShowError('Entity ID conflict between ' + e.Name + ' and ' + entities_by_ids[e.ID].Name);
+		
+	entities_by_ids[e.ID] := e;
 end;
 
 procedure TScene.RemoveEntity(e : TEntity);
@@ -793,8 +815,29 @@ begin
 		end;
 	end;
 	
+	entities_by_ids[e.ID] := nil;
+	
 	e.data.Free;
 	e.Free;
+end;
+
+function TScene.GenerateId : Word;
+var
+	id : Word;
+begin
+	if Assigned(entities) then
+	begin
+		if self.GetVersion >= sceneVerArktika1 then
+			id := 512
+		else
+			id := 256;
+		
+		while (id < 65535) and (EntityById(id) <> nil) do
+			Inc(id);
+
+		Result := id;
+	end else
+		Result := 65535;
 end;
 
 function TScene.EntityById(id : Word) : TEntity;
@@ -805,6 +848,9 @@ begin
 	// added: no.
 
 	Result := nil;
+	
+	if id = 65535 then
+		Exit;
 
 	if Assigned(entities) then
 	begin
@@ -817,21 +863,6 @@ begin
 			end;
 		end;
 	end;
-end;
-
-function TScene.GenerateId : Word;
-var
-	id : Word;
-begin
-	if Assigned(entities) then
-	begin
-		id := 256;
-		while (id < 65535) and (EntityById(id) <> nil) do
-			Inc(id);
-
-		Result := id;
-	end else
-		Result := 65535;
 end;
 
 function TScene.EntityByName(const name : String) : TEntity;

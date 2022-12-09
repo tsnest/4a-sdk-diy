@@ -1,15 +1,15 @@
 program model_Editor;
 uses common, Iup,
-		 GL, GLU, GLExt, 
-		 sysutils, classes, chunkedFile, vmath, PhysX, fouramdl,
-		 Engine, Texture,
-		 //uAO, 
-		 uImport, uImportStatic, uImportDynamic, uImportMotion,
-		 uExportScene, {$IFDEF HAZ_LWOEXPORT} uXRayExport, {$ENDIF}
-		 skeleton, motion, cform_utils, nxcform, uDrawUtils,
-		 KonfigLibrary, uChoose, uChooseMaterial, uChooseTexture,
-		 uEditorUtils, uImages,
-		 uModelEditorGlobals, uFrameMtlsets;
+     GL, GLU, GLExt, 
+     sysutils, classes, chunkedFile, vmath, PhysX, fouramdl,
+     Engine, Texture,
+     //uAO, 
+     uImport, uImportStatic, uImportDynamic, uImportMotion,
+     uExportScene, {$IFDEF HAZ_LWOEXPORT} uXRayExport, {$ENDIF}
+     skeleton, motion, cform_utils, nxcform, uDrawUtils,
+     KonfigLibrary, uChoose, uChooseMaterial, uChooseTexture,
+     uEditorUtils, uImages,
+     uModelEditorGlobals, uFrameMtlsets;
 
 var
 	selected : T4AModel;
@@ -51,7 +51,7 @@ begin
 			motion := T4AMotion.CreateAndLoad(fn);
 		
 		motion_name := ChangeFileExt(ExtractFileName(fn), '');
-		IupSetAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', PAnsiChar(motion_name));
+		iup.SetStrAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', motion_name);
 	except 
 		on E: Exception do
 			ShowError(E.ClassName + ': ' + E.Message);
@@ -62,7 +62,7 @@ procedure UnloadMotion;
 begin
 	FreeAndNil(motion);
 	motion_name := '';
-	IupSetAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', '<none>');
+	iup.SetStrAttribute(IupGetDialogChild(MainDialog, 'BTN_MOTION'), 'TITLE', '<none>');
 end;
 	
 function motion_timer_cb(ih : Ihandle) : Longint; cdecl;
@@ -193,8 +193,8 @@ var
 	dlg : Ihandle;
 begin
 	dlg := IupFileDlg;
-	IupSetAttribute(dlg, 'EXTDEFAULT', PAnsiChar(ext));
-	IupSetAttribute(dlg, 'EXTFILTER', PAnsiChar(desc+' (*'+ext+')|*'+ext+'|All files (*.*)|*.*|'));
+	iup.SetStrAttribute(dlg, 'EXTDEFAULT', ext);
+	iup.SetStrAttribute(dlg, 'EXTFILTER', desc+' (*'+ext+')|*'+ext+'|All files (*.*)|*.*|');
 
 	if save then
 		IupSetAttribute(dlg, 'DIALOGTYPE', 'SAVE')
@@ -273,10 +273,10 @@ begin
 		l_name := IupGetDialogChild(dlg, 'TEXT_NAME');
 		t_collision := IupGetDialogChild(dlg, 'TOGGLE_COLLISION');
 
-		IupSetStrAttribute(l_tex, 'VALUE', PAnsiChar(tex));
-		IupSetStrAttribute(l_sh, 'VALUE', PAnsiChar(sh));
-		IupSetStrAttribute(l_mtl, 'VALUE', PAnsiChar(mtl));
-		IupSetStrAttribute(l_name, 'VALUE', PAnsiChar(name));
+		iup.SetStrAttribute(l_tex, 'VALUE', tex);
+		iup.SetStrAttribute(l_sh, 'VALUE', sh);
+		iup.SetStrAttribute(l_mtl, 'VALUE', mtl);
+		iup.SetStrAttribute(l_name, 'VALUE', name);
 		if flNoCollision in selected.editor_flags then
 			IupSetInt(t_collision, 'VALUE', 0)
 		else
@@ -422,7 +422,7 @@ begin
 				name := mh.meshes[I].texture;
 			
 			surfaces.Add(Pointer(mh.meshes[I]));	
-			IupSetAttribute(list_surfaces, 'APPENDITEM', PAnsiChar(name));
+			iup.SetStrAttribute(list_surfaces, 'APPENDITEM', name);
 		end;
 	end;
 
@@ -441,7 +441,7 @@ begin
 					name := mm.texture;
 					
 				surfaces.Add(Pointer(mm));
-				IupSetAttribute(list_surfaces, 'APPENDITEM', PAnsiChar(name));		
+				iup.SetStrAttribute(list_surfaces, 'APPENDITEM', name);		
 			end;
 	end;
 	
@@ -458,7 +458,7 @@ begin
 				name := mk.meshes[I].texture;
 			
 			surfaces.Add(Pointer(mk.meshes[I]));	
-			IupSetAttribute(list_surfaces, 'APPENDITEM', PAnsiChar(name));
+			iup.SetStrAttribute(list_surfaces, 'APPENDITEM', name);
 		end;
 	end;
 end;
@@ -613,7 +613,7 @@ begin
 
 	ModelLoad(mdl);
 	
-	IupSetAttribute(MainDialog, 'TITLE', PAnsiChar('Model Editor - ['+fn+']'));
+	iup.SetStrAttribute(MainDialog, 'TITLE', 'Model Editor - ['+fn+']');
 end;
 
 procedure ModelUnload;
@@ -1325,8 +1325,8 @@ begin
 	
 		dlg := IupFileDlg;
 		IupSetAttribute(dlg, 'DIALOGTYPE', 'SAVE');
-		IupSetAttribute(dlg, 'EXTDEFAULT', PAnsiChar(ext));
-		IupSetAttribute(dlg, 'EXTFILTER', PAnsiChar('Cform file (*' + ext + ')|*' + ext + '|All files (*.*)|*.*|'));
+		iup.SetStrAttribute(dlg, 'EXTDEFAULT', ext);
+		iup.SetStrAttribute(dlg, 'EXTFILTER', 'Cform file (*' + ext + ')|*' + ext + '|All files (*.*)|*.*|');
 
 		IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -1378,7 +1378,7 @@ begin
 	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
 
 	ListImportFormats(extfilter);
-	IupSetAttribute(dlg, 'EXTFILTER', PAnsiChar(extfilter));
+	iup.SetStrAttribute(dlg, 'EXTFILTER', extfilter);
 
 	IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -1852,7 +1852,6 @@ begin
 	tab_skeleton := IupVBox(tree_skeleton, nil);
 
 	tabs := IupTabs(tab_model, tab_skeleton, nil);
-
 	IupSetAttribute(tabs, 'TABTITLE0', 'Model');
 	IupSetAttribute(tabs, 'TABTITLE1', 'Skeleton');
 
@@ -1915,6 +1914,9 @@ begin
 	IupSetHandle('MAINDIALOG', dlg);
 end;
 
+var 
+	P : Longint;
+	initial_model_name : String = '';
 begin
 	IupOpen(nil, nil);
 	IupGLCanvasOpen;
@@ -1922,12 +1924,35 @@ begin
 	
 	LoadImages;
 
-	if ParamCount > 0 then
-		ResourcesPath := ParamStr(1)
-	else
+	// parse command-line
+	P := 0;
+		
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_15_10_2012') then
+	begin
+		Engine.version := eVerLLBeta15102012;
+		Inc(P);
+	end;
+	
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_3_12_2012') then
+	begin
+		Engine.version := eVerLLBeta03122012;
+		Inc(P);
+	end;
+	
+	if ParamCount-P > 0 then
+	begin
+		ResourcesPath := ParamStr(P+1);
+		Inc(P);
+	end else
 	begin
 		GetDir(0, ResourcesPath);
 		ResourcesPath := ResourcesPath + '\content';
+	end;
+	
+	if ParamCount-P > 0 then
+	begin
+		initial_model_name := ParamStr(P+1);
+		Inc(P);
 	end;
 
 	InitializeEngine;
@@ -1935,8 +1960,8 @@ begin
 
 	CreateDialog;
 	
-	if ParamCount > 1 then
-		ModelLoad(ParamStr(2));
+	if initial_model_name <> '' then
+		ModelLoad(initial_model_name);
 	
 	IupMainLoop();
 

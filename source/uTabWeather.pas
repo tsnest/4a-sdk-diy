@@ -8,7 +8,7 @@ procedure ResetWeather;
 procedure FillList;
 
 implementation
-uses classes, sysutils, Konfig, uScene, uWeather;
+uses classes, sysutils, Konfig, uScene, uWeather, uEditorUtils, Timer;
 
 procedure Redisplay;
 var
@@ -34,23 +34,30 @@ end;
 
 procedure FillList;
 var
-	list : Ihandle;
+	tree : Ihandle;
 	weathers : TStringList;
-	I : Longint;
 begin
-	list := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'LIST_WEATHERS');
+	tree := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'TREE_WEATHERS');
 
-	IupSetAttribute(list, 'REMOVEITEM', 'ALL');
+	IupSetAttribute(tree, 'DELNODE', 'CHILDREN0');
+	IupSetAttribute(tree, 'AUTOREDRAW', 'NO');
 
 	weathers := GetWeathersList;
-	for I := 0 to weathers.Count - 1 do
-		IupSetAttribute(list, 'APPENDITEM', PAnsiChar(weathers[I]));			
+	weathers.Sort;
+	
+	FillTreeFromList(tree, 0, weathers);
+			
 	weathers.Free;
+	
+	IupSetAttribute(tree, 'AUTOREDRAW', 'YES');
+	IupSetAttribute(tree, 'TITLE0', 'Weathers');
+	IupSetAttribute(tree, 'STATE0', 'EXPANDED');
 end;
 
-function list_weathers_cb(ih : Ihandle; txt : PAnsiChar; item, state : Longint) : Longint; cdecl;
+function tree_weathers_cb(ih : Ihandle; id, state : Longint) : Longint; cdecl;
 begin
-	SetWeather(txt);
+	if (state = 1) and (KindOfTreeNode(ih, id) = 'LEAF') then
+		SetWeather(PathOfTreeNode(ih, id));
 	Redisplay;
 	Result := IUP_DEFAULT;
 end;
@@ -59,22 +66,24 @@ function btn_apply_cb(ih : Ihandle) : Longint; cdecl;
 var	
 	startup : TSection;
 	desc_0, desc_1 : TStringValue;
-	list : Ihandle;
+	tree : Ihandle;
+	selnode : Longint;
 begin
-	list := IupGetDialogChild(ih, 'LIST_WEATHERS');
+	tree := IupGetDialogChild(ih, 'TREE_WEATHERS');
+	selnode := IupGetInt(tree, 'VALUE');
 
-	if Scene.konf <> nil then
+	if (Scene.konf <> nil) and (selnode > 0) and (KindOfTreeNode(tree, selnode) = 'LEAF') then
 	begin
 		try
 			startup := Scene.konf.root.GetSect('startup');
 			desc_0 := startup.GetParam('desc_0', 'stringz') as TStringValue;
 			desc_1 := startup.GetParam('desc_1', 'stringz') as TStringValue;
 			
-			desc_0.str := IupGetAttribute(list, 'VALUESTRING');
-			desc_1.str := IupGetAttribute(list, 'VALUESTRING');
+			desc_0.str := PathOfTreeNode(tree, selnode);
+			desc_1.str := PathOfTreeNode(tree, selnode);
 		except
 			on E: Exception do
-				IupMessageError(IupGetHandle('MAINDIALOG'), PAnsiChar(E.ClassName + ': ' + E.Message));
+				ShowError(E.ClassName + ': ' + E.Message);
 		end;
 	end;
 	Result := IUP_DEFAULT;
@@ -88,21 +97,21 @@ end;
 
 function CreateTab : Ihandle;
 var
-	list_weathers : Ihandle;
+	tree_weathers : Ihandle;
 	btn_apply : Ihandle;
 	btn_reset : Ihandle;
 begin
 	// Weather tab
-	list_weathers := IupList(nil);
-	IupSetAttribute(list_weathers, 'NAME', 'LIST_WEATHERS');
-	IupSetAttribute(list_weathers, 'EXPAND', 'YES');
-	IupSetAttribute(list_weathers, 'VISIBLELINES', '15');
-	IupSetCallback(list_weathers, 'ACTION', @list_weathers_cb);
+	tree_weathers := IupTree;
+	IupSetAttribute(tree_weathers, 'NAME', 'TREE_WEATHERS');
+	IupSetAttribute(tree_weathers, 'EXPAND', 'YES');
+	IupSetAttribute(tree_weathers, 'RASTERSIZE', '250x350');
+	IupSetCallback(tree_weathers, 'SELECTION_CB', @tree_weathers_cb);
 	
 	btn_apply := iup.Button('Apply!', @btn_apply_cb);
 	btn_Reset := iup.Button('Reset', @btn_reset_cb);
 	
-	Result := IupVBox(IupHBox(btn_apply, btn_reset, nil), list_weathers, nil)
+	Result := IupVBox(IupHBox(btn_apply, btn_reset, nil), tree_weathers, nil)
 end;
 
 end.

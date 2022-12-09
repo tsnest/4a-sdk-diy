@@ -5,7 +5,7 @@ interface
 function ChooseTexture(var filename : String) : Boolean;
 
 implementation
-uses common, Engine, Iup, sysutils, GL, GLU;
+uses common_texture, Engine, Iup, sysutils, GL, GLU;
 
 // ---- Texture
 
@@ -15,74 +15,74 @@ var
 	
 function texture_file_cb(ih : Ihandle; filename : PAnsiChar; status : PAnsiChar) : Longint; cdecl;
 var
-  gl : Ihandle;
-  fn : String;
-  I : Integer;
+	gl : Ihandle;
+	fn : String;
+	I : Integer;
   
-  width, height : Integer;
+	width, height : Integer;
 begin
 	if status = 'INIT' then
 	begin
 		fn := IupGetAttribute(ih, 'FILE');
-    I := Pos(LowerCase(textures_dir), LowerCase(fn));
-    if I > 0 then
-      fn := ExtractRelativePath(textures_dir, fn); // cut path to meshes folder from file name
+		I := Pos(LowerCase(textures_dir), LowerCase(fn));
+		if I > 0 then
+			fn := ExtractRelativePath(textures_dir, fn); // cut path to meshes folder from file name
       
-    // cut extension
-    fn := ChangeFileExt(fn, '');
+		// cut extension
+		fn := ChangeFileExt(fn, '');
     
-    texture := GetTexture(fn);
+		texture := GetTexture(fn);
 	end;
 
-  if status = 'FINISH' then
-  begin
-    if Assigned(texture) then
-    begin
-      FreeTexture(texture);
-      texture := nil;
-    end;
-  end;
+	if status = 'FINISH' then
+	begin
+		if Assigned(texture) then
+		begin
+			FreeTexture(texture);
+			texture := nil;
+		end;
+	end;
    
-  if status = 'SELECT' then
-  begin
-    if Assigned(texture) then
-    begin
-      FreeTexture(texture);
-      texture := nil;
-    end;
+	if status = 'SELECT' then
+	begin
+		if Assigned(texture) then
+		begin
+			FreeTexture(texture);
+			texture := nil;
+		end;
     
-    fn := filename;
-    I := Pos(LowerCase(textures_dir), LowerCase(fn));
-    if I > 0 then
-      fn := ExtractRelativePath(textures_dir, fn); // cut path to meshes folder from file name
+		fn := filename;
+		I := Pos(LowerCase(textures_dir), LowerCase(fn));
+		if I > 0 then
+			fn := ExtractRelativePath(textures_dir, fn); // cut path to meshes folder from file name
     
-    fn := ChangeFileExt(fn, ''); // cut extension
+		fn := ChangeFileExt(fn, ''); // cut extension
     
-    texture := GetTexture(fn);
-  end;
+		texture := GetTexture(fn);
+	end;
   
-  if status = 'PAINT' then
-  begin
-    gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
+	if status = 'PAINT' then
+	begin
+		gl := IupGetAttributeHandle(ih, 'PREVIEWGLCANVAS');
     
-    IupGLMakeCurrent(gl);
+		IupGLMakeCurrent(gl);
     
-    glClearColor(1.0, 1.0, 1.0, 0.0);
-    glClear(GL_COLOR_BUFFER_BIT);
+		glClearColor(1.0, 1.0, 1.0, 0.0);
+		glClear(GL_COLOR_BUFFER_BIT);
     
-    width := IupGetInt(ih, 'PREVIEWWIDTH');
-    height := IupGetInt(ih, 'PREVIEWHEIGHT');
+		width := IupGetInt(ih, 'PREVIEWWIDTH');
+		height := IupGetInt(ih, 'PREVIEWHEIGHT');
     
-    glViewport(0, 0, width, height);
+		glViewport(0, 0, width, height);
     
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity;
-    gluOrtho2D(0, width, height, 0);
+		glMatrixMode(GL_PROJECTION);
+		glLoadIdentity;
+		gluOrtho2D(0, width, height, 0);
     
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity;
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity;
     
-    if Assigned(texture) then
+		if Assigned(texture) then
 		begin
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, texture.texture);
@@ -101,18 +101,18 @@ begin
 			glDisable(GL_TEXTURE_2D);
 		end;
     
-    IupGLSwapBuffers(gl);
-  end;
+		IupGLSwapBuffers(gl);
+	end;
   
-  Result := IUP_DEFAULT;
+	Result := IUP_DEFAULT;
 end;
 
 function ChooseTexture(var filename : String) : Boolean;
 var
-  dlg, gl, main : Ihandle;
-  fn : String;
-  
-  I : Integer;
+	dlg, gl, main : Ihandle;
+	fn : String;
+	
+	I : Integer;
 begin
 	textures_dir := ExpandFileName(ResourcesPath + '\textures\');
 
@@ -125,46 +125,46 @@ begin
 		fn := '';
 
 	dlg := IupFileDlg;
-  IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
-  IupSetAttribute(dlg, 'EXTFILTER', 'Texture (*.dds, *.512, *.512c)|*.dds;*.512;*.512c|All files (*.*)|*.*');
+	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
+	IupSetAttribute(dlg, 'EXTFILTER', 'Texture (*.dds, *.512, *.512c)|*.dds;*.512;*.512c|All files (*.*)|*.*');
   
-  if fn <> '' then
-  	IupSetStrAttribute(dlg, 'FILE', PAnsiChar(fn))
-  else
-    IupSetStrAttribute(dlg, 'DIRECTORY', PAnsiChar(textures_dir));
+	if fn <> '' then
+		iup.SetStrAttribute(dlg, 'FILE', fn)
+	else
+		iup.SetStrAttribute(dlg, 'DIRECTORY', textures_dir);
   
-  gl := IupGLCanvas(nil);
-  main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
-  IupSetAttributeHandle(gl, 'SHAREDCONTEXT', main);
-  IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
+	gl := IupGLCanvas(nil);
+	main := IupGetDialogChild(IupGetHandle('MAINDIALOG'), 'GL_CANVAS');
+	IupSetAttributeHandle(gl, 'SHAREDCONTEXT', main);
+	IupSetAttribute(gl, 'BUFFER', 'DOUBLE');
   
-  IupSetAttribute(dlg, 'SHOWPREVIEW', 'YES');
-  IupSetAttributeHandle(dlg, 'PREVIEWGLCANVAS', gl);
+	IupSetAttribute(dlg, 'SHOWPREVIEW', 'YES');
+	IupSetAttributeHandle(dlg, 'PREVIEWGLCANVAS', gl);
   
-  IupSetCallback(dlg, 'FILE_CB', @texture_file_cb);
+	IupSetCallback(dlg, 'FILE_CB', @texture_file_cb);
   
-  IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
+	IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
   
-  if IupGetInt(dlg, 'STATUS') = 0 then
-  begin
-    fn := IupGetAttribute(dlg, 'VALUE');
-    I := Pos(LowerCase(textures_dir), LowerCase(fn));
-    if I > 0 then
-    begin
-      // cut path to meshes folder from file name
-      fn := ExtractRelativePath(textures_dir, fn);
-      // cut extension
-      fn := ChangeFileExt(fn, '');
-      
-      filename := fn;
-      Result := True;
-    end else
-      Result := False;  
-  end else
-    Result := False;
-    
-  IupDestroy(dlg);
-  IupDestroy(gl);
+	if IupGetInt(dlg, 'STATUS') = 0 then
+	begin
+		fn := IupGetAttribute(dlg, 'VALUE');
+		I := Pos(LowerCase(textures_dir), LowerCase(fn));
+		if I > 0 then
+		begin
+			// cut path to meshes folder from file name
+			fn := ExtractRelativePath(textures_dir, fn);
+			// cut extension
+			fn := ChangeFileExt(fn, '');
+			
+			filename := fn;
+			Result := True;
+		end else
+			Result := False;  
+	end else
+		Result := False;
+	
+	IupDestroy(dlg);
+	IupDestroy(gl);
 end;
 
 end.

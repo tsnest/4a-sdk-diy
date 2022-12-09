@@ -24,7 +24,7 @@ type
 
 		function Activate(x, y : Longint) : Boolean;
 		procedure Deactivate;
-		function	IsActive : Boolean;
+		function IsActive : Boolean;
 
 		procedure Update(x, y : Longint);
 

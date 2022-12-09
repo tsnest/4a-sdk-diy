@@ -111,17 +111,16 @@ end;
 
 function EditBool8(v : TIntegerValue; const names : String) : Boolean;
 var
-	sl : TStringList;
+	sl : array of String;
 	format : String;
 	bools : array[0..7] of Longint;
 	args : array[0..7] of PLongint;
 	I : Longint;
 begin
-	sl := TStringList.Create;
-	sl.CommaText := names;
+	sl := SplitString(names);
 
 	format := '';
-	for I := 0 to sl.Count-1 do
+	for I := 0 to Length(sl) - 1 do
 	begin
 		format := format + sl[I] + ': %b'#10;
 		
@@ -134,26 +133,23 @@ begin
 	end;
 
 	if IupGetParamv(PAnsiChar(v.name), nil, nil, PAnsiChar(format),
-		 sl.Count, 0, @args[0]) <> 0 then
+		 Length(sl), 0, @args[0]) <> 0 then
 	begin
 		v.num := 0;
-		for I := 0 to sl.Count do
+		for I := 0 to Length(sl) - 1 do
 			v.num := v.num or ((bools[I] and 1) shl I);
 
 		EditBool8 := True;
 	end else
 		EditBool8 := False;
-
-	sl.Free;
 end;
 
 function EditEnum(v : TIntegerValue; const names : String; caption : String) : Boolean;
 var
-	sl : TStringList;
+	sl : array of String;
 	ret : Longint;
 begin
-	sl := TStringList.Create;
-	sl.CommaText := names;
+	sl := SplitString(names);
 
 	if caption = '' then
 		caption := v.name;
@@ -165,8 +161,6 @@ begin
 		EditEnum := True;
 	end else
 		EditEnum := False;
-
-	sl.Free;
 end;
 
 function EditChoose(var str : String; allow_none : Boolean; const names : String; caption : String) : Boolean; overload;
@@ -465,7 +459,7 @@ begin
 					s := sect.GetParam(v.name, 'stringz') as TStringValue;
 					str := s.str;
 					
-					if ChooseColoranim(s.str) then
+					if ChooseColoranim(str) then
 					begin
 						before_change_cb(s);
 						s.str := str;

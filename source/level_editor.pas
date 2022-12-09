@@ -1,8 +1,8 @@
 program level_Editor;
 uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
-  chunkedFile,
-  Math, vmath, PhysX, PHGroups,
-  Konfig, levelbin,
+	chunkedFile,
+	Math, vmath, PhysX, PHGroups,
+	Konfig, levelbin,
 	common, Engine, Texture,
 	Manipulator,
 	fouramdl, skeleton,
@@ -10,7 +10,7 @@ uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
 	uTabWeather, uTabEntity, uTabEnvZone,
 	uScene, uEntity, uEnvZone, uLevelUndo, uImages,
 	{$IFDEF HAZ_LEVELEXPORT} uLevelExport, uXRayExport, {$ENDIF}
-	uChoose, properties, uTemplates, uAttach, uLEOptions, uLevelRun;
+	uChoose, properties, uTemplates, uAttach, uLEOptions, uLevelRun, uObjectList;
 	
 type
 	TEditMode = (emEntity, emEnvZone, emWeather);
@@ -281,11 +281,24 @@ begin
 	if Scene.GetVersion <> old_scene_ver then
 	begin
 		case Scene.GetVersion of
-			sceneVer2033:       LoadTemplates('editor_data\templates.txt');
-			sceneVerLL:         LoadTemplates('editor_data\templates_ll.txt');
-			sceneVerRedux:      LoadTemplates('editor_data\templates_redux.txt');
-			sceneVerArktika1:   LoadTemplates('editor_data\templates_a1.txt');
-			sceneVerExodus:     LoadTemplates('editor_data\templates_exodus.txt');
+			sceneVer2033: 
+				LoadTemplates('editor_data\templates.txt');
+			sceneVerLL: begin
+				case Engine.version of
+					eVerLLBeta15102012:
+						LoadTemplates('editor_data\templates_ll_beta_15102012.txt');
+					eVerLLBeta03122012:
+						LoadTemplates('editor_data\templates_ll_beta_03122012.txt');  
+					else
+						LoadTemplates('editor_data\templates_ll.txt');
+				end;  
+			end;
+			sceneVerRedux:
+				LoadTemplates('editor_data\templates_redux.txt');
+			sceneVerArktika1:
+				LoadTemplates('editor_data\templates_a1.txt');
+			sceneVerExodus:
+				LoadTemplates('editor_data\templates_exodus.txt');
 		end;
 	end;
 	
@@ -293,7 +306,7 @@ begin
 	uTabEnvZone.UpdateTab;
 	
 	UpdateTemplates(IupGetDialogChild(MainDialog, 'TREE_TEMPLATES'));
-	IupSetAttribute(MainDialog, 'TITLE', PAnsiChar('Level Editor - [' + dir + ']'));
+	iup.SetStrAttribute(MainDialog, 'TITLE', 'Level Editor - [' + dir + ']');
 
 	UpdateSelection;
 	Redisplay;
@@ -488,7 +501,7 @@ begin
 	glBindTexture(GL_TEXTURE_2D, rt_distort);
 	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 0, 0, rt_width, rt_height, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
-
+	
 ////
 	glDisable(GL_DEPTH_TEST);
 ////
@@ -643,7 +656,7 @@ var
 begin
 	pos := IntToStr(x) + ', ' + IntToStr(y);
 	mousexy := IupGetDialogChild(ih, 'MOUSEXY');
-	IupSetStrAttribute(mousexy, 'TITLE', PAnsiChar(pos));
+	iup.SetStrAttribute(mousexy, 'TITLE', pos);
 
 	alt := iup_isalt(status);
 	btn1 := iup_isbutton1(status);
@@ -664,7 +677,7 @@ begin
 		direction.y := Sin(anglex*(PI/180));
 		direction.z := Cos(angley*(PI/180)) * Cos(anglex*(PI/180));
 
-		IupRedraw(ih, 0);
+		IupUpdate(ih);
 	end else
 	if alt and btn1 then // перемещать в плоскости XZ
 	begin
@@ -688,13 +701,13 @@ begin
 	if btn2 then
 	begin
 		distance := distance + ((y - mouse_y) / 8);
-		IupRedraw(ih, 0);
+		IupUpdate(ih);
 	end;
 	
 	if selection_rect then
-		IupRedraw(ih, 0);
+		IupUpdate(ih);
 
-	if (m_t <> nil) {and (m_t.IsActive)} then
+	if (m_t <> nil) then
 	begin
 		m_t.Update(x, y);
 		
@@ -733,7 +746,7 @@ begin
 			end;
 		end;
 		
-		IupRedraw(ih, 0);
+		IupUpdate(ih);
 	end;
 
 	mouse_x := x;
@@ -1656,6 +1669,12 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+function menu_show_object_list_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	uObjectList.Show;
+	Result := IUP_DEFAULT;
+end;
+
 function level_options_map_cb(ih : Ihandle) : Longint; cdecl;
 var
 	startup : TSection;
@@ -2268,6 +2287,7 @@ begin
 			iup.MenuItem('Decals', @menu_show_cb, Scene.showDecals),
 			iup.MenuItem('EGeoms', @menu_show_cb, Scene.showEGeoms),
 			iup.MenuItem('Ways', @menu_show_cb, Scene.showWays),
+			iup.MenuItem('Object List', @menu_show_object_list_cb),
 			nil
 		)
 	);
@@ -2333,6 +2353,8 @@ begin
 	IupSetHandle('MAINDIALOG', dlg);
 
 	IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
+	
+	uObjectList.Create;
 end;
 
 procedure CreateContextMenu;
@@ -2355,6 +2377,9 @@ begin
 	);
 end;
 
+var 
+	P : Longint;
+	initial_map_name : String = '';
 begin
 	utabentity.UpdateSelection := UpdateSelection; // Refactor!!
 
@@ -2363,13 +2388,37 @@ begin
 	
 	PHInitialize; // initialize PhysX
 
-	if ParamCount > 0 then
-		ResourcesPath := ParamStr(1)
-	else
+	// parse command-line
+	P := 0;
+	
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_15_10_2012') then
+	begin
+		Engine.version := eVerLLBeta15102012;
+		Inc(P);
+	end;
+	
+	if (ParamCount-P > 0) and (ParamStr(P+1) = '-build_3_12_2012') then
+	begin
+		Engine.version := eVerLLBeta03122012;
+		Inc(P);
+	end;
+	
+	if ParamCount-P > 0 then
+	begin
+		ResourcesPath := ParamStr(P+1);
+		Inc(P);
+	end else
 	begin
 		GetDir(0, ResourcesPath);
 		ResourcesPath := ResourcesPath + '\content';
 	end;
+	
+	if ParamCount-P > 0 then
+	begin
+		initial_map_name := ParamStr(P+1);
+		Inc(P);
+	end;
+	// end parse command-line
 
 	InitializeEngine;
 	
@@ -2382,8 +2431,8 @@ begin
 	CreateContextMenu;
 	CreateAnimTimer;
 	
-	if ParamCount > 1 then
-		LoadMap(ParamStr(2));
+	if initial_map_name <> '' then
+		LoadMap(initial_map_name);
 	
 	IupMainLoop();
 	IupDestroy(context_menu);

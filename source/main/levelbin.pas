@@ -11,12 +11,12 @@ const
 	ENTITY_VER_EXODUS   = 50; // or 49
 
 // automatic version detection
-function LoadLevelBin(const fn : String) : TTextKonfig;
+function LoadLevelBin(const fn : String; build_15_10_2012 : Boolean = False) : TTextKonfig;
 procedure SaveLevelBin(const fn : String; tk : TTextKonfig; kind : Integer);
 
 // manual version select
 function LoadLevelBin2033(const fn : String) : TTextKonfig;
-function LoadLevelBinLL(const fn : String) : TTextKonfig;
+function LoadLevelBinLL(const fn : String; build_15_10_2012 : Boolean) : TTextKonfig;
 function LoadLevelBinA1(const fn : String) : TTextKonfig;
 
 procedure SaveLevelBin2033(const fn : String; tk : TTextKonfig; kind : Integer);
@@ -27,9 +27,9 @@ implementation
 uses m2033unp, classes, sysutils, chunkedFile, uCrc, fgl, framework;
 
 const 
-	LEVEL_BIN_MAGIC			= $6C76656C; // ASCII levl
+	LEVEL_BIN_MAGIC = $6C76656C; // ASCII levl
 
-function LoadLevelBin(const fn : String) : TTextKonfig;
+function LoadLevelBin(const fn : String; build_15_10_2012 : Boolean) : TTextKonfig;
 var
 	f : TFileStream;
 	magic, dword, filesize : Longword;
@@ -46,7 +46,7 @@ begin
 			Result := LoadLevelBinA1(fn) // exodus too
 		else 
 		if dword = (filesize-8) then
-			Result := LoadLevelBinLL(fn)
+			Result := LoadLevelBinLL(fn, build_15_10_2012)
 		else
 			Result := LoadLevelBin2033(fn);
 	end else
@@ -289,7 +289,7 @@ end;
 // end Metro 2033
 
 // Metro Last Light
-function LoadLevelBinLL(const fn : String) : TTextKonfig;
+function LoadLevelBinLL(const fn : String; build_15_10_2012 : Boolean) : TTextKonfig;
 var
 	r : TMemoryReader;
 	K : TKonfig;
@@ -307,7 +307,10 @@ begin
 		K.Load(r);
 
 		framework.Initialize;
+		
+		framework.DefineGlobal('g_build_15_10_2012', build_15_10_2012);
 		Result := framework.DecompileKonfig(K, 'js\levelbin.js');
+		
 		framework.Finalize;		
 
 	end else
