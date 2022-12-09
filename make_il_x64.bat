@@ -3,5 +3,5 @@ set UNIT_PATHS= ^
 -Fusource\main ^
 -Fusource\AssimpDelphi 
 
-ppcrossx64 -FE. -FUobj\il %UNIT_PATHS% -O2 -vw -gw -Mdelphi source\image_library.pas
+ppcrossx64 -FE. -FUobj\il %UNIT_PATHS% -O2 -vw -vm6058 -gw -Mdelphi source\image_library.pas
 if not [%ERRORLEVEL%]==[0] pause
