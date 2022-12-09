@@ -84,18 +84,18 @@ const
 	cCRNCompFlagDebugging = $80000000;
 
 const
-   cCRNDXTQualitySuperFast = 0;
-   cCRNDXTQualityFast      = 1;
-   cCRNDXTQualityNormal    = 2;
-   cCRNDXTQualityBetter    = 3;
-   cCRNDXTQualityUber      = 4;
+	cCRNDXTQualitySuperFast = 0;
+	cCRNDXTQualityFast      = 1;
+	cCRNDXTQualityNormal    = 2;
+	cCRNDXTQualityBetter    = 3;
+	cCRNDXTQualityUber      = 4;
    
 const
-   cCRNDXTCompressorCRN    = 0; // Use crnlib's ETC1 or DXTc block compressor (default, highest quality, comparable or better than ati_compress or squish, and crnlib's ETC1 is a lot fasterw with similiar quality to Erricson's)
-   cCRNDXTCompressorCRNF   = 1; // Use crnlib's "fast" DXTc block compressor
-   cCRNDXTCompressorRYG    = 2; // Use RYG's DXTc block compressor (low quality, but very fast)
-   cCRNDXTCompressorATI    = 3;
-   cCRNDXTCompressorSquish = 4;
+	cCRNDXTCompressorCRN    = 0; // Use crnlib's ETC1 or DXTc block compressor (default, highest quality, comparable or better than ati_compress or squish, and crnlib's ETC1 is a lot fasterw with similiar quality to Erricson's)
+	cCRNDXTCompressorCRNF   = 1; // Use crnlib's "fast" DXTc block compressor
+	cCRNDXTCompressorRYG    = 2; // Use RYG's DXTc block compressor (low quality, but very fast)
+	cCRNDXTCompressorATI    = 3;
+	cCRNDXTCompressorSquish = 4;
 
 type
 	crn_progress_callback_func = function(phase_index, total_phases, subphase_index, total_subphases : Longword; pUserData_ptr : Pointer) : Longint;
@@ -136,10 +136,24 @@ type
 const
 	crn_free_block_Proc = '?crn_free_block@@YAXPEAX@Z';
 	crn_decompress_crn_to_dds_Proc = '?crn_decompress_crn_to_dds@@YAPEAXPEBXAEAI@Z';
+	crn_compress_Proc = '?crn_compress@@YAPEAXAEBUcrn_comp_params@@AEAIPEAIPEAM@Z';
+	crn_decompress_dds_to_images_Proc = '?crn_decompress_dds_to_images@@YA_NPEBXIPEAPEAIAEAUcrn_texture_desc@@@Z';
+	crn_free_all_images_Proc = '?crn_free_all_images@@YAXPEAPEAIAEBUcrn_texture_desc@@@Z';
+	crn_create_block_compressor_Proc = '?crn_create_block_compressor@@YAPEAXAEBUcrn_comp_params@@@Z';
+	crn_compress_block_Proc = '?crn_compress_block@@YAXPEAXPEBI0@Z';
+	crn_free_block_compressor_Proc = '?crn_free_block_compressor@@YAXPEAX@Z';
+	crn_decompress_block_Proc = '?crn_decompress_block@@YA_NPEBXPEAIW4crn_format@@@Z';
 {$ELSE}
 const
 	crn_free_block_Proc = '?crn_free_block@@YAXPAX@Z';
 	crn_decompress_crn_to_dds_Proc = '?crn_decompress_crn_to_dds@@YAPAXPBXAAI@Z';
+	crn_compress_Proc = '?crn_compress@@YAPAXABUcrn_comp_params@@AAIPAIPAM@Z';
+	crn_decompress_dds_to_images_Proc = '?crn_decompress_dds_to_images@@YA_NPBXIPAPAIAAUcrn_texture_desc@@@Z';
+	crn_free_all_images_Proc = '?crn_free_all_images@@YAXPAPAIABUcrn_texture_desc@@@Z';
+	crn_create_block_compressor_Proc = '?crn_create_block_compressor@@YAPAXABUcrn_comp_params@@@Z';
+	crn_compress_block_Proc = '?crn_compress_block@@YAXPAXPBI0@Z';
+	crn_free_block_compressor_Proc = '?crn_free_block_compressor@@YAXPAX@Z';
+	crn_decompress_block_Proc = '?crn_decompress_block@@YA_NPBXPAIW4crn_format@@@Z';
 {$ENDIF}
 
 procedure crn_free_block(block : Pointer); cdecl; 
@@ -153,12 +167,7 @@ function crn_compress(
 	out compressed_size : Longword; 
 	pActual_quality_level : PLongword = nil; 
 	pActual_bitrate : PSingle = nil) : pointer; cdecl;
-	
-{$IFDEF WIN64}
-external 'crnlib.dll' name '?crn_compress@@YAPEAXAEBUcrn_comp_params@@AEAIPEAIPEAM@Z';
-{$ELSE}
-external 'crnlib.dll' name '?crn_compress@@YAPAXABUcrn_comp_params@@AAIPAIPAM@Z';
-{$ENDIF}
+external 'crnlib.dll' name crn_compress_Proc;
 
 type
 	crn_texture_desc = record
@@ -174,20 +183,25 @@ function crn_decompress_dds_to_images(
 	dds_file_size : Longword; 
 	ppImages : PPLongword; 
 	out tex_desc : crn_texture_desc) : Boolean; cdecl;
-	
-{$IFDEF WIN64}
-external 'crnlib.dll' name '?crn_decompress_dds_to_images@@YA_NPEBXIPEAPEAIAEAUcrn_texture_desc@@@Z';
-{$ELSE}
-external 'crnlib.dll' name '?crn_decompress_dds_to_images@@YA_NPBXIPAPAIAAUcrn_texture_desc@@@Z';
-{$ENDIF}
+external 'crnlib.dll' name crn_decompress_dds_to_images_Proc;
 
 procedure crn_free_all_images(ppImages : PLongword; var dest : crn_texture_desc); cdecl;
+external 'crnlib.dll' name crn_free_all_images_Proc;
 
-{$IFDEF WIN64}
-external 'crnlib.dll' name '?crn_free_all_images@@YAXPEAPEAIAEBUcrn_texture_desc@@@Z';
-{$ELSE}
-external 'crnlib.dll' name '?crn_free_all_images@@YAXPAPAIABUcrn_texture_desc@@@Z';
-{$ENDIF}
+type
+	crn_block_compressor_context_t = Pointer;
+	
+function crn_create_block_compressor(var params : crn_comp_params) : crn_block_compressor_context_t; cdecl;
+external 'crnlib.dll' name crn_create_block_compressor_Proc;
+
+procedure crn_compress_block(pContext : crn_block_compressor_context_t; pPixels : PLongword; pDst_block : Pointer); cdecl;
+external 'crnlib.dll' name crn_compress_block_Proc;
+
+procedure crn_free_block_compressor(pContext : crn_block_compressor_context_t); cdecl;
+external 'crnlib.dll' name crn_free_block_compressor_Proc;
+
+function crn_decompress_block(pSrc_block : Pointer; pDst_pixels : PLongword; crn_fmt : Longword) : Boolean; cdecl;
+external 'crnlib.dll' name crn_decompress_block_Proc;
 
 implementation
 

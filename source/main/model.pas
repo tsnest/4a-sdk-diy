@@ -1,12 +1,12 @@
 program model;
-uses chunkedFile, sysutils, classes, vmath, hashTable, fouramdl, OGF, windows,
+uses chunkedFile, sysutils, classes, vmath, fouramdl, fgl, OGF, windows,
 		 nxcform, OGFImport, LMap;
 
 type
-	TLevelFlags = set of (lfSkipMU, lfUseLMap, lfLastLight, lfRedux);
+	TLevelFlags = set of (lfSkipMU, lfUseLMap, lfXBox, lfLastLight, lfRedux);
 
 var
-	shaderbytexture, materialbytexture : THashTable;
+	shaderbytexture, materialbytexture : TFPGMap<String,String>;
 
 procedure FromOGFTo4A(srcfile, destfile : String);
 var
@@ -15,7 +15,7 @@ var
 
 	I : Longint;
 	m : T4AModelSimple;
-	sh, mat : PAnsiString;
+	sh, mat : Integer;
 begin
 	mdl := ImportOGF(srcfile);
 
@@ -28,15 +28,15 @@ begin
 		Write('face count: ', Length(m.indices) div 3);
 		Writeln;
 		
-		sh := shaderbytexture.Get(m.texture);
-		if (sh <> nil) and (sh^ <> '<none>') then
-			m.shader := sh^
+		sh := shaderbytexture.IndexOf(m.texture);
+		if (sh <> -1) and (shaderbytexture.Data[sh] <> '<none>') then
+			m.shader := shaderbytexture.Data[sh]
 		else
 			m.shader := 'geometry\default';
 	
-		mat := materialbytexture.Get(m.texture);
-		if (mat <> nil) and (mat^ <> '<none>') then
-			m.material := mat^
+		mat := materialbytexture.IndexOf(m.texture);
+		if (mat <> -1) and (materialbytexture.Data[mat] <> '<none>') then
+			m.material := materialbytexture.Data[mat]
 		else
 			m.material := 'materials\wood';		
 	end;
@@ -298,16 +298,15 @@ end;
 procedure GenerateCform(l : T4ALevel; fn : String; target : Longint);
 var
 	cf : TNxCform;
-	mt : PAnsiString;
 	w : TMemoryWriter;
-	I : Integer;
+	I, mt : Integer;
 begin
 	cf := TNxCform.Create(True);
 	for I := 0 to Length(l.visuals) - 1 do
 		if l.visuals[I] is T4AModelRef then
 		begin
-			mt := materialbytexture.Get(l.materials[l.visuals[I].shaderid].texture);
-			if (mt = nil) or (mt^ <> '<none>') then
+			mt := materialbytexture.IndexOf(l.materials[l.visuals[I].shaderid].texture);
+			if (mt = -1) or (materialbytexture.Data[mt] <> '<none>') then
 				cf.Add4AModel(T4AModelRef(l.visuals[I]), l);
 		end;
 
@@ -540,7 +539,7 @@ var
 		m	: TOGFModelSimple;
 		h : TOGFModelHierrarhy;	
 	
-		sh, mt : PAnsiString;
+		sh, mt : Integer;
 		texture, shader, material : String;
 		flags : Longword;
 	
@@ -579,11 +578,11 @@ var
 				lmap_id := -1;
 			
 			// guess material by texture name
-			sh := shaderbytexture.Get(texture);
-			mt := materialbytexture.Get(texture);
-			if sh <> nil then shader := sh^
+			sh := shaderbytexture.IndexOf(texture);
+			mt := materialbytexture.IndexOf(texture);
+			if sh <> -1 then shader := shaderbytexture.Data[sh]
 			else shader := 'geometry\default';
-			if mt <> nil then material := mt^
+			if mt <> -1 then material := materialbytexture.Data[mt]
 			else material := 'materials\wood';
 	
 			if shader = '<none>' then
@@ -715,7 +714,10 @@ begin
 	if lfUseLMap in params then
 	begin
 		WriteLN('converting lightmap...');
-		ConvertLightMap(srcdir, destdir + '\level.lmap_pc');
+		if lfXBox in params then
+			ConvertLightMap(srcdir, destdir + '\level.lmap_xbox', True)
+		else
+			ConvertLightMap(srcdir, destdir + '\level.lmap_pc', False);
 	end;
 	
 	// portals
@@ -738,7 +740,7 @@ begin
 	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
 	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
 
-	l.SaveTo(destdir);
+	l.SaveTo(destdir, lfXBox in params);
 
 	l.Free;
 	xl.Free;
@@ -838,12 +840,11 @@ begin
 	w.Free;
 end;
 
-procedure LoadList(fn : String; list : THashTable);
+procedure LoadList(fn : String; list : TFPGMap<String,String>);
 var
 	f : TextFile;
-	line : String;
+	line, key, data : String;
 	pos : Integer;
-	s1 : ^String;
 begin
 	if FileExists(fn) then
 	begin
@@ -855,9 +856,9 @@ begin
 			pos := AnsiPos('=', line);
 			if pos <> 0 then
 			begin
-				New(s1);
-				s1^ := Copy(line, pos+1, Length(line)-(pos-1));
-				list.Add(Copy(line, 1, pos-1), s1);
+				data := Trim(Copy(line, pos+1));
+				key := Trim(Copy(line, 1, pos-1));
+				list.AddOrSetData(key, data);
 			end;
 		end;
 		CloseFile(f);
@@ -867,8 +868,8 @@ end;
 procedure LoadLists;
 
 begin
-	shaderbytexture := THashTable.Create;
-	materialbytexture := THashTable.Create;
+	shaderbytexture := TFPGMap<String,String>.Create;
+	materialbytexture := TFPGMap<String,String>.Create;
 
 	LoadList('shadersbytextures.txt', shaderbytexture);
 	LoadList('materialsbytextures.txt', materialbytexture);
@@ -911,6 +912,10 @@ begin
 				Inc(I,1);
 			end else
 				WriteLn('Missing argument for parameter -ao_scale');
+		end else
+		if ParamStr(I) = '-xbox' then
+		begin
+			Include(flags, lfXBox);
 		end else
 		
 		// target version switches
