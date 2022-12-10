@@ -266,8 +266,9 @@ begin
 	t := IupGetDialogChild(MainDialog, 'TREE_PROPS_ENV');
 	
 	IupSetAttribute(list, 'REMOVEITEM', 'ALL');
-	for I := 0 to Scene.env_zones.Count - 1 do
-		IupSetAttribute(list, 'APPENDITEM', @TEnvZone(Scene.env_zones[I]).Name[1]);
+	if Assigned(Scene.env_zones) then
+		for I := 0 to Scene.env_zones.Count - 1 do
+			IupSetAttribute(list, 'APPENDITEM', @TEnvZone(Scene.env_zones[I]).Name[1]);
 			
 	selected := Scene.GetSelectedEZ;
 			
