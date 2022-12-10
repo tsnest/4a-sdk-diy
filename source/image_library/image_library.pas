@@ -17,7 +17,8 @@ uses
 	FileApi,          // для импорта текстур 
 	ImageLibraryOptions,
 	uImages,
-	uEditorUtils;     // для работы с деревом
+	uEditorUtils,     // для работы с деревом
+	SGIImage;         // для сохранения текстуры в .sgi
 	
 var
 	Modified : Boolean = False;
@@ -66,6 +67,8 @@ var
 	field_deprecated : Ihandle;
 	
 	field_avgcolor : Ihandle;
+	
+	menu_tree_textures : Ihandle;
 
 procedure SelectTexture(const path : String);
 var
@@ -287,6 +290,34 @@ begin
 	end;
 	
 	Result := average;
+end;
+
+procedure SaveImage(const tex_fn, out_fn : String);
+var
+	texture : GLuint;
+	I : Longint;
+	width, height : GLint;
+	buffer : array of Longword;
+begin
+	texture := LoadTexture(tex_fn);
+	
+	if texture <> 0 then
+	begin
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, @width);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, @height);
+		
+		SetLength(buffer, width*height);
+		
+		WriteLn('glGetError1 = ', glGetError);
+		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, @buffer[0]);
+		WriteLn('glGetError2 = ', glGetError);
+		
+		SaveSGI(out_fn, width, height, buffer);
+		
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glDeleteTextures(1, @texture);
+	end;
 end;
 
 { Importing stuff }
@@ -553,6 +584,12 @@ begin
 		WriteLn('SELECT ', path);
 		SelectTexture(path);
 	end;
+end;
+
+function tree_rightclick_cb(ih : Ihandle; id : Longint) : Longint; cdecl;
+begin
+	Result := IUP_DEFAULT;
+	IupPopup(menu_tree_textures, IUP_MOUSEPOS, IUP_MOUSEPOS);
 end;
 
 function list_ttype_cb(ih : Ihandle; _text : PAnsiChar; item, state : Longint) : Longint; cdecl;
@@ -1010,6 +1047,47 @@ begin
 	end;
 end;
 
+function menu_expand_all_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Result := IUP_DEFAULT;
+	IupSetAttribute(tree_textures, 'EXPANDALL', 'YES');
+end;
+
+function menu_collapse_all_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Result := IUP_DEFAULT;
+	IupSetAttribute(tree_textures, 'EXPANDALL', 'NO');
+end;
+
+function menu_save_as_sgi_cb(ih : Ihandle) : Longint; cdecl;
+var
+	dlg : Ihandle;
+	selnode : Longint;
+	tex_name : String;
+begin
+	Result := IUP_DEFAULT;
+	
+	selnode := IupGetInt(tree_textures, 'VALUE');
+	if IupGetAttributeId(tree_textures, 'KIND', selnode) = 'LEAF' then
+	begin
+		dlg := IupFileDlg;
+		iup.SetStrAttribute(dlg, 'EXTDEFAULT', 'rgb');
+		iup.SetStrAttribute(dlg, 'EXTFILTER', 'Silicon Graphics Image (*.rgb)|*.rgb|All files (*.*)|*.*|');
+		IupSetAttribute(dlg, 'DIALOGTYPE', 'SAVE');
+		IupSetStrAttribute(dlg, 'FILE', IupGetAttributeId(tree_textures, 'TITLE', selnode));
+	
+		IupPopup(dlg, IUP_CENTER, IUP_CENTER);
+	
+		if IupGetInt(dlg, 'STATUS') <> -1 then
+		begin
+			tex_name := ResourcesPath + '\textures\' + PathOfTreeNode(tree_textures, selnode);
+			SaveImage(tex_name, IupGetAttribute(dlg, 'VALUE'));
+		end;
+	end;
+
+	IupDestroy(dlg);
+end;
+
 procedure CreateDialog;
 var
 	dlg : Ihandle;
@@ -1041,6 +1119,7 @@ begin
 	IupSetAttribute(tree, 'IMAGELEAF', 'ICON_TEXTURE');
 	
 	IupSetCallback(tree, 'SELECTION_CB', @tree_selection_cb);
+	IupSetCallback(tree, 'RIGHTCLICK_CB', @tree_rightclick_cb);
 	
 	tree_textures := tree;
 	
@@ -1192,6 +1271,14 @@ begin
 	IupSetHandle('MAINDIALOG', dlg);
   
 	InitializeTextureList(tree);
+	
+	menu_tree_textures := IupMenu(
+		iup.MenuItem('Expand All', @menu_expand_all_cb),
+		iup.MenuItem('Collapse All', @menu_collapse_all_cb),
+		IupSeparator,
+		iup.MenuItem('Save as SGI...', @menu_save_as_sgi_cb),
+		nil
+	);
 end;
 
 type

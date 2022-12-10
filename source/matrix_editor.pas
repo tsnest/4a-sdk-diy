@@ -130,27 +130,24 @@ begin
 	IupSetAttributes(text_rotate, 'EXPAND=HORIZONTAL, VISIBLECOLUMNS=30');
 	IupSetAttributes(text_scale, 'EXPAND=HORIZONTAL, VISIBLECOLUMNS=30');
 	
-	IupSetStrAttribute(text_translate, 'VALUE',
-		PAnsiChar(FloatToStr(m[4,1]) + ' ' + FloatToStr(m[4,2]) + ' ' + FloatToStr(m[4,3]))
+	iup.SetStrAttribute(text_translate, 'VALUE',
+		FloatToStr(m[4,1]) + ' ' + FloatToStr(m[4,2]) + ' ' + FloatToStr(m[4,3])
 	);
 	
 	GetHPB(m, rot.y, rot.x, rot.z);
 	
-	IupSetStrAttribute(text_rotate, 'VALUE',
-		PAnsiChar(FloatToStr(rot.x/(PI/180.0)) + ' ' + FloatToStr(rot.y/(PI/180.0)) + ' ' + FloatToStr(rot.z/(PI/180.0)))
+	iup.SetStrAttribute(text_rotate, 'VALUE',
+		FloatToStr(rot.x/(PI/180.0)) + ' ' + FloatToStr(rot.y/(PI/180.0)) + ' ' + FloatToStr(rot.z/(PI/180.0))
 	);	
 	
 	GetScale(m, scale.x, scale.y, scale.z);
 	
-	IupSetStrAttribute(text_scale, 'VALUE',
-		PAnsiChar(FloatToStr(scale.x) + ' ' + FloatToStr(scale.y) + ' ' + FloatToStr(scale.z))
+	iup.SetStrAttribute(text_scale, 'VALUE',
+		FloatToStr(scale.x) + ' ' + FloatToStr(scale.y) + ' ' + FloatToStr(scale.z)
 	);
 	
-	btn_ok := IupButton('OK', nil);
-	btn_cancel := IupButton('Cancel', nil);
-	
-	IupSetCallback(btn_ok, 'ACTION', @btn_ok_cb);
-	IupSetCallback(btn_cancel, 'ACTION', @btn_cancel_cb);
+	btn_ok := iup.Button('OK', @btn_ok_cb);
+	btn_cancel := iup.Button('Cancel', @btn_cancel_cb);
 	
 	dlg := IupDialog(
 		IupSetAttributes(IupGridbox(
