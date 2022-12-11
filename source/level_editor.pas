@@ -1708,6 +1708,202 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
+procedure WeaponItemsLinkFromList(wil : TSection; list : TList);
+var
+	I : Longint;
+	id : Word;
+	n : String;
+begin
+	wil.Clear;
+	wil.AddInt('count', list.Count, 'u32');
+	for I := 0 to list.Count - 1 do
+	begin
+		n := IntToStr(I);
+		
+		if list[I] <> nil then
+			id := TEntity(list[I]).ID
+		else
+			id := 65535;
+		
+		wil.AddSect('rec_' + StringOfChar('0',4-Length(n)) + n)
+		   .AddInt('items', id, 'entity_link, uobject_link');
+	end;
+end;
+
+procedure ListFromWeaponItemsLink(wil : TSection; list : TList);
+var
+	I : Longint;
+	rec : TSection;
+	id : Word;
+	E : TEntity;
+begin
+	for I := 1 to wil.ParamCount - 1 do
+	begin
+		rec := wil.GetParam(I) as TSection;
+		
+		id := rec.GetInt('items', 'entity_link, uobject_link');
+		E := Scene.EntityById(id);
+		
+		if E <> nil then
+			list.Add(E)
+		else
+			WriteLn('Found invalid weapon item link: ', id, '. Removed.');
+	end;
+end;
+
+function menu_wil_add_selection_cb(ih : Ihandle) : Longint; cdecl;
+var
+	I : Longint;
+	wil : TSection;
+	sel : TEntityArray;
+	list : TList;
+begin
+	sel := Scene.GetSelected;
+	if Length(sel) = 0 then
+	begin
+		IupMessage('Message', 'Nothing selected');
+		Exit;
+	end;
+	
+	if Scene.konf <> nil then
+	begin
+		wil := Scene.konf.root.GetSect('startup').GetSect('weapon_items_link', False);
+		if wil <> nil then
+		begin
+			UndoSave('Add weapon items links');
+			
+			list := TList.Create;
+			
+			ListFromWeaponItemsLink(wil, list);
+			
+			for I := 0 to Length(sel) - 1 do
+			begin
+				if list.IndexOf(sel[I]) < 0 then
+					list.Add(sel[I]);
+			end;
+			
+			WeaponItemsLinkFromList(wil, list);
+			
+			list.Free;
+		end;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_wil_remove_selection_cb(ih : Ihandle) : Longint; cdecl;
+var
+	I, idx : Longint;
+	wil : TSection;
+	sel : TEntityArray;
+	list : TList;
+begin
+	sel := Scene.GetSelected;
+	if Length(sel) = 0 then
+	begin
+		IupMessage('Message', 'Nothing selected');
+		Exit;
+	end;
+	
+	if Scene.konf <> nil then
+	begin
+		wil := Scene.konf.root.GetSect('startup').GetSect('weapon_items_link', False);
+		if wil <> nil then
+		begin
+			UndoSave('Remove weapon items links');
+			
+			list := TList.Create;
+			
+			ListFromWeaponItemsLink(wil, list);
+			
+			for I := 0 to Length(sel) - 1 do
+			begin
+				idx := list.IndexOf(sel[I]);
+				if idx >= 0 then
+					list.Delete(idx);
+			end;
+			
+			WeaponItemsLinkFromList(wil, list);
+			
+			list.Free;
+		end;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_wil_select_all_cb(ih : Ihandle) : Longint; cdecl;
+var
+	I : Longint;
+	wil, rec : TSection;
+	E : TEntity;
+begin
+	if (edit_mode = emEntity) and (Scene.konf <> nil) then
+	begin
+		wil := Scene.konf.root.GetSect('startup').GetSect('weapon_items_link', False);
+		if wil <> nil then
+		begin
+			DeselectAll;
+			
+			for I := 1 to wil.ParamCount - 1 do
+			begin
+				rec := wil.GetParam(I) as TSection;
+				E := Scene.EntityById(rec.GetInt('items', 'entity_link, uobject_link'));
+				if E<>nil then E.Selected := True;
+			end;
+			
+			UpdateSelection;
+			Redisplay;
+		end;
+	end else
+		IupMessage('Message', 'Please switch to Entity tab');
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_wil_erase_invalid_cb(ih : Ihandle) : Longint; cdecl;
+var
+	wil : TSection;
+	list : TList;
+begin
+	if Scene.konf <> nil then
+	begin
+		wil := Scene.konf.root.GetSect('startup').GetSect('weapon_items_link', False);
+		if wil <> nil then
+		begin
+			UndoSave('Erase invalid weapon items links');
+			
+			list := TList.Create;
+			
+			ListFromWeaponItemsLink(wil, list);
+			WeaponItemsLinkFromList(wil, list);
+			
+			list.Free;
+		end;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
+function menu_wil_erase_all_cb(ih : Ihandle) : Longint; cdecl;
+var
+	wil : TSection;
+begin
+	if Scene.konf <> nil then
+	begin
+		wil := Scene.konf.root.GetSect('startup').GetSect('weapon_items_link', False);
+		if wil <> nil then
+		begin
+			UndoSave('Erase all weapon items links');
+			
+			wil.Clear;
+			wil.AddInt('count', 0, 'u32');
+		end;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+
 function menu_level_select_entity_cb(ih : Ihandle) : Longint; cdecl;
 var
 	entity : TEntity;
@@ -2295,6 +2491,16 @@ begin
 	sm_level := IupSubmenu('Level',
 		IupMenu(
 			iup.MenuItem('Options...', @menu_level_options_cb), 
+			IupSubmenu('Weapon Items Link', 
+				IupMenu(
+					iup.MenuItem('Add selection', @menu_wil_add_selection_cb),
+					iup.MenuItem('Remove selection', @menu_wil_remove_selection_cb),
+					iup.MenuItem('Select all', @menu_wil_select_all_cb),
+					iup.MenuItem('Erase invalid', @menu_wil_erase_invalid_cb),
+					iup.MenuItem('Erase all', @menu_wil_erase_all_cb),
+					nil
+				)
+			),
 			iup.MenuItem('Select entity...', menu_level_select_entity_cb), 
 			iup.MenuItem('Select entity (with IDs)...', @menu_level_select_id_cb), 
 			IupSeparator, 
