@@ -19,31 +19,31 @@ type
 	TBackupType = (btFullBackup, btPartial, btEnvOnly);
 
 type 
-  TUndoRec = object
-  	backup_type : TBackupType;
-  	
-    konf : TTextKonfig;
-    konf_add : TTextKonfig;
-    konf_env : TTextKonfig;
-    
-    entity_ids : array of Longint;
-    entity_data : array of TSection;
-    
-    constructor InitFull;
-    constructor InitEnv;
-    constructor InitPartial(e : TEntityArray);
-    destructor Done;
-    
-    procedure Restore;
-  end;
-  
+	TUndoRec = object
+		backup_type : TBackupType;
+		
+		konf : TTextKonfig;
+		konf_add : TTextKonfig;
+		konf_env : TTextKonfig;
+		
+		entity_ids : array of Longint;
+		entity_data : array of TSection;
+		
+		constructor InitFull;
+		constructor InitEnv;
+		constructor InitPartial(e : TEntityArray);
+		destructor Done;
+		
+		procedure Restore;
+	end;
+
 constructor TUndoRec.InitFull;
 begin
- 	backup_type := btFullBackup;
- 	
- 	konf     := Scene.konf.Copy;
-  konf_add := Scene.konf_add.Copy;
-  konf_env := Scene.SaveEnvironment;
+	backup_type := btFullBackup;
+	
+	konf     := Scene.konf.Copy;
+	konf_add := Scene.konf_add.Copy;
+	konf_env := Scene.SaveEnvironment;
 end;
 
 constructor TUndoRec.InitEnv;
@@ -134,19 +134,19 @@ var
 begin
 	if backup_type = btFullBackup then
 	begin
-	  Scene.UnloadEntities;
-	  Scene.LoadEntities(konf.Copy, konf_add.Copy);
-	  
-	  Scene.UnloadEnvironment;
-	  Scene.env_zones := TList.Create;
-	  Scene.LoadEnvironment(konf_env);
+		Scene.UnloadEntities;
+		Scene.LoadEntities(konf.Copy, konf_add.Copy);
+		
+		Scene.UnloadEnvironment;
+		Scene.env_zones := TList.Create;
+		Scene.LoadEnvironment(konf_env);
 	end;
 	
 	if backup_type = btEnvOnly then
 	begin
-	  Scene.UnloadEnvironment;
-	  Scene.env_zones := TList.Create;
-	  Scene.LoadEnvironment(konf_env);
+		Scene.UnloadEnvironment;
+		Scene.env_zones := TList.Create;
+		Scene.LoadEnvironment(konf_env);
 	end;
 	
 	if backup_type = btPartial then
@@ -195,149 +195,148 @@ begin
 		end;
 	end;
 end;
-  
+
 var
-  undo_buffer : array of TUndoRec;
-  undo_next : Longint = 0;
-  
+	undo_buffer : array of TUndoRec;
+	undo_next : Longint = 0;
+
 var
-  redo_buffer : array of TUndoRec;
-  redo_next : Longint = 0;
- 
+	redo_buffer : array of TUndoRec;
+	redo_next : Longint = 0;
+
 procedure SetUndoLimit(limit : Longint);
 begin
-  UndoClearHistory;
-  SetLength(undo_buffer, limit);
-  SetLength(redo_buffer, limit);
+	UndoClearHistory;
+	SetLength(undo_buffer, limit);
+	SetLength(redo_buffer, limit);
 end;
- 
+
 procedure UndoClear;
 var
-  I : Longint;
+	I : Longint;
 begin
-  for I := 0 to undo_next-1 do
-    undo_buffer[I].Done;
-  
-  undo_next := 0;
+	for I := 0 to undo_next-1 do
+		undo_buffer[I].Done;
+	
+	undo_next := 0;
 end;
-  
+
 procedure UndoPush(backup_type : TBackupType; mod_entities : TEntityArray = nil);
 var
 	tmr : TTimer;
 begin
-  if Length(undo_buffer) = 0 then
-    Exit;
-  
-  if undo_next > High(undo_buffer) then
-  begin
-    undo_buffer[0].Done;
-    
-    Move(undo_buffer[1], undo_buffer[0], (Length(undo_buffer)-1)*Sizeof(TUndoRec) );
-    Dec(undo_next);
-  end;
-  
+	if Length(undo_buffer) = 0 then
+		Exit;
+	
+	if undo_next > High(undo_buffer) then
+	begin
+		undo_buffer[0].Done;
+		
+		Move(undo_buffer[1], undo_buffer[0], (Length(undo_buffer)-1)*Sizeof(TUndoRec) );
+		Dec(undo_next);
+	end;
 	
 	tmr.Start;
-  
-  case backup_type of
-  	btFullBackup: undo_buffer[undo_next].InitFull;
-  	btPartial:    undo_buffer[undo_next].InitPartial(mod_entities);
-  	btEnvOnly:    undo_buffer[undo_next].InitEnv;
-  end;
-  
+	
+	case backup_type of
+		btFullBackup: undo_buffer[undo_next].InitFull;
+		btPartial:    undo_buffer[undo_next].InitPartial(mod_entities);
+		btEnvOnly:    undo_buffer[undo_next].InitEnv;
+	end;
+	
 	WriteLn('Backup time: ', tmr.CurrentTime:10:10, 's');
-    
-  Inc(undo_next);
-  
-  WriteLn('undo_push next = ', undo_next);
+	
+	Inc(undo_next);
+	
+	WriteLn('undo_push next = ', undo_next);
 end;
 
 procedure UndoPop;
 begin
-  undo_buffer[undo_next-1].Restore;
-  undo_buffer[undo_next-1].Done;
-  Dec(undo_next);
-  
-  WriteLn('undo_pop next = ', undo_next);
+	undo_buffer[undo_next-1].Restore;
+	undo_buffer[undo_next-1].Done;
+	Dec(undo_next);
+	
+	WriteLn('undo_pop next = ', undo_next);
 end;
 
 procedure RedoClear;
 var
-  I : Longint;
+	I : Longint;
 begin
-  for I := 0 to redo_next-1 do
-    redo_buffer[I].Done;
-  
-  redo_next := 0;
+	for I := 0 to redo_next-1 do
+		redo_buffer[I].Done;
+	
+	redo_next := 0;
 end;
 
 procedure RedoPush;
 begin
-  if Length(redo_buffer) = 0 then
-    Exit;
-  
-  if redo_next > High(redo_buffer) then
-  begin
-    redo_buffer[0].Done;
-    
-    Move(redo_buffer[1], redo_buffer[0], (Length(redo_buffer)-1)*Sizeof(TUndoRec) );
-    Dec(redo_next);
-  end;
-  
-  redo_buffer[redo_next].InitFull;
-  Inc(redo_next);
-  
-  WriteLn('redo_push next = ', redo_next);
+	if Length(redo_buffer) = 0 then
+		Exit;
+	
+	if redo_next > High(redo_buffer) then
+	begin
+		redo_buffer[0].Done;
+		
+		Move(redo_buffer[1], redo_buffer[0], (Length(redo_buffer)-1)*Sizeof(TUndoRec) );
+		Dec(redo_next);
+	end;
+	
+	redo_buffer[redo_next].InitFull;
+	Inc(redo_next);
+	
+	WriteLn('redo_push next = ', redo_next);
 end;
 
 procedure RedoPop;
 begin
-  redo_buffer[redo_next-1].Restore;
-  redo_buffer[redo_next-1].Done;
-  Dec(redo_next);
-  
-  WriteLn('redo_pop next = ', redo_next);
+	redo_buffer[redo_next-1].Restore;
+	redo_buffer[redo_next-1].Done;
+	Dec(redo_next);
+	
+	WriteLn('redo_pop next = ', redo_next);
 end;
 
 procedure DoUndo;
 begin
-  if undo_next > 0 then
-  begin
-    RedoPush;
-    UndoPop;
-  end;
+	if undo_next > 0 then
+	begin
+		RedoPush;
+		UndoPop;
+	end;
 end;
 
 procedure DoRedo;
 begin
-  if redo_next > 0 then
-  begin
-    UndoPush(btFullBackup);
-    RedoPop;
-  end;
+	if redo_next > 0 then
+	begin
+		UndoPush(btFullBackup);
+		RedoPop;
+	end;
 end;
 
 procedure UndoClearHistory;
 begin
-  UndoClear;
-  RedoClear;
+	UndoClear;
+	RedoClear;
 end;
 
 procedure UndoSave(const reason : String = ''; mod_entities : TEntityArray = nil);
 begin
 	WriteLn('UNDO SAVE - ', reason);
-  RedoClear;
-  if mod_entities = nil then
-  	UndoPush(btFullBackup)
-  else
-  	UndoPush(btPartial, mod_entities);
+	RedoClear;
+	if mod_entities = nil then
+		UndoPush(btFullBackup)
+	else
+		UndoPush(btPartial, mod_entities);
 end;
 
 procedure UndoSaveEnv(const reason : String = '');
 begin
 	WriteLn('UNDO SAVE ENV - ', reason);
-  RedoClear;
-  UndoPush(btEnvOnly)
+	RedoClear;
+	UndoPush(btEnvOnly)
 end;
 
 end.

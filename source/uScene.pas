@@ -162,7 +162,7 @@ begin
 	
 	// load level.add.bin
 	if FileExists(dir + '\level.add.bin') then
-		k_level_add := LoadLevelBin(dir + '\level.add.bin')
+		k_level_add := LoadLevelBin(dir + '\level.add.bin', Engine.version = eVerLLBeta15102012)
 	else
 	  k_level_add := nil;
 
@@ -251,11 +251,11 @@ begin
   if level_dir <> '' then
   begin
     // load level.bin
-  	k_level := LoadLevelBin(level_dir + '\level.bin');
+  	k_level := LoadLevelBin(level_dir + '\level.bin', Engine.version = eVerLLBeta15102012);
   	
   	// load level.add.bin
   	if FileExists(level_dir + '\level.add.bin') then
-  		k_level_add := LoadLevelBin(level_dir + '\level.add.bin')
+  		k_level_add := LoadLevelBin(level_dir + '\level.add.bin', Engine.version = eVerLLBeta15102012)
   	else
   	  k_level_add := nil;
   		
@@ -314,7 +314,8 @@ begin
 		begin
 			ent := TSection(konf_entities.GetParam(I));
 
-			iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
+			if progress then
+				iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
 
 			if DataValid(ent) then
 			begin
@@ -327,7 +328,7 @@ begin
 				entities_by_ids[E.ID] := E; 	
 			end;
 			
-			if progress then	
+			if progress then
 				IupSetAttribute(dlg, 'INC', nil);
 		end;
 	end;
@@ -339,8 +340,9 @@ begin
 			if konf_add_entities.GetParam(I) is TSection then
 			begin
 				ent := TSection(konf_add_entities.GetParam(I));
-	
-				iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
+
+				if progress then	
+					iup.SetStrAttribute(dlg, 'DESCRIPTION', ent.name);
 	
 				if DataValid(ent) then
 				begin

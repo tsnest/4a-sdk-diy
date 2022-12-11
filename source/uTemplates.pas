@@ -91,21 +91,21 @@ begin
 
 		if (v is TSection) and IsFolder(TSection(v)) then
 		begin		
-			IupSetAttribute(tree, PAnsiChar('ADDBRANCH' + IntToStr(ref)), PAnsiChar(v.name));
+			IupSetAttributeId(tree, 'ADDBRANCH', ref, PAnsiChar(v.name));
 			nid := IupGetInt(tree, 'LASTADDNODE');
-			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(nid)), Pointer(v));
+			IupSetAttributeId(tree, 'USERDATA', nid, Pointer(v));
 			
 			_AddSection(tree, nid, v as TSection);
 		end else
 		begin
-			IupSetStrAttribute(tree, PAnsiChar('ADDLEAF' + IntToStr(ref)), PAnsiChar(v.name));
+			IupSetStrAttributeId(tree, 'ADDLEAF', ref, PAnsiChar(v.name));
 			nid := IupGetInt(tree, 'LASTADDNODE');
-			IupSetAttribute(tree, PAnsiChar('USERDATA' + IntToStr(nid)), Pointer(v));
+			IupSetAttributeId(tree, 'USERDATA', nid, Pointer(v));
 			
 			if (v is TSection) and TSection(v).GetBool('is_group', False) then
-				IupSetAttribute(tree, PAnsiChar('IMAGE' + IntToStr(nid)), 'ICON_GROUP')
+				IupSetAttributeId(tree, 'IMAGE', nid, 'ICON_GROUP')
 			else
-				IupSetAttribute(tree, PAnsiChar('IMAGE' + IntToStr(nid)), 'ICON_OBJECT')
+				IupSetAttributeId(tree, 'IMAGE', nid, 'ICON_OBJECT')
 		end;
 	end;
 end;
