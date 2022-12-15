@@ -15,7 +15,7 @@ type
 		strings_map : TFPGMap<Longint,TIntArray>;
 		
 		constructor Create(const name : String; max_entries : Longint);
-		destructor Destroy;
+		destructor Destroy; override;
 		
 		function Add(const str : String) : Longint;
 		function Get(index : Longint) : String;
@@ -45,6 +45,8 @@ begin
 		
 	strings.Free;
 	strings_map.Free;
+	
+	inherited Destroy;
 end;
 
 function XHashTable.Add(const str : String) : Longint;
