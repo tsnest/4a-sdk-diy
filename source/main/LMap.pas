@@ -136,7 +136,7 @@ begin
 				pixels[14] := MakePel(data[(Y*4+3) * LMAP_SIZE + X*4+2]);
 				pixels[15] := MakePel(data[(Y*4+3) * LMAP_SIZE + X*4+3]);
 				
-				B := TiledBlockCoord(X, Y, (LMAP_SIZE div 4), DXT1_BLOCK_SIZE);
+				B := TiledBlockCoord(X, Y, (LMAP_SIZE div 4), DXT1_BLOCK_SZ);
 				crn_compress_block(pContext, @pixels[0], @dxt1[B]);
 			end;
 		end;
