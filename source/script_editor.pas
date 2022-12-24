@@ -13,6 +13,7 @@ uses classes, sysutils, Iup, GL, GLU, vmath, properties,
 	skeleton, uChoose, // for properties
 	Math, // for Max
 	script_block_descs,
+	Engine, // for overly specific version detection
 	uLEOptions, uEditorUtils;
 
 // utility functions
@@ -135,10 +136,11 @@ begin
 end;
 
 const
-	SCRIPT_VER_LL       = 20;
-	SCRIPT_VER_REDUX    = 20; // version same as LL
-	SCRIPT_VER_ARKTIKA1 = 46;
-	SCRIPT_VER_EXODUS   = 55; // or 54
+	SCRIPT_VER_LL_BETA_15_10_2012 = 18;
+	SCRIPT_VER_LL                 = 20;
+	SCRIPT_VER_REDUX              = 20; // version same as LL
+	SCRIPT_VER_ARKTIKA1           = 46;
+	SCRIPT_VER_EXODUS             = 55; // or 54
 	
 const
 	TYPE_BLOCK      = $01000000;
@@ -158,11 +160,12 @@ type
 		free_desc : Boolean;
 		
 		props : TSection;
-		
-		
+			
 		constructor Create(blk : TSection); overload;
 		constructor Create(desc : TBlockDesc); overload;
 		destructor Destroy; override;
+		
+		procedure UpdateDesc;
 	end;
 	
 	TLink = class
@@ -188,8 +191,6 @@ begin
 	posx := Smallint(param_posx.num) * 6;
 	posy := Smallint(param_posy.num) * 6;
 	clsid := param_clsid.str;
-		
-	desc := GetBlockDesc(blk, free_desc);
 				
 	props := TSection.Create(clsid);
 	for I := 0 to blk.items.Count - 1 do
@@ -198,6 +199,8 @@ begin
 		if not ((v.name = 'clsid') or (v.name = 'posx') or (v.name = 'posy')) then
 			props.items.Add(v.Copy);
 	end;
+	
+	UpdateDesc;
 end;
 
 constructor TBlock.Create(desc : TBlockDesc);
@@ -219,6 +222,14 @@ begin
 		desc.Free;
 	
 	inherited Destroy;
+end;
+
+procedure TBlock.UpdateDesc;
+begin
+	if free_desc then
+		desc.Free;
+		
+	desc := GetBlockDesc(clsid, props, free_desc);
 end;
 	
 type
@@ -398,6 +409,20 @@ begin
 		end;
 	end;
 end;
+
+procedure property_after_change_cb(tree : Ihandle; prop : TSimpleValue);
+var
+	editor : TScriptEditor;
+begin
+	editor := TScriptEditor(IupGetAttribute(IupGetDialog(tree), 'TScriptEditor->this'));
+	
+	if NeedUpdateBlockDesc(editor.sel_block.clsid, prop.name, prop.vtype, editor.sel_block.props) then
+	begin
+		editor.sel_block.UpdateDesc;
+		CalcBlockSize(editor.sel_block.desc, editor.font, editor.sel_block.sizex, editor.sel_block.sizey);
+		editor.SelectBlock(editor.sel_block);
+	end;
+end;
 	
 constructor TScriptEditor.Create;
 var
@@ -465,6 +490,7 @@ begin
 	IupSetAttribute(tree_props, 'NAME', 'TREE_PROPS');
 	IupSetAttribute(tree_props, 'RASTERSIZE', '200x');
 	IupSetCallback(tree_props, 'PROPS_EDIT_CB', @property_edit_cb);
+	IupSetCallback(tree_props, 'PROPS_AFTER_CHANGE_CB', @property_after_change_cb);
 	
 	fr_properties := IupFrame(IupVBox(tree_props, nil));
 	IupSetAttribute(fr_properties, 'NAME', 'FRAME_PROPERTIES');
@@ -489,12 +515,25 @@ begin
 	
 
 	case Scene.GetVersion of
-		sceneVer2033:     descs_fn := 'editor_data\block_descs.txt';
-		sceneVerLL:       descs_fn := 'editor_data\block_descs_ll.txt';
-		sceneVerRedux:    descs_fn := 'editor_data\block_descs_redux.txt';
-		sceneVerArktika1: descs_fn := 'editor_data\block_descs_a1.txt';
-		sceneVerExodus:   descs_fn := 'editor_data\block_descs_exodus.txt';
-		else              descs_fn := 'editor_data\block_descs.txt';
+		sceneVer2033:
+			descs_fn := 'block_descs';
+		sceneVerLL:
+			case Engine.version of
+				eVerLLBeta15102012:
+					descs_fn := 'block_descs_ll_beta_15_10_2012';
+				eVerLLBeta03122012:
+					descs_fn := 'block_descs_ll_beta_3_12_2012';
+				else
+					descs_fn := 'block_descs_ll';
+			end;
+		sceneVerRedux:
+			descs_fn := 'block_descs_redux';
+		sceneVerArktika1: 
+			descs_fn := 'block_descs_a1';
+		sceneVerExodus:
+			descs_fn := 'block_descs_exodus';
+		else              
+			descs_fn := 'block_descs';
 	end;
 	
 	try		
@@ -1267,10 +1306,17 @@ begin
 		// set script version according to scene version
 		// move to constructor?
 		case Scene.GetVersion of
-			sceneVerLL:         editor.script_version := SCRIPT_VER_LL;
-			sceneVerRedux:      editor.script_version := SCRIPT_VER_REDUX;
-			sceneVerArktika1:   editor.script_version := SCRIPT_VER_ARKTIKA1;
-			sceneVerExodus:     editor.script_version := SCRIPT_VER_EXODUS;
+			sceneVerLL:
+				if Engine.version = eVerLLBeta15102012 then
+					editor.script_version := SCRIPT_VER_LL_BETA_15_10_2012
+				else
+					editor.script_version := SCRIPT_VER_LL;
+			sceneVerRedux:      
+				editor.script_version := SCRIPT_VER_REDUX;
+			sceneVerArktika1:   
+				editor.script_version := SCRIPT_VER_ARKTIKA1;
+			sceneVerExodus:
+				editor.script_version := SCRIPT_VER_EXODUS;
 		end;
 	end;
 	

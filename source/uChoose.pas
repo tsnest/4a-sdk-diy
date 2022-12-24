@@ -566,6 +566,7 @@ function ChooseParticles(var particles : String) : Boolean;
 var
 	K : TKonfig;
 	lib : TTextKonfig;
+	js : TFramework;
 	systems : TSection;
 	name : String;
 	names : TStringList;
@@ -581,9 +582,9 @@ begin
 		K := TKonfig.Create;
 		K.Load(ResourcesPath + '\particles\particles.bin');
 		
-		framework.Initialize;
-		lib := framework.DecompileKonfig(K, 'js\particles.js');
-		framework.Finalize;
+		js := TFramework.Create;
+		lib := js.DecompileKonfig(K, 'js\particles.js');
+		js.Free;
 		
 		K.Free;
 		

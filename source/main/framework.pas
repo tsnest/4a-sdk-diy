@@ -1,19 +1,33 @@
 unit framework;
 
 interface
-uses Konfig, Variants;
+uses Konfig, Variants, mujs;
 
-procedure Initialize;
-procedure Finalize;
+type
+	TFrameworkBlockDesc = record
+		in_names : array of String;
+		out_names : array of String;
+	end;
 
-function DecompileKonfig(K : TKonfig; script_name : String) : TTextKonfig;
-procedure DefineGlobal(const name : String; v : Variant);
+type
+	TFramework = class
+		J : js_State;
+		
+		constructor Create;
+		destructor Destroy; override;
+		
+		function DecompileKonfig(K : TKonfig; script_name : String; status : PBoolean = nil) : TTextKonfig;
+		function GetBlockDesc(const clsid : String; data : TSection; var desc : TFrameworkBlockDesc) : Boolean;
+		function NeedUpdateBlockDesc(const clsid : String; const name,vtype : String; data : TSection) : Boolean;
+		
+		function ExecuteScript(script_name : String) : Boolean;
+		procedure DefineGlobal(const name : String; v : Variant);
+	end;
 
 implementation
-uses uCrc, Konfig_reader, mujs, chunkedFile, sysutils { for FileExists };
-
-var
-	g_state : js_State;
+uses uCrc, chunkedFile, sysutils { for FileExists },
+	Konfig_reader, // class TKonfigReader 
+	Konfig_script; // class TSection
 
 procedure Script_report(J : js_State; message : PAnsiChar); cdecl;
 begin
@@ -98,11 +112,12 @@ begin
 	end;
 end;
 
-procedure Initialize;
+constructor TFramework.Create;
 var
-	J : js_State;
 	_common_js_name : String;
 begin
+	inherited Create;
+	
 	J := js_newstate(nil, nil, JS_STRICT);
 	js_setreport(J, Script_report);
 
@@ -132,28 +147,24 @@ begin
 	end;
 	
 	Konfig_reader.Script_Init(J);
-
-	g_state := J;
+	Konfig_script.Script_Init(J);
 end;
 
-procedure Finalize;
-var
-	J : js_State;
+destructor TFramework.Destroy;
 begin
-	J := g_state;
-
 	Konfig_reader.Script_Finish(J);
+	Konfig_script.Script_Finish(J);
 	js_freestate(J);
+	
+	inherited Destroy;
 end;
 
-function DecompileKonfig(K : TKonfig; script_name : String) : TTextKonfig;
+function TFramework.DecompileKonfig(K : TKonfig; script_name : String; status : PBoolean = nil) : TTextKonfig;
 var
-	J : js_State;
 	tk : TTextKonfig;
 	R : TKonfigReader;
+	ret : Longint;
 begin
-	J := g_state;
-
 	tk := TTextKonfig.Create;
 	R := TKonfigReader.Create(K, tk.root);
 	Konfig_reader.Script_Push(J, R);
@@ -162,7 +173,9 @@ begin
 	if not FileExists(script_name) then
 		script_name := ExtractFilePath(ParamStr(0)) + script_name;
 		
-	js_dofile(J, PAnsiChar(script_name));
+	ret := js_dofile(J, PAnsiChar(script_name));
+	if status <> nil then
+		status^ := (ret = 0);
 
 	js_pushundefined(J);
 	js_setglobal(J, 'reader');
@@ -172,12 +185,109 @@ begin
 	Result := tk;
 end;
 
-procedure DefineGlobal(const name : String; v : Variant);
+function TFramework.GetBlockDesc(const clsid : String; data : TSection; var desc : TFrameworkBlockDesc) : Boolean;
 var
-	J : js_State;
+	ret : Longint;
+	I : Longint;
 begin
-	J := g_state;
+	js_pushglobal(J);
+	js_getproperty(J, -1, 'GetBlockDesc');
 	
+	js_pushnull(J); // this
+	js_pushstring(J, PAnsiChar(clsid));
+	Konfig_script.Script_Push(J, data, False); // arg 2
+	ret := js_pcall(J, 2);
+	
+	if ret = 0 then
+	begin
+		if (js_isundefined(J, -1) = 0) and (js_isnull(J, -1) = 0) then
+		begin
+			// gather input names
+			js_getproperty(J, -1, 'in_names');
+			if js_isarray(J, -1) <> 0 then
+			begin
+				SetLength(desc.in_names, js_getlength(J, -1));
+				for I := 0 to Length(desc.in_names) - 1 do
+				begin
+					js_getindex(J, -1, I);
+					desc.in_names[I] := js_trystring(J, -1, PAnsiChar('in'+IntToStr(I)));
+					js_pop(J, 1);
+				end
+			end else
+				SetLength(desc.in_names, 0);
+			js_pop(J, 1);
+			
+			// gather output names
+			js_getproperty(J, -1, 'out_names');
+			if js_isarray(J, -1) <> 0 then
+			begin
+				SetLength(desc.out_names, js_getlength(J, -1));
+				for I := 0 to Length(desc.out_names) - 1 do
+				begin
+					js_getindex(J, -1, I);
+					desc.out_names[I] := js_trystring(J, -1, PAnsiChar('out'+IntToStr(I)));
+					js_pop(J, 1);
+				end
+			end else
+				SetLength(desc.out_names, 0);
+			js_pop(J, 1);
+			
+			js_pop(J, 1); // pop result
+			Result := True;
+		end else
+		begin
+			js_pop(J, 1); // pop result
+			Result := False;
+		end;
+	end else
+	begin
+		js_pop(J, 1); // pop error
+		Result := False;
+	end;
+	
+	js_pop(J, 1); // pop global
+end;
+
+function TFramework.NeedUpdateBlockDesc(const clsid : String; const name,vtype : String; data : TSection) : Boolean;
+var
+	ret : Longint;
+begin
+	js_pushglobal(J);
+	js_getproperty(J, -1, 'NeedUpdateBlockDesc');
+	
+	js_pushnull(J); // this
+	js_pushstring(J, PAnsiChar(clsid));
+	js_pushstring(J, PAnsiChar(name));
+	js_pushstring(J, PAnsiChar(vtype));
+	Konfig_script.Script_Push(J, data, False);
+	ret := js_pcall(J, 4);
+	
+	if ret = 0 then
+	begin
+		Result := js_tryboolean(J, -1, 0) <> 0;
+		js_pop(J, 1); // pop result
+	end else
+	begin
+		Result := False;
+		js_pop(J, 1); // pop error
+	end;
+	
+	js_pop(J, 1); // pop global
+end;
+
+function TFramework.ExecuteScript(script_name : String) : Boolean;
+var
+	ret : Longint;
+begin
+	if not FileExists(script_name) then
+		script_name := ExtractFilePath(ParamStr(0)) + script_name;
+		
+	ret := js_dofile(J, PAnsiChar(script_name));
+	Result := (ret = 0);	
+end;
+
+procedure TFramework.DefineGlobal(const name : String; v : Variant);
+begin
 	case varType(v) of
 		varEmpty: js_pushundefined(J);
 		varNull: js_pushnull(J);

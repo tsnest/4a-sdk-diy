@@ -190,6 +190,7 @@ var
 	mem : TMemoryStream;
 	K : TKonfig;
 	TK : TTextKonfig;
+	js : TFramework;
 begin
 	TK := nil;
 
@@ -215,9 +216,9 @@ begin
 			//TK := TTextKonfig.Create;
 			//K.Decompile(TK);
       
-			framework.Initialize;
-			TK := framework.DecompileKonfig(K, 'js\2033\levelbin.js');
-			framework.Finalize;
+			js := TFramework.Create;
+			TK := js.DecompileKonfig(K, 'js\2033\levelbin.js');
+			js.Free;
 		end;
 		K.Free;
 		mem.Free;
@@ -293,6 +294,7 @@ function LoadLevelBinLL(const fn : String; build_15_10_2012 : Boolean) : TTextKo
 var
 	r : TMemoryReader;
 	K : TKonfig;
+	js : TFramework;
 	
 	magic, size : Longword;
 begin
@@ -306,12 +308,12 @@ begin
 		K := TKonfig.Create;
 		K.Load(r);
 
-		framework.Initialize;
+		js := TFramework.Create;
 		
-		framework.DefineGlobal('g_build_15_10_2012', build_15_10_2012);
-		Result := framework.DecompileKonfig(K, 'js\levelbin.js');
+		js.DefineGlobal('g_build_15_10_2012', build_15_10_2012);
+		Result := js.DecompileKonfig(K, 'js\levelbin.js');
 		
-		framework.Finalize;		
+		js.Free;		
 
 	end else
 	begin
@@ -358,6 +360,7 @@ function LoadLevelBinA1(const fn : String) : TTextKonfig;
 var
 	r : TMemoryReader;
 	K : TKonfig;
+	js : TFramework;
 begin
 	r := TMemoryReader.CreateFromFile(fn);
 
@@ -366,9 +369,9 @@ begin
 		K := TKonfig.Create;
 		K.Load(r);
 
-		framework.Initialize;
-		Result := framework.DecompileKonfig(K, 'js\levelbin.js');
-		framework.Finalize;		
+		js := TFramework.Create;
+		Result := js.DecompileKonfig(K, 'js\levelbin.js');
+		js.Free;	
 
 	end else
 	begin

@@ -4,6 +4,7 @@ uses chunkedFile, sysutils, classes, vmath, fouramdl, fgl, OGF, windows,
 
 type
 	TLevelFlags = set of (lfSkipMU, lfUseLMap, lfXBox, lfLastLight, lfRedux);
+	TTargetVersion = (tv2033, tvBuild15102012, tvBuild03122012, tvLastLight, tvRedux, tvArktika1, tvExodus);
 
 var
 	shaderbytexture, materialbytexture : TFPGMap<String,String>;
@@ -322,12 +323,10 @@ begin
 	cf.Free;
 end;
 
-procedure FromModelToLevel(start, count : Integer; destdir : String; params : TLevelFlags);
+procedure FromModelToLevel(start, count : Integer; destdir : String; params : TLevelFlags; target_ver : TTargetVersion);
 var
 	l : T4ALevel;
 	m : T4AModelHierrarhy;
-	r : TMemoryReader;
-
 	I : Integer;
 begin
 	l := T4ALevel.Create;
@@ -335,9 +334,7 @@ begin
 	for I := start to start+count do
 	begin
 		m := T4AModelHierrarhy.Create;
-		r := TMemoryReader.CreateFromFile(ParamStr(I));
-		m.Load(r);
-		r.Free;
+		m.LoadFromFile(ParamStr(I));
 		From4AToLevel(l, m);
 		m.Free;
 	end;
@@ -355,171 +352,20 @@ begin
 		GenerateCform(l, destdir + '\level.nxcform_xbox', 1)
 	else
 		GenerateCform(l, destdir + '\level.nxcform_pc', 0);
-
-	ScaleAO(l);
-
-	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
-	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
-
-	l.SaveTo(destdir);
-	l.Free;
-end;
-{
-procedure FromXRayLevelTo4ALevel(srcdir, destdir : String; params : TLevelFlags);
-var
-	l : T4ALevel;
-	xl : TXRayLevel;
-
-	I, J : Integer;
-	verts : array of T4AVertLevel;
-	rm : T4AModelRef;
-	m	: TOGFModelSimple;
-
-	sh, mt : PAnsiString;
-	texture, shader, material : String;
-	flags : Longword;
-
-	icount, ioffset : Longword;
-	
-	comma : Longint;
-	lmap_name : String;
-	lmap_id : Integer;
-begin
-	l := T4ALevel.Create;
-	
-	WriteLn('loading level ''' + srcdir + '''');
-	xl := TXRayLevel.Create;
-	xl.Load(srcdir);
-
-	// geometry & visuals
-	for I := 0 to Length(xl.visuals) - 1 do
-		if xl.visuals[I] is TOGFModelSimple then
-		begin
-			m := TOGFModelSimple(xl.visuals[I]);
-			
-			if (lfSkipMU in params) and (m is TOGFModelMU) then
-				Continue;
-
-			// parse texture name
-			texture := LowerCase(xl.materials[m.shaderid,2]);
-			comma := Pos(',', texture);
-			if comma > 0 then
-			begin
-				lmap_name := Copy(texture, comma+1);
-				SScanf(lmap_name, 'lmap#%d_1', [@lmap_id]);
-				
-				//WriteLn('lmap_id = ', lmap_id);
-				
-				if not (lfUseLMap in params) or (lmap_id > 16) then
-					lmap_id := -1;
-				
-				texture := Copy(texture, 1, comma-1);
-			end else
-				lmap_id := -1;
-			
-			// guess material by texture name
-			sh := shaderbytexture.Get(texture);
-			mt := materialbytexture.Get(texture);
-			if sh <> nil then shader := sh^
-			else shader := 'geometry\default';
-			if mt <> nil then material := mt^
-			else material := 'materials\wood';
-
-			if shader = '<none>' then
-				Continue;
-			if material = '<none>' then
-				material := 'materials\wood';
-				
-			if lmap_id > 0 then flags := $00010000 else flags := 0;
-
-			// add visual
-			rm := T4AModelRef.Create;
-
-			if lfLastLight in params then
-				rm.version := 21;
-			if lfRedux in params then
-				rm.version := 22;
-				
-			rm.shaderid := l.AddMaterial(shader, texture, material, flags);
-			rm.bbox := m.bbox;
-			rm.bsphere := m.bsphere;
-			
-			// - copy vertices
-			SetLength(verts, m.geom_vcount);
-			xl.vbuffers[m.geom_vbuffer].currentvert := m.geom_voffset;
-			CopyVertices(xl.vbuffers[m.geom_vbuffer], P4AVertLevel(verts), m.geom_vcount, lmap_id);
-			if m is TOGFModelMU then
-				TransformMUVertices(P4AVertLevel(verts), Length(verts), m as TOGFModelMu);
-
-			if (m.modeltype = OGF_MT_TREE_PM) or (m.modeltype = OGF_MT_TREE_ST) then
-				for J := 0 to Length(verts) - 1 do // gotcha!
-				begin
-					verts[J].tc.x := verts[J].tc.x div 2;
-					verts[J].tc.y := verts[J].tc.y div 2;
-				end;
-
-			rm.vertexformat := MODEL_VF_LEVEL;
-			rm.vertexoffset := l.AddVertexBuffer(verts[0], m.geom_vcount);
-			rm.vertexcount := m.geom_vcount;
-
-			// - copy indices
-			if m.modeltype = OGF_MT_TREE_PM then
-			begin
-				//Writeln(xl.materials[m.shaderid][2]);
-				icount := xl.swibuffers[m.geom_swibuffer][0].nfaces*3;
-				ioffset := m.geom_ioffset+xl.swibuffers[m.geom_swibuffer][0].offset;
-			end else
-			if Length(m.swis) = 0 then
-			begin
-				icount := m.geom_icount;
-				ioffset := m.geom_ioffset;
-			end else
-			begin
-				icount := m.swis[0].nfaces*3;
-				ioffset := m.geom_ioffset+m.swis[0].offset;
-			end;
-			rm.indexoffset := l.AddIndexBuffer(xl.ibuffers[m.geom_ibuffer,ioffset], icount);
-			rm.indexcount := icount;
-
-			l.AddVisual(rm);
-		end;
-
-	// cform
-	WriteLn('generating nxcform...');
-	if lfRedux in params then
-		GenerateCform(l, destdir + '\level.nxcform33x', 2)
-	else if lfLastLight in params then
-		GenerateCform(l, destdir + '\level.nxcform_xbox', 1)
-	else
-		GenerateCform(l, destdir + '\level.nxcform_pc', 0);
 		
-	// lightmap
-	if lfUseLMap in params then
-	begin
-		WriteLN('converting lightmap...');
-		ConvertLightMap(srcdir, destdir + '\level.lmap_pc');
-	end;
+	if target_ver >= tvLastLight then
+		l.sound_occlusion_version := 5;
 
-	// save level
 	ScaleAO(l);
-	CreateSector(l);
-	
-	if lfLastLight in params then
-		l.visuals[l.sectors[0]].version := 21;
-	if lfRedux in params then
-		l.visuals[l.sectors[0]].version := 22;
 
 	Writeln('vertex buffer size: ', Length(l.vbuffer)*Sizeof(T4AVertLevel));
 	Writeln('index buffer size: ', Length(l.ibuffer)*Sizeof(Word));
 
-	l.SaveTo(destdir);
-
+	l.SaveTo(destdir, lfXBox in params);
 	l.Free;
-	xl.Free;
 end;
-}
 
-procedure FromXRayLevelTo4ALevel(srcdir, destdir : String; params : TLevelFlags);
+procedure FromXRayLevelTo4ALevel(srcdir, destdir : String; params : TLevelFlags; target_ver : TTargetVersion);
 var
 	l : T4ALevel;
 	xl : TXRayLevel;
@@ -731,7 +577,7 @@ begin
 		l.portals[I].name := 'portal' + StringOfChar('0', 4-Length(n)) + n;
 	end;
 	
-	if (lfRedux in params) or (lfLastLight in params) then
+	if target_ver >= tvLastLight then
 		l.sound_occlusion_version := 5;
 
 	// save level
@@ -878,11 +724,13 @@ end;
 var
 	I : Integer;
 	flags : TLevelFlags;
+	target_ver : TTargetVersion;
 	err : Word;
 begin
 	LoadLists;
 
 	flags := [];
+	target_ver := tv2033;
 
 	I := 1;
 	while I <= ParamCount do
@@ -919,11 +767,36 @@ begin
 		end else
 		
 		// target version switches
-		if ParamStr(I) = '-ll' then
-			Include(flags, lfLastLight)
-		else if ParamStr(I) = '-redux' then 
-			Include(flags, lfRedux)
-		else
+		if ParamStr(I) = '-2033' then
+		begin
+			target_ver := tv2033
+		end else
+		if ParamStr(I) = '-build_15_10_2012' then
+		begin
+			target_ver := tvBuild15102012
+		end else
+		if ParamStr(I) = '-build_3_12_2012' then
+		begin
+			target_ver := tvBuild03122012
+		end else
+		if (ParamStr(I) = '-ll') or (ParamStr(I) = '-last_light') then
+		begin
+			Include(flags, lfLastLight);
+			target_ver := tvLastLight
+		end else 
+		if ParamStr(I) = '-redux' then 
+		begin
+			Include(flags, lfRedux);
+			target_ver := tvRedux
+		end else
+		if ParamStr(I) = '-arktika1' then
+		begin
+			target_ver := tvArktika1
+		end else
+		if ParamStr(I) = '-exodus' then
+		begin
+			target_ver := tvExodus
+		end else
 		
 		// operations
 		if ParamStr(I) = '-ogf2model' then 
@@ -957,7 +830,7 @@ begin
 		begin
 			if (ParamCount - I) >= 2 then
 			begin
-				FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount), flags);
+				FromModelToLevel(I+1, ParamCount-(I+1)-1, ParamStr(ParamCount), flags, target_ver);
 				Inc(I,2);
 			end else
 				WriteLn('Not enough parameters for -model2level');				
@@ -966,7 +839,7 @@ begin
 		begin
 			if (ParamCount - I) >= 2 then
 			begin
-				FromXRayLevelTo4ALevel(ParamStr(I+1), ParamStr(I+2), flags);
+				FromXRayLevelTo4ALevel(ParamStr(I+1), ParamStr(I+2), flags, target_ver);
 				Inc(I,2);
 			end else
 				WriteLn('Not enough parameters for -level2level');
@@ -978,7 +851,7 @@ begin
 				From4AToRaw(ParamStr(I+1), ParamStr(I+2));
 				Inc(I,2);
 			end else
-				WriteLn('Not enough parameters for -model2raw');					
+				WriteLn('Not enough parameters for -model2raw');
 		end else 
 			Writeln('Unknown parameter ', ParamStr(I));
 		

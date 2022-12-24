@@ -4,8 +4,8 @@ interface
 uses classes, Iup, Konfig;
 
 type
-	TPropsBeforeChangeCb = procedure(val : TSimpleValue); cdecl;
-	TPropsAfterChangeCb = procedure(val : TSimpleValue); cdecl;
+	TPropsBeforeChangeCb = procedure(tree : Ihandle; val : TSimpleValue); cdecl;
+	TPropsAfterChangeCb = procedure(tree : Ihandle; val : TSimpleValue); cdecl;
 	TPropsEditCb = function(tree : Ihandle; sect : TSection; val : TSimpleValue) : Longint; cdecl; // ret = 0 - cancel, 1 - default editor, 2 - apply
 
 procedure UpdateCaption(tree : Ihandle; nid : Longint; v : TSimpleValue); overload;
@@ -262,14 +262,33 @@ begin
 		EditChooseArray := False;
 end;
 
-function EditStrArray(sect : TSection; hint : TSimpleValue; size_type : String; before_change_cb : TPropsBeforeChangeCb; after_change_cb : TPropsAfterChangeCb) : Boolean;
+procedure default_before_change_cb(tree : Ihandle; val : TSimpleValue); cdecl;
+begin
+end;
+
+procedure default_after_change_cb(tree : Ihandle; val : TSimpleValue); cdecl;
+begin
+end;
+
+function EditStrArray(sect : TSection; hint : TSimpleValue; size_type : String; tree : Ihandle) : Boolean;
 var
 	I, index : Longint;
 	src : String;
 	maxlen : Longint;
 	buffer : array of AnsiChar;
 	sl : TStringList;
+	
+	before_change_cb : TPropsBeforeChangeCb; 
+	after_change_cb : TPropsAfterChangeCb;
 begin
+	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(tree, 'PROPS_BEFORE_CHANGE_CB'));
+	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(tree, 'PROPS_AFTER_CHANGE_CB'));
+
+	if not Assigned(before_change_cb) then
+		before_change_cb := default_before_change_cb;
+	if not Assigned(after_change_cb) then
+		after_change_cb := default_after_change_cb;
+
 	Result := False;
 
 	index := sect.items.IndexOf(hint);
@@ -301,7 +320,7 @@ begin
 	
 	if IupGetText(PAnsiChar(hint.name), PAnsiChar(buffer), maxlen) <> 0 then
 	begin
-		before_change_cb(hint);
+		before_change_cb(tree, hint);
 		
 		I := index+1;
 		while (I < sect.items.Count) and (TSimpleValue(sect.items[I]).name = hint.name) do
@@ -322,21 +341,13 @@ begin
 			
 		sl.Free;
 		
-		after_change_cb(hint);
+		after_change_cb(tree, hint);
 		
 		Result := True;
 	end;
 end;
 
-procedure default_before_change_cb(val : TSimpleValue); cdecl;
-begin
-end;
-
-procedure default_after_change_cb(val : TSimpleValue); cdecl;
-begin
-end;
-
-function tree_props_button_cb(ih : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint; cdecl;
+function tree_props_button_cb(tree : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 var
 	id : Longint;
 	format : String;
@@ -373,10 +384,10 @@ var
 	after_change_cb  : TPropsAfterChangeCb;
 	edit_cb          : TPropsEditCb;
 begin
-	id := IupConvertXYToPos(ih, x, y);
-	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(ih, 'PROPS_BEFORE_CHANGE_CB'));
-	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(ih, 'PROPS_AFTER_CHANGE_CB'));
-	edit_cb := TPropsEditCb(IupGetAttribute(ih, 'PROPS_EDIT_CB'));
+	id := IupConvertXYToPos(tree, x, y);
+	before_change_cb := TPropsBeforeChangeCb(IupGetAttribute(tree, 'PROPS_BEFORE_CHANGE_CB'));
+	after_change_cb := TPropsAfterChangeCb(IupGetAttribute(tree, 'PROPS_AFTER_CHANGE_CB'));
+	edit_cb := TPropsEditCb(IupGetAttribute(tree, 'PROPS_EDIT_CB'));
 	
 	if not Assigned(before_change_cb) then
 		before_change_cb := default_before_change_cb;
@@ -385,14 +396,14 @@ begin
 
 	if (id <> -1) and iup_isdouble(status) then
 	begin
-		parent := iup.GetInt(ih, 'PARENT'+IntToStr(id));
-		sect := TSection(iup.GetAttribute(ih, 'USERDATA'+IntToStr(parent)));
+		parent := iup.GetInt(tree, 'PARENT'+IntToStr(id));
+		sect := TSection(iup.GetAttribute(tree, 'USERDATA'+IntToStr(parent)));
 				
-		v := TSimpleValue(iup.GetAttribute(ih, 'USERDATA'+IntToStr(id)));
+		v := TSimpleValue(iup.GetAttribute(tree, 'USERDATA'+IntToStr(id)));
 		if v <> nil then
 		begin
 			if Assigned(edit_cb) then
-				ret := edit_cb(ih, sect, v)
+				ret := edit_cb(tree, sect, v)
 			else
 				ret := 1;
 						
@@ -405,11 +416,12 @@ begin
 					
 					if ChooseModel(str) then
 					begin
-						before_change_cb(s);
-						s.str := str;
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, s);
+						s.str := str;
+						UpdateCaption(tree, s);
+						
+						after_change_cb(tree, s);
 					end;					
 				end else
 				if v.vtype = 'texture, str_shared' then
@@ -419,11 +431,12 @@ begin
 					
 					if ChooseTexture(str) then
 					begin
-						before_change_cb(s);
-						s.str := str;
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, s);
+						s.str := str;
+						UpdateCaption(tree, s);
+						
+						after_change_cb(tree, s);
 					end;
 				end;
 				if v.vtype = 'particles, str_shared' then
@@ -433,11 +446,12 @@ begin
 					
 					if ChooseParticles(str) then
 					begin
-						before_change_cb(s);
-						s.str := str;
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, s);
+						s.str := str;
+						UpdateCaption(tree, s);
+						
+						after_change_cb(tree, s);
 					end;
 				end;
 				if v.vtype = 'sound' then
@@ -447,11 +461,12 @@ begin
 					
 					if ChooseSound(str) then
 					begin
-						before_change_cb(s);
-						s.str := str;
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, s);
+						s.str := str;
+						UpdateCaption(tree, s);
+						
+						after_change_cb(tree, s);
 					end;
 				end;
 				if v.vtype = 'ref_coloranim' then
@@ -461,11 +476,12 @@ begin
 					
 					if ChooseColoranim(str) then
 					begin
-						before_change_cb(s);
-						s.str := str;
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, s);
+						s.str := str;
+						UpdateCaption(tree, s);
+						
+						after_change_cb(tree, s);
 					end;
 				end;
 				if v.vtype = 'entity_link, uobject_link' then
@@ -474,25 +490,26 @@ begin
 	
 					if ChooseEntity(entity) then
 					begin
-						before_change_cb(i);
+						before_change_cb(tree, s);
+						
 						if entity <> nil then
 							i.num := entity.ID
 						else
 							i.num := 65535;
-						after_change_cb(i);
-						
-						UpdateCaption(ih, id, v);
+						UpdateCaption(tree, id, v);
+							
+						after_change_cb(tree, s);
 					end;
 				end else
 				if v.vtype = 'str_array16' then
 				begin
-					if EditStrArray(sect, v, 'u16', before_change_cb, after_change_cb) then
-						SetupProperties(ih, TSection(IupGetAttribute(ih, 'USERDATA0')));
+					if EditStrArray(sect, v, 'u16', tree) then
+						SetupProperties(tree, TSection(IupGetAttribute(tree, 'USERDATA0')));
 				end else
 				if (v.vtype = 'str_array32') or (v.vtype = 'str_array') then
 				begin
-					if EditStrArray(sect, v, 'u32', before_change_cb, after_change_cb) then
-						SetupProperties(ih, TSection(IupGetAttribute(ih, 'USERDATA0')));
+					if EditStrArray(sect, v, 'u32', tree) then
+						SetupProperties(tree, TSection(IupGetAttribute(tree, 'USERDATA0')));
 				end else
 				if v is TIntegerValue then
 				begin
@@ -512,11 +529,12 @@ begin
 					format := 'Value: ' + format + #10;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, PAnsiChar(format), @ivalue) = 1 then
 					begin
-						before_change_cb(i);
-						i.num := ivalue;
-						after_change_cb(i);
+						before_change_cb(tree, i);
 						
-						UpdateCaption(ih, id, v);
+						i.num := ivalue;
+						UpdateCaption(tree, id, v);
+						
+						after_change_cb(tree, i);
 					end;
 				end else
 				if v is TSingleValue then
@@ -525,11 +543,12 @@ begin
 					fvalue := f.num;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, 'Value: %r'#10, @fvalue) = 1 then
 					begin
-						before_change_cb(f);
-						f.num := fvalue;
-						after_change_cb(f);
+						before_change_cb(tree, f);
 						
-						UpdateCaption(ih, id, v);
+						f.num := fvalue;
+						UpdateCaption(tree, id, v);
+						
+						after_change_cb(tree, f);
 					end;
 				end else
 				if v is TStringValue then
@@ -539,23 +558,24 @@ begin
 					svalue[Length(s.str)] := #0;
 					if IupGetParam(PAnsiChar(v.name), nil, nil, 'Value: %s'#10, @svalue) = 1 then
 					begin
-						before_change_cb(s);
-						s.str := PAnsiChar(@svalue);
-						after_change_cb(s);
+						before_change_cb(tree, s);
 						
-						UpdateCaption(ih, id, v);
+						s.str := PAnsiChar(@svalue);
+						UpdateCaption(tree, id, v);
+						
+						after_change_cb(tree, s);
 					end;
 				end else
 				if v is TBoolValue then
 				begin
 					b := v as TBoolValue;
 					
-					before_change_cb(b);
+					before_change_cb(tree, b);
 					
 					b.bool := not b.bool;
-					UpdateCaption(ih, id, v);
+					UpdateCaption(tree, id, v);
 					
-					after_change_cb(b);
+					after_change_cb(tree, b);
 				end else
 				if v is TFloatArrayValue then
 				begin
@@ -570,7 +590,7 @@ begin
 						
 						if EditMatrix(matrix, True) then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							
 							if Length(c.data) = 16 then	c.SetMatrix44(matrix)
 							else c.SetMatrix43(matrix);
@@ -583,7 +603,7 @@ begin
 						
 						if EditMatrix(matrix, True) then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							
 							c.SetMatrix43T(matrix);
 							ret := 1;
@@ -594,7 +614,7 @@ begin
 						Move(c.data[0], cvalue, Sizeof(cvalue));
 						if SelectColor(cvalue, True) then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							
 							Move(cvalue, c.data[0], Sizeof(cvalue));
 							ret := 1;
@@ -608,7 +628,7 @@ begin
 							
 						if ret = 1 then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							Move(vec4, c.data[0], Sizeof(vec4));
 						end;
 					end;
@@ -620,7 +640,7 @@ begin
 							
 						if ret = 1 then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							Move(vec3, c.data[0], Sizeof(vec3));
 						end;
 					end;
@@ -632,21 +652,21 @@ begin
 							
 						if ret = 1 then
 						begin
-							before_change_cb(c);
+							before_change_cb(tree, c);
 							Move(vec2, c.data[0], Sizeof(vec2));
 						end;
 					end;
 					
 					if ret = 1 then
 					begin
-						UpdateCaption(ih, id, v);
-						after_change_cb(c);
+						UpdateCaption(tree, id, v);
+						after_change_cb(tree, c);
 					end;
 				end;
 			end else
 			if ret = 2 then // user editor
 			begin
-				UpdateCaption(ih, id, v);
+				UpdateCaption(tree, id, v);
 			end;
 			
 		end;

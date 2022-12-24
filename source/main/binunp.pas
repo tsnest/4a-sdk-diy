@@ -1,20 +1,6 @@
 program binunp;
 uses classes, sysutils, Konfig, texturePrefs, levelbin,
-		 framework, Konfig_reader, Timer;
-
-function EndsWith(const s1 : String; const s2 : String) : Boolean;
-var
-	l1, l2 : Longint;
-begin
-	l1 := Length(s1);
-	l2 := Length(s2);
-
-	EndsWith := False;
-
-	if l1 >= l2 then
-		if Copy(s1, l1-l2+1, l2) = s2 then
-			EndsWith := True;
-end;
+		 framework, Konfig_reader, Timer, StrUtils;
 
 procedure CompileLevel(infn, outfn : String; kind : Integer);
 var
@@ -95,7 +81,9 @@ procedure DecompileSpecial(script, inf, outf : String);
 var
 	k : TKonfig;
 	tk : TTextKonfig;
+	js : TFramework;
 	t : TTexturesBin;
+	status : Boolean;
 begin
 	k := TKonfig.Create;
 	if k.Load(inf) then
@@ -103,7 +91,7 @@ begin
 		WriteLn('kind = ', K.kind);
 		tk := TTextKonfig.Create;
 
-		if EndsWith(inf, 'textures.bin') then
+		if AnsiEndsStr(inf, 'textures.bin') then // must die
 		begin
 			t := TTexturesBin.Create;
 			t.Load(k);
@@ -112,10 +100,14 @@ begin
 			t.Free;
 		end else
 		begin
-			framework.Initialize;
-			tk := framework.DecompileKonfig(k, script);
-			WriteLn('loading ok');
-			framework.Finalize
+			js := TFramework.Create;
+			js.DefineGlobal('g_bin_file_name', ExtractFileName(inf));
+			tk := js.DecompileKonfig(k, script, @status);
+			if status then
+				WriteLn('loading ok')
+			else
+				WriteLn('loading failed');
+			js.Free
 		end;
 
 		tk.SaveToFile(outf);
@@ -134,7 +126,7 @@ begin
 	Writeln('-l option = compile/decompile level.bin');
 	Writeln('-ll option = compile/decompile bin from Last Light or later versions');
 	Writeln('-k option = config type, may be 3, 4, 5, 16 or 36, by default 5');
-	Writeln('-build_15_10_2012 = decompile level.bin from Metro Last Light Build 2662 (from Oct 15, 2012)');
+	Writeln('-build_15_10_2012 = decompile level.bin from Metro Last Light Build 2662 (Oct 15, 2012)');
 end;
 
 var

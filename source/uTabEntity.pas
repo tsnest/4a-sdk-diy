@@ -24,19 +24,16 @@ uses
 	script_editor, properties, 
 	uChoose, uEditorUtils, uEntity, uScene, uTemplates, uLevelUndo, uLEOptions;
 
-var select_created : Boolean;
-
-function tg_select_new_cb(ih : Ihandle; state : Longint) : Longint; cdecl;
-begin
-	select_created := state = 1;
-	Result := IUP_DEFAULT;
-end;
-
-function btn_add_template_cb(ih : Ihandle) : Longint; cdecl;
+var 
+	select_created : Boolean;
+	clipboard : TSection = nil;
+	
+	tree_templates : Ihandle;
+	menu_templates : Ihandle;
+	
+procedure CreateNewTemplate(tree : Ihandle);
 var
 	I : Longint;
-	t : Ihandle;
-
 	format : String;
 	
 	name : array[0..255] of Char;
@@ -47,21 +44,19 @@ var
 	pref : String;
 	full_path : Longint;
 begin
-	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
-	
 	// get prefix
-	I := IupGetInt(t, 'VALUE');
+	I := IupGetInt(tree, 'VALUE');
 	if I >= 0 then
 	begin
-		if IupGetAttributeId(t, 'KIND', I) = 'BRANCH' then
-			pref := IupGetAttributeId(t, 'TITLE', I) + '\';
+		if IupGetAttributeId(tree, 'KIND', I) = 'BRANCH' then
+			pref := IupGetAttributeId(tree, 'TITLE', I) + '\';
 	
-		while IupGetAttributeId(t, 'PARENT', I) <> nil do
+		while IupGetAttributeId(tree, 'PARENT', I) <> nil do
 		begin
-			I := IupGetIntId(t, 'PARENT', I);
+			I := IupGetIntId(tree, 'PARENT', I);
 			
-			if IupGetAttributeId(t, 'KIND', I) = 'BRANCH' then
-				pref := IupGetAttributeId(t, 'TITLE', I) + '\' + pref;
+			if IupGetAttributeId(tree, 'KIND', I) = 'BRANCH' then
+				pref := IupGetAttributeId(tree, 'TITLE', I) + '\' + pref;
 		end;
 	end else
 		pref := '';
@@ -97,41 +92,145 @@ begin
 				else
 					NewTemplate(pref + name, selected, TEntity(selected[pivot-1]));
 	
-				UpdateTemplates(t);
+				UpdateTemplates(tree);
 			end;
 		end;
 	end else
 		IupMessage('Message', 'Nothing selected!');
 	
 	selected.Free;
+end;
+	
+procedure RemoveSelectedTemplate(tree : Ihandle);
+var
+	id : Longint;
+	v : TSection;
+	title : String;
+	msg : String;
+begin
+	id := IupGetInt(tree, 'VALUE');
+	if id >= 0 then
+	begin
+		msg := 'Are you sure to remove ''' + IupGetAttributeId(tree, 'TITLE', id) + '''?';
+		if IupGetAttributeId(tree, 'KIND', id) = 'LEAF' then
+			title := 'Remove template'
+		else
+			title := 'Romove folder';
+	
+		if IupMessageAlarm(MainDialog, PAnsiChar(title), PAnsiChar(msg), 'YESNO') = 1 then
+		begin
+			v := TSection(IupGetAttributeId(tree, 'USERDATA', id));
+			DeleteTemplate(v);
+			IupSetAttributeId(tree, 'DELNODE', id, 'SELECTED');
+		end;
+	end;
+end;
 
+function menu_new_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	CreateNewTemplate(tree_templates);
+	Result := IUP_DEFAULT;
+end;
+
+function menu_new_folder_cb(ih : Ihandle) : Longint; cdecl;
+var
+	n : Longint;
+	s : TSection;
+	f : TSection;
+begin
+	n := IupGetInt(tree_templates, 'VALUE');
+	if (n >= 0) then
+	begin
+		if IupGetAttributeId(tree_templates, 'KIND', n) = 'LEAF' then
+			n := IupGetIntId(tree_templates, 'PARENT', n);
+			
+		s := TObject(IupGetAttributeId(tree_templates, 'USERDATA', n)) as TSection;
+		if s <> nil then
+		begin
+			f := s.AddSect('New Folder');
+			
+			if IupGetIntId(tree_templates, 'CHILDCOUNT', n) > 0 then
+			begin
+				n := IupGetIntId(tree_templates, 'LAST', n+1);
+				IupSetStrAttributeId(tree_templates, 'INSERTBRANCH', n, PAnsiChar(f.name));
+				n := IupGetInt(tree_templates, 'LASTADDNODE');
+			end else
+			begin
+				IupSetStrAttributeId(tree_templates, 'ADDBRANCH', n, PAnsiChar(f.name));
+				n := IupGetInt(tree_templates, 'LASTADDNODE');
+			end;
+			
+			IupSetAttributeId(tree_templates, 'USERDATA', n, Pointer(f));
+			IupSetInt(tree_templates, 'VALUE', n);
+			IupSetAttribute(tree_templates, 'RENAME', 'YES');
+		end;
+	end;
+	
+	Result := IUP_DEFAULT;
+end;
+	
+function menu_rename_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	IupSetAttribute(tree_templates, 'RENAME', 'YES');
+	Result := IUP_DEFAULT;
+end;
+
+function menu_remove_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	RemoveSelectedTemplate(tree_templates);
+	Result := IUP_DEFAULT;
+end;
+
+function menu_expand_all_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Result := IUP_DEFAULT;
+	IupSetAttribute(tree_templates, 'EXPANDALL', 'YES');
+end;
+
+function menu_collapse_all_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	Result := IUP_DEFAULT;
+	IupSetAttribute(tree_templates, 'EXPANDALL', 'NO');
+end;
+
+function tree_templates_rightclick_cb(ih : Ihandle) : Longint; cdecl;
+begin
+	IupPopup(menu_templates, IUP_MOUSEPOS, IUP_MOUSEPOS);
+	Result := IUP_DEFAULT;
+end;
+
+function tree_templates_rename_cb(ih : Ihandle; id : Longint; title : PAnsiChar) : Longint; cdecl;
+var
+	v : TSimpleValue;
+begin
+	v := TSimpleValue(IupGetAttributeId(ih, 'USERDATA', id));
+	if v <> nil then
+		v.name := title;
+		
+	Result := IUP_DEFAULT;
+end;
+
+function tg_select_new_cb(ih : Ihandle; state : Longint) : Longint; cdecl;
+begin
+	select_created := state = 1;
+	Result := IUP_DEFAULT;
+end;
+
+function btn_add_template_cb(ih : Ihandle) : Longint; cdecl;
+var
+	t : Ihandle;
+begin
+	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
+	CreateNewTemplate(t);
 	Result := IUP_DEFAULT;
 end;
 
 function btn_remove_template_cb(ih : Ihandle) : Longint; cdecl;
 var
 	t : Ihandle;
-	id : Longint;
-	v : TSection;
-	
-	msg : String;
 begin
 	t := IupGetDialogChild(ih, 'TREE_TEMPLATES');
-	id := IupGetInt(t, 'VALUE');
-	if id >= 0 then
-	begin
-		msg := 'Are you sure to remove ''' + IupGetAttributeId(t, 'TITLE', id) + '''?';
-	
-		if IupMessageAlarm(MainDialog, 'Remove template', PAnsiChar(msg), 'YESNO') = 1 then
-		begin
-			v := TSection(IupGetAttributeId(t, 'USERDATA', id));
-			DeleteTemplate(v);
-			
-			//UpdateTemplates(t);
-			IupSetAttributeId(t, 'DELNODE', id, 'SELECTED');
-		end;
-	end;
-
+	RemoveSelectedTemplate(t);
 	Result := IUP_DEFAULT;
 end;
 
@@ -223,7 +322,7 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-procedure property_before_change_cb(prop : TSimpleValue) cdecl;
+procedure property_before_change_cb(tree : Ihandle; prop : TSimpleValue) cdecl;
 var
 	sel : TEntityArray;
 begin
@@ -231,7 +330,7 @@ begin
 	UndoSave('Property changed: ''' + prop.name + ' : ' + prop.vtype + '''', sel);
 end;
 
-procedure property_after_change_cb(prop : TSimpleValue) cdecl;
+procedure property_after_change_cb(tree : Ihandle; prop : TSimpleValue) cdecl;
 var
 	mat : TMatrix;
 	selected : TEntityArray;
@@ -362,11 +461,13 @@ begin
 			str := s.str;
 			if ChooseBone(skeleton, str) then
 			begin
-				before_change_cb(s);
-				s.str := str;
-				after_change_cb(s);
+				before_change_cb(tree, s);
 				
+				s.str := str;
 				properties.UpdateCaption(tree, s);
+				
+				after_change_cb(tree, s);
+				
 				Result := 2;
 			end else
 				Result := 0;
@@ -393,11 +494,13 @@ begin
 			str := s.str;
 			if ChooseLocator(skeleton, str) then
 			begin
-				before_change_cb(s);
-				s.str := str;
-				after_change_cb(s);
+				before_change_cb(tree, s);
 				
+				s.str := str;
 				properties.UpdateCaption(tree, s);
+				
+				after_change_cb(tree, s);
+				
 				Result := 2;
 			end else
 				Result := 0;
@@ -414,11 +517,13 @@ begin
 			str := s.str;
 			if ChooseBonePart(skeleton, str) then
 			begin
-				before_change_cb(s);
-				s.str := str;
-				after_change_cb(s);
+				before_change_cb(tree, s);
 				
+				s.str := str;
 				properties.UpdateCaption(tree, s);
+				
+				after_change_cb(tree, s);
+				
 				Result := 2;
 			end else
 				Result := 0;
@@ -435,11 +540,13 @@ begin
 			str := s.str;
 			if ChooseAnimation(skeleton, str) then
 			begin
-				before_change_cb(s);
-				s.str := str;
-				after_change_cb(s);
+				before_change_cb(tree, s);
 				
+				s.str := str;
 				properties.UpdateCaption(tree, s);
+				
+				after_change_cb(tree, s);
+				
 				Result := 2;
 			end else
 				Result := 0;
@@ -459,7 +566,7 @@ end;
 function CreateTab : Ihandle;
 var
 	fr_create : Ihandle;
-	tree_templates : Ihandle;
+	//tree_templates : Ihandle;
 	list_transform : Ihandle;
 	tg_select_new : Ihandle;
 	btn_add, btn_remove, btn_rename_template : Ihandle;
@@ -471,6 +578,9 @@ begin
 	tree_templates := IupSetAttributes(IupTree, 'NAME=TREE_TEMPLATES, RASTERSIZE=200x');
 	IupSetAttribute(tree_templates, 'ADDEXPANDED', 'NO');
 	IupSetAttribute(tree_templates, 'ADDROOT', 'NO');
+	IupSetAttribute(tree_templates, 'SHOWRENAME', 'YES');
+	IupSetCallback(tree_templates, 'RIGHTCLICK_CB', @tree_templates_rightclick_cb);
+	IupSetCallback(tree_templates, 'RENAME_CB', @tree_templates_rename_cb);
 
 	list_transform := IupList(nil);
 	IupSetAttributes(list_transform, 'NAME=LIST_TRANSFORM, DROPDOWN=YES');
@@ -517,6 +627,17 @@ begin
 	);
 	IupSetAttributes(fr_entity, 'TITLE=Entity, NAME=FRAME_ENTITY, VISIBLE=NO');
 	
+	menu_templates := IupMenu(
+		iup.MenuItem('New', @menu_new_cb),
+		iup.MenuItem('New Folder', @menu_new_folder_cb),
+		iup.MenuItem('Rename', @menu_rename_cb),
+		iup.MenuItem('Delete', @menu_remove_cb),
+		IupSeparator,
+		iup.MenuItem('Expand All', menu_expand_all_cb),
+		iup.MenuItem('Collapse All', menu_collapse_all_cb),
+		nil
+	);
+	
 	Result := IupVBox(fr_create, fr_entity, nil)
 end;
 
@@ -538,9 +659,6 @@ begin
 	else
 		IupSetAttribute(frame, 'VISIBLE', 'NO');
 end;
-
-var
-	clipboard : TSection = nil;
 	
 procedure ProxyFromSelection(e : TEntity);
 var

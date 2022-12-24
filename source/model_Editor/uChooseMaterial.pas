@@ -14,6 +14,7 @@ var
 	
 	K : TKonfig;
 	tk : TTextKonfig;
+	js : TFramework;
 	
 	arr : TSection;
 	elem : TSection;
@@ -25,8 +26,9 @@ begin
 	K := KonfigLibrary.GetKonfig('render_subst_all');
 	if K <> nil then
 	begin
-		framework.Initialize;
-		tk := framework.DecompileKonfig(K, 'js\render_subst_all.js');
+		js := TFramework.Create;
+		tk := js.DecompileKonfig(K, 'js\render_subst_all.js');
+		js.Free;
 		K.Free;
 		
 		shaders := TStringList.Create;
@@ -66,6 +68,7 @@ var
 	
 	K : TKonfig;
 	tk : TTextKonfig;
+	js : TFramework;
 	
 	arr : TSection;
 	elem : TSection;
@@ -77,8 +80,9 @@ begin
 	K := KonfigLibrary.GetKonfig('game_materials');
 	if K <> nil then
 	begin
-		framework.Initialize;
-		tk := framework.DecompileKonfig(K, 'js\game_materials.js');
+		js := TFramework.Create;
+		tk := js.DecompileKonfig(K, 'js\game_materials.js');
+		js.Free;
 		K.Free;
 		
 		materials := TStringList.Create;

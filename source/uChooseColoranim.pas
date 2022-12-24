@@ -85,6 +85,7 @@ constructor TChooseColoranim.Create;
 var
 	I, J : Longint;
 	K : TKonfig;
+	js : TFramework;
 	arr : TSection;
 	elem : TSimpleValue;
 	
@@ -102,12 +103,12 @@ begin
 	K := KonfigLibrary.GetKonfig('color_anim_lib');
 	if K <> nil then
 	begin
-		framework.Initialize;
+		js := TFramework.Create;	
 		if Engine.version >= eVerLLBeta15102012 then
-			ca_library := framework.DecompileKonfig(K, 'js\ll\color_anim_lib.js')
+			ca_library := js.DecompileKonfig(K, 'js\ll\color_anim_lib.js')
 		else
-			ca_library := framework.DecompileKonfig(K, 'js\2033\color_anim_lib.js');
-		framework.Finalize;
+			ca_library := js.DecompileKonfig(K, 'js\2033\color_anim_lib.js');
+		js.Free;
 		
 		K.Free;
 	end;

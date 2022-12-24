@@ -66,11 +66,13 @@ begin
 		
 		if EditChoose(str, False, list, 'Select sound effect') then
 		begin
-			if Assigned(before_change_cb) then before_change_cb(s);
-			s.str := str;
-			if Assigned(after_change_cb) then after_change_cb(s);
+			if Assigned(before_change_cb) then before_change_cb(tree, s);
 			
+			s.str := str;
 			properties.UpdateCaption(tree, s);
+			
+			if Assigned(after_change_cb) then after_change_cb(tree, s);
+			
 			Result := 2
 		end else
 			Result := 0;
@@ -92,11 +94,13 @@ begin
 		
 		if EditChooseArray(str, list, 'Select random sounds') then
 		begin
-			if Assigned(before_change_cb) then before_change_cb(s);
-			s.str := str;
-			if Assigned(after_change_cb) then after_change_cb(s);
+			if Assigned(before_change_cb) then before_change_cb(tree, s);
 			
+			s.str := str;
 			properties.UpdateCaption(tree, s);
+			
+			if Assigned(after_change_cb) then after_change_cb(tree, s);
+
 			Result := 2
 		end else
 			Result := 0;
@@ -117,11 +121,13 @@ begin
 		
 		if EditChoose(str, False, list, 'Select sound echo') then
 		begin
-			if Assigned(before_change_cb) then before_change_cb(s);
-			s.str := str;
-			if Assigned(after_change_cb) then after_change_cb(s);
+			if Assigned(before_change_cb) then before_change_cb(tree, s);
 			
+			s.str := str;
 			properties.UpdateCaption(tree, s);
+			
+			if Assigned(after_change_cb) then after_change_cb(tree, s);
+			
 			Result := 2
 		end else
 			Result := 0;

@@ -170,25 +170,27 @@ end;
 function GetSoundParams : TTextKonfig;
 var
 	K : TKonfig;
+	js : TFramework;
 begin
 	if sound_params = nil then
 	begin
 		if FileExists(ResourcesPath + '\sounds\sounds.bin') then
 		begin
-			framework.Initialize;
+			js := TFramework.Create;
+			
 			K := TKonfig.Create;
 			K.Load(ResourcesPath + '\sounds\sounds.bin');
 			
 			case version of
-				eVer2033:           sound_params := framework.DecompileKonfig(K, 'js\2033\sounds.js');
-				eVerLLBeta15102012: sound_params := framework.DecompileKonfig(K, 'js\ll_beta_15_10_2012\sounds.js');
+				eVer2033:           sound_params := js.DecompileKonfig(K, 'js\2033\sounds.js');
+				eVerLLBeta15102012: sound_params := js.DecompileKonfig(K, 'js\ll_beta_15_10_2012\sounds.js');
 				eVerLLBeta03122012,
-				eVerLL:             sound_params := framework.DecompileKonfig(K, 'js\ll\sounds.js');
-				eVerRedux:          sound_params := framework.DecompileKonfig(K, 'js\redux\sounds.js');
+				eVerLL:             sound_params := js.DecompileKonfig(K, 'js\ll\sounds.js');
+				eVerRedux:          sound_params := js.DecompileKonfig(K, 'js\redux\sounds.js');
 			end;
 			
 			K.Free;
-			framework.Finalize;
+			js.Free;
 		end;
 	end;
 	

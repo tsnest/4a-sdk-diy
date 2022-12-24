@@ -30,12 +30,16 @@ var
 procedure LoadDescs(const fn : String; tree : Ihandle);
 procedure UnloadDescs;
 
-function GetBlockDesc(blk : TSection; out unique : Boolean) : TBlockDesc;
+function GetBlockDesc(const clsid : String; blk : TSection; out unique : Boolean) : TBlockDesc;
+function NeedUpdateBlockDesc(const clsid : String; const name,vtype : String; data : TSection) : Boolean;
 
 procedure CalcBlockSize(desc : TBlockDesc; font : TGLFont; out width, height : Longint);
 
 implementation
-uses sysutils, Math, uEditorUtils;
+uses sysutils, Math, uEditorUtils, framework;
+
+var
+	script_descs : TFramework;
 
 constructor TBlockDesc.Create;
 begin
@@ -80,14 +84,14 @@ begin
 				for J := 0 to props.items.Count - 1 do
 					desc.props.items.Add(TSimpleValue(props.items[J]).Copy);
 					
-			iup.SetStrAttribute(tree, 'ADDLEAF' + IntToStr(ref), s.name);
+			IupSetStrAttributeId(tree, 'ADDLEAF', ref, PAnsiChar(s.name));
 			J := IupGetInt(tree, 'LASTADDNODE');
-			iup.SetAttribute(tree, 'USERDATA' + IntToStr(J), Pointer(desc));
+			IupSetAttributeId(tree, 'USERDATA', J, Pointer(desc));
 		end else
 		begin
-			iup.SetStrAttribute(tree, 'ADDBRANCH' + IntToStr(ref), s.name);
+			IupSetStrAttributeId(tree, 'ADDBRANCH', ref, PAnsiChar(s.name));
 			J := IupGetInt(tree, 'LASTADDNODE');
-			iup.SetAttribute(tree, 'USERDATA' + IntToStr(J), nil);
+			IupSetAttributeId(tree, 'USERDATA', J, nil);
 			
 			_LoadDescs(s, tree, J);
 		end;
@@ -99,6 +103,9 @@ var
 	I : Integer;
 	k : TTextKonfig;
 begin
+	script_descs := TFramework.Create;
+	script_descs.ExecuteScript('js\editor\' + fn + '.js');
+
 	SetLength(block_descs, 1);
 	
 	// block_descs[0] is default desc
@@ -112,7 +119,7 @@ begin
 
 	k := TTextKonfig.Create;
 	try
-		k.LoadFromFile(fn);		
+		k.LoadFromFile('editor_data\' + fn + '.txt');		
 		_LoadDescs(k.root, tree, -1);
 	finally
 		k.Free;
@@ -126,43 +133,25 @@ begin
 	for I := 0 to Length(block_descs) - 1 do
 		block_descs[I].Free;
 	SetLength(block_descs, 0);
+	
+	script_descs.Free;
 end;
 
-function GetBlockDesc(blk : TSection; out unique : Boolean) : TBlockDesc;
+function GetBlockDesc(const clsid : String; blk : TSection; out unique : Boolean) : TBlockDesc;
 var
 	desc : TBlockDesc;
-	I : Longint;
-	clsid : String;
-	cnt : Longint;
+	I : Longint;	
+	scdesc : TFrameworkBlockDesc;
 begin
-	clsid := blk.GetStr('clsid');
-
-	if clsid = 'trade/trade trigger' then
+	if script_descs.GetBlockDesc(clsid, blk, scdesc) then
 	begin
 		unique := True;
 		
 		desc := TBlockDesc.Create;
 		desc.clsid := clsid;
 		
-		SetLength(desc.in_names, 2);
-		desc.in_names[0] := 'enable';
-		desc.in_names[1] := 'disable';
-		
-		cnt := blk.GetInt('objects_count', 'u32');
-		SetLength(desc.out_names, 7 + (cnt * 2));
-		desc.out_names[0] := 'nomoney';
-		desc.out_names[1] := 'success';
-		desc.out_names[2] := 'toomany';
-		desc.out_names[3] := 'finish';
-		desc.out_names[4] := 'the same';
-		desc.out_names[5] := 'no buy (for ammo)';
-		desc.out_names[6] := 'no sell (for ammo)';
-		for I := 0 to cnt -1 do
-		begin
-			desc.out_names[7+I*2  ] := 'Object ' + IntToStr(I) + ' activate';
-			desc.out_names[7+I*2+1] := 'Object ' + IntToStr(I) + ' deactivate';
-		end;
-		
+		desc.in_names := scdesc.in_names;
+		desc.out_names := scdesc.out_names;
 	end else
 	begin
 		unique := False;
@@ -177,6 +166,11 @@ begin
 	end;
 	
 	Result := desc;
+end;
+
+function NeedUpdateBlockDesc(const clsid : String; const name,vtype : String; data : TSection) : Boolean;
+begin
+	Result := script_descs.NeedUpdateBlockDesc(clsid, name, vtype, data);
 end;
 
 procedure CalcBlockSize(desc : TBlockDesc; font : TGLFont; out width, height : Longint);

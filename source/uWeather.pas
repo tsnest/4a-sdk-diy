@@ -36,21 +36,22 @@ var
 procedure Initialize;
 var
 	K : TKonfig;
+	js : TFramework;
 begin
 	K := KonfigLibrary.GetKonfig('environments');
 	if K <> nil then
 	begin
-		framework.Initialize;
+		js := TFramework.Create;
 		
 		case Engine.version of
-			eVer2033: k_env := framework.DecompileKonfig(K, 'js\2033\environments.js');
+			eVer2033: k_env := js.DecompileKonfig(K, 'js\2033\environments.js');
 			eVerLLBeta15102012,
 			eVerLLBeta03122012,
-			eVerLL:   k_env := framework.DecompileKonfig(K, 'js\ll\environments.js');
+			eVerLL:   k_env := js.DecompileKonfig(K, 'js\ll\environments.js');
 			else      k_env := nil;
 		end;
 		
-		framework.Finalize;
+		js.Free;
 		
 		K.Free;
 	end;
@@ -99,6 +100,7 @@ var
 	sin_theta, cos_theta : Single;
 	
 	K : TKonfig;
+	js : Tframework;
 begin
 	current := nil;
 	if t_sky <> nil then FreeTexture(t_sky);
@@ -113,9 +115,9 @@ begin
 			K := TKonfig.Create;
 			K.Load(ResourcesPath + '\environments\' + weather + '.bin');
 			
-			framework.Initialize;
-			k_env := framework.DecompileKonfig(K, 'js\redux\environments.js');
-			framework.Finalize;
+			js := TFramework.Create;
+			k_env := js.DecompileKonfig(K, 'js\redux\environments.js');
+			js.Free;
 			
 			K.Free;
 			
