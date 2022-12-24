@@ -68,10 +68,12 @@ type
 		options : array of TTextureParams;
 
 		constructor Create;
+		constructor CreateAndLoad(const fn : String; ver_hint : TTBVersion = tbVerUnknown); overload;
+		constructor CreateAndLoad(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown); overload;
 		destructor Destroy; override;
 
-		function Load(const fn : String; ver_hint : TTBVersion = tbVerUnknown) : Boolean; overload;
-		function Load(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown) : Boolean; overload;
+		procedure Load(const fn : String; ver_hint : TTBVersion = tbVerUnknown); overload;
+		procedure Load(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown); overload;
 		procedure Save(K : TTextKonfig);
 		function Find(const name : String) : PTextureParams;
 
@@ -93,10 +95,12 @@ type
 		aliases : TTexAliasesMap;
 	
 		constructor Create;
+		constructor CreateAndLoad(const fn : String); overload;
+		constructor CreateAndLoad(K : TKonfig); overload;
 		destructor Destroy; override;
 	
-		function Load(K : TKonfig) : Boolean; overload;
-		function Load(const filename : String) : Boolean; overload;
+		procedure Load(K : TKonfig); overload;
+		procedure Load(const filename : String); overload;
 	
 		function GetRealName(var n : String) : Boolean; 
 	end;
@@ -112,13 +116,25 @@ begin
 	aliases.Sorted := True;
 end;
 
+constructor TTexturesBin.CreateAndLoad(const fn : String; ver_hint : TTBVersion); overload;
+begin
+	Create;
+	Load(fn, ver_hint);
+end;
+
+constructor TTexturesBin.CreateAndLoad(K : TKonfig; ver_hint : TTBVersion); overload;
+begin
+	Create;
+	Load(K, ver_hint);	
+end;
+
 destructor TTexturesBin.Destroy;
 begin
 	aliases.Free;
 	inherited;
 end;
 
-function TTexturesBin.Load(const fn : String; ver_hint : TTBVersion = tbVerUnknown) : Boolean;
+procedure TTexturesBin.Load(const fn : String; ver_hint : TTBVersion = tbVerUnknown);
 var
 	r : TMemoryReader;
 	k : TKonfig;
@@ -126,12 +142,12 @@ begin
 	r := TMemoryReader.CreateFromFile(fn);
 	k := TKonfig.Create;
 	k.Load(r);
-	Result := Load(k, ver_hint);
+	Load(k, ver_hint);
 	k.Free;
 	r.Free;
 end;
 
-function TTexturesBin.Load(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown) : Boolean;
+procedure TTexturesBin.Load(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown);
 var
 	r : TKonfigReader;
 	aliases, a : TKonfigReader;
@@ -143,77 +159,86 @@ var
 	count : Longword;
 begin
 	r := TKonfigReader.Create(K, nil);
-	
-	aliases := r.TryReadArray('texture_aliases');
-	if aliases <> nil then
-	begin
-		version := tbVerLL;
-		
-		while aliases.More do
+	try
+		aliases := r.TryReadArray('texture_aliases');
+		if aliases <> nil then
 		begin
-			a := aliases.ReadSection('', False);
-			src := a.ReadString('src');
-			dst := a.ReadString('dst');
-			a.Free;
+			version := tbVerLL;
 			
-			self.aliases[src] := dst; 
-		end;
-		
-		aliases.Free;
-	end else
-	begin
-		if ver_hint = tbVerUnknown then
-			version := tbVer2033
-		else
-			version := ver_hint
-	end;
-
-	prefs := r.ReadArray('texture_params', @count);
-	I := 0;
-	while prefs.More do
-	begin
-		p := prefs.ReadSection('', False);
-		SetLength(options, I+1);
-		
-		with options[I] do
+			try
+				while aliases.More do
+				begin
+					a := aliases.ReadSection('', False);
+					src := a.ReadString('src');
+					dst := a.ReadString('dst');
+					a.Free;
+					
+					self.aliases[src] := dst; 
+				end;
+			finally
+				aliases.Free;
+			end;
+		end else
 		begin
-			ttype           := p.ReadS32('type');
-			animated        := p.ReadBool('animated');
-			fmt             := p.ReadU32('fmt');
-			r_width         := p.ReadU32('r_width');
-			r_height        := p.ReadU32('r_height');
-			name            := p.ReadName('name');
-			namecrc         := GetStringCrc(name);
-			bump_name       := p.ReadString('bump_name');
-			bump_height     := p.ReadFP32('bump_height');
-			if version >= tbVerLLBeta15102012 then
-				displ_mode  := p.ReadU8('displ_mode')
+			if ver_hint = tbVerUnknown then
+				version := tbVer2033
 			else
-				displ_mode  := 0;
-			parr_height     := p.ReadU8('parr_height');
-			det_name        := p.ReadString('det_name');
-			det_u_scale     := p.ReadFP32('det_u_scale');
-			det_v_scale     := p.ReadFP32('det_v_scale');
-			det_int			:= p.ReadFP32('det_int');
-			mip_enabled     := p.ReadBool('mip_enabled');
-			streamable      := p.ReadBool('streamable');
-			priority		:= p.ReadBool('priority');
-			if version = tbVer2033 then
-				isdeprecated := p.ReadBool('deprecated')
-			else
-				isdeprecated := False;
-			avg_color       := p.ReadU32('avg_color');
+				version := ver_hint
 		end;
+	
+		prefs := r.ReadArray('texture_params', @count);
+		try
+			I := 0;
+			while prefs.More do
+			begin
+				SetLength(options, I+1);
 		
-		p.Free;
-		Inc(I);
+				p := prefs.ReadSection('', False);
+				try	
+					with options[I] do
+					begin
+						ttype           := p.ReadS32('type');
+						animated        := p.ReadBool('animated');
+						fmt             := p.ReadU32('fmt');
+						r_width         := p.ReadU32('r_width');
+						r_height        := p.ReadU32('r_height');
+						name            := p.ReadName('name');
+						namecrc         := GetStringCrc(name);
+						bump_name       := p.ReadString('bump_name');
+						bump_height     := p.ReadFP32('bump_height');
+						if version >= tbVerLLBeta15102012 then
+							displ_mode  := p.ReadU8('displ_mode')
+						else
+							displ_mode  := 0;
+						parr_height     := p.ReadU8('parr_height');
+						det_name        := p.ReadString('det_name');
+						det_u_scale     := p.ReadFP32('det_u_scale');
+						det_v_scale     := p.ReadFP32('det_v_scale');
+						det_int			:= p.ReadFP32('det_int');
+						mip_enabled     := p.ReadBool('mip_enabled');
+						streamable      := p.ReadBool('streamable');
+						priority		:= p.ReadBool('priority');
+						if version = tbVer2033 then
+							isdeprecated := p.ReadBool('deprecated')
+						else
+							isdeprecated := False;
+						avg_color       := p.ReadU32('avg_color');
+					end;
+				finally
+					p.Free;
+				end;
+				
+				Inc(I);
+			end;
+		finally
+			prefs.Free;
+		end;
+	finally
+		r.Free;
 	end;
-	r.Free;
 	
 	if count <> Length(options) then
 		WriteLn('texture_prefs count (', count, ') is incorrect, must be ', Length(options));
-	
-	Load := True;
 end;
 
 procedure TTexturesBin.Save(K : TTextKonfig);
@@ -417,37 +442,55 @@ begin
 	aliases := TTexAliasesMap.Create;
 end;
 
+constructor TTextureAliases.CreateAndLoad(const fn : String); overload;
+begin
+	Create;
+	Load(fn);
+end;
+
+constructor TTextureAliases.CreateAndLoad(K : TKonfig); overload;
+begin
+	Create;
+	Load(K);
+end;
+
 destructor TTextureAliases.Destroy;
 begin
 	aliases.Free;
 	inherited Destroy;
 end;
 
-function TTextureAliases.Load(K : TKonfig) : Boolean;
+procedure TTextureAliases.Load(K : TKonfig);
 var
 	r : TKonfigReader;
 	aliases, a : TKonfigReader;
 	src, dst : String;
 begin
 	r := TKonfigReader.Create(K, nil);
-	
-	aliases := r.ReadArray('texture_aliases');
-	while aliases.More do
-	begin
-		a := aliases.ReadSection('', False);
-		src := a.ReadString('src');
-		dst := a.ReadString('dst');
-		a.Free;
-		
-		self.aliases[src] := dst; 
+	try
+		aliases := r.ReadArray('texture_aliases');
+		try
+			while aliases.More do
+			begin
+				a := aliases.ReadSection('', False);
+				try
+					src := a.ReadString('src');
+					dst := a.ReadString('dst');
+				finally
+					a.Free;
+				end;
+				
+				self.aliases[src] := dst; 
+			end;
+		finally
+			aliases.Free;
+		end;
+	finally
+		r.Free;
 	end;
-	
-	r.Free;
-	
-	Load := True;
 end;
 
-function TTextureAliases.Load(const filename : String) : Boolean;
+procedure TTextureAliases.Load(const filename : String);
 var
 	r : TMemoryReader;
 	k : TKonfig;
@@ -455,7 +498,7 @@ begin
 	r := TMemoryReader.CreateFromFile(filename);
 	k := TKonfig.Create;
 	k.Load(r);
-	Result := Load(k);
+	Load(k);
 	k.Free;
 	r.Free;
 end;

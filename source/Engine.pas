@@ -137,14 +137,20 @@ begin
 		else
 			tex_prefs_version := tbVerUnknown;
 			
-		texture_params := TTexturesBin.Create;
-		texture_params.Load(ResourcesPath + '\textures\textures.bin', tex_prefs_version);
+		try
+			texture_params := TTexturesBin.CreateAndLoad(ResourcesPath + '\textures\textures.bin', tex_prefs_version);
+		except on E: Exception do
+			WriteLn('textures.bin loading failed'#10 + E.ClassName + ': ' + E.Message);
+		end;
 	end;
 	
 	if FileExists(ResourcesPath + '\scripts\texture_aliases.bin') then
 	begin
-		texture_aliases := TTextureAliases.Create;
-		texture_aliases.Load(ResourcesPath + '\scripts\texture_aliases.bin');
+		try
+			texture_aliases := TTextureAliases.CreateAndLoad(ResourcesPath + '\scripts\texture_aliases.bin');
+		except on E: Exception do
+			WriteLn('texture_aliases.bin loading failed'#10 + E.ClassName + ': ' + E.Message);
+		end;
 	end;
 	
 	if FileExists(ResourcesPath + '\textures_handles_storage.bin') then
