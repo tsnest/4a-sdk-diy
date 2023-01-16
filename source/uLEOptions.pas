@@ -22,6 +22,8 @@ var
 	props_exclude_vss_ver_6 : Boolean = False;
 	props_two_column        : Boolean = False;
 	cull_distance           : Boolean = True;
+	
+	choose_sound_volume     : Longint = 100;
 
 implementation
 uses common, Inifiles, uLevelUndo;
@@ -57,12 +59,19 @@ props_two_column        := F.ReadBool('properties', 'two_column', False);
 
 cull_distance           := F.ReadBool('rendering', 'cull_distance', True);
 
+choose_sound_volume     := F.ReadInteger('choose_sound', 'volume', 100);
+
 F.Free;
 
 if not (m_move_axis in [maObject,maWorld]) then
 	m_move_axis := maObject;
 if not (m_rotate_axis in [maObject,maWorld,maGroup]) then
 	m_rotate_axis := maObject;
+	
+if (choose_sound_volume < 0) then
+	choose_sound_volume := 0;
+if (choose_sound_volume > 100) then
+	choose_sound_volume := 100;
 
 finalization
 
@@ -84,6 +93,8 @@ F.WriteFloat('clear_color', 'b', bkg_color.z);
 F.WriteFloat('clear_color', 'a', bkg_color.w);
 
 F.WriteBool('rendering', 'cull_distance', cull_distance);
+
+F.WriteInteger('choose_sound', 'volume', choose_sound_volume);
 
 F.Free;
 

@@ -1503,7 +1503,7 @@ begin
 		SaveGeom(path + '\' + filename + '.geom_pc');
 	
 	// save portals
-	if Length(portals) > 0 then
+	//if Length(portals) > 0 then
 	begin
 		w := TMemoryWriter.Create;
 		

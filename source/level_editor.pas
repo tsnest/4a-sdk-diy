@@ -1,5 +1,5 @@
 program level_Editor;
-uses Iup, Windows, GL, GLU, GLExt, sysutils, classes,
+uses Iup, Windows, GL, GLU, GLExt, sysutils, classes, ActiveX,
 	chunkedFile,
 	Math, vmath, PhysX, PHGroups,
 	Konfig, levelbin,
@@ -2592,7 +2592,12 @@ begin
 	IupOpen(nil, nil);
 	IupGLCanvasOpen;
 	
-	PHInitialize; // initialize PhysX
+	// initialize COM (for uChooseSound)
+	if FAILED(CoInitializeEx(nil, COINIT_APARTMENTTHREADED)) then
+		IupMessageError(nil, 'CoInitializeEx failed!');
+	
+	// initialize PhysX
+	PHInitialize; 
 
 	// parse command-line
 	P := 0;
@@ -2651,7 +2656,11 @@ begin
 	
 	FinalizeEngine;
 	
-	PHFinalize; // finalize PhysX
+	// finalize PhysX
+	PHFinalize;
+	
+	// finalize COM
+	CoUninitialize;
 
 	IupClose;
 end.

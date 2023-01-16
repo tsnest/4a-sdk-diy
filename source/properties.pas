@@ -24,7 +24,7 @@ uses
 	sysutils,
 	uScene, uEntity, vmath, uEditorUtils,
 	matrix_editor,
-	uChoose, uChooseTexture, uChooseColoranim, uLEOptions;
+	uChoose, uChooseTexture, uChooseColoranim, uChooseSound, uLEOptions;
 
 procedure UpdateCaption(tree : Ihandle; nid : Longint; v : TSimpleValue); overload;
 var

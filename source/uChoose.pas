@@ -12,7 +12,6 @@ function ChooseBonePart(skeleton : T4ASkeleton; var bone_part : String) : Boolea
 function ChooseAnimation(skeleton : T4ASkeleton; var anim : String) : Boolean;
 
 function ChooseParticles(var particles : String) : Boolean;
-function ChooseSound(var filename : String) : Boolean;
 
 implementation
 uses common, vmath, sysutils, classes, Engine,
@@ -621,51 +620,6 @@ begin
 		ChooseParticles := False;
 		
 	names.Free;
-end;
-
-// ---- Sound
-
-function ChooseSound(var filename : String) : Boolean;
-var
-	sounds_dir : String;
-	
-	dlg : Ihandle;
-	fn : String;
-
-	I : Integer;
-begin
-	sounds_dir := ExpandFileName(ResourcesPath + '\sounds\');
-
-	fn := sounds_dir + filename + '.vba';
-	if not FileExists(fn) then
-		fn := sounds_dir + filename + '.ogg';
-
-	dlg := IupFileDlg;
-	IupSetAttribute(dlg, 'DIALOGTYPE', 'OPEN');
-	iup.SetStrAttribute(dlg, 'FILE', fn);
-	IupSetAttribute(dlg, 'EXTFILTER', 'Sound files (*.ogg, *.vba)|*.ogg;*.vba|All files (*.*)|*.*');
-
-	IupPopup(dlg, IUP_CURRENT, IUP_CURRENT);
-
-	if IupGetInt(dlg, 'STATUS') = 0 then
-	begin
-		fn := IupGetAttribute(dlg, 'VALUE');
-		I := Pos(LowerCase(sounds_dir), LowerCase(fn));
-		if I > 0 then
-		begin
-			// cut path to meshes folder from file name
-			fn := ExtractRelativePath(sounds_dir, fn);
-			// cut extension
-			fn := ChangeFileExt(fn, '');
-			
-			filename := fn;
-			Result := True;
-		end else
-			Result := False;  
-	end else
-		Result := False;
-	
-	IupDestroy(dlg);
 end;
 
 end.
