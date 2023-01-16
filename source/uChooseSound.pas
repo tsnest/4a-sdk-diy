@@ -44,7 +44,7 @@ begin
 	TextOut(_hdc, 235, 10, '100% volume', 11);
 end;	
 
-function choose_sound_file_cb(dlg : Ihandle; file_name, status : PAnsiChar) : Longint;
+function choose_sound_file_cb(dlg : Ihandle; file_name, status : PAnsiChar) : Longint; cdecl;
 var
 	hr : HRESULT;
 	controls : IWMPControls;
@@ -113,7 +113,7 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function choose_sound_button_cb(ih : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint;
+function choose_sound_button_cb(ih : Ihandle; button, pressed, x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 var
 	_hwnd : HWND;
 	vol : Longint;
@@ -157,7 +157,7 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-function choose_sound_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longint;
+function choose_sound_motion_cb(ih : Ihandle; x, y : Longint; status : PAnsiChar) : Longint; cdecl;
 var
 	_hwnd : HWND;
 	vol : Longint;
