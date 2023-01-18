@@ -410,16 +410,95 @@ begin
 	end;
 end;
 
-procedure property_after_change_cb(tree : Ihandle; prop : TSimpleValue);
+function IndexOf(const s : String; const arr : array of String) : Longint;
+var I : Longint;
+begin
+	IndexOf := -1;
+	for I := 0 to Length(arr) - 1 do
+	begin
+		if arr[I] = s then
+		begin
+			IndexOf := I;
+			Exit;
+		end;
+	end;
+end;
+
+procedure property_after_change_cb(tree : Ihandle; prop : TSimpleValue); cdecl;
 var
 	editor : TScriptEditor;
+	
+	old_inpoints : array of String;
+	old_outpoints : array of String;
+	
+	I : Longint;
+	remap_idx : array of Longint;
+	
+	link : TLink;
+	del_links : TList;
 begin
 	editor := TScriptEditor(IupGetAttribute(IupGetDialog(tree), 'TScriptEditor->this'));
 	
 	if NeedUpdateBlockDesc(editor.sel_block.clsid, prop.name, prop.vtype, editor.sel_block.props) then
 	begin
+		old_inpoints := editor.sel_block.desc.in_names;
+		old_outpoints := editor.sel_block.desc.out_names;
+		
 		editor.sel_block.UpdateDesc;
 		CalcBlockSize(editor.sel_block.desc, editor.font, editor.sel_block.sizex, editor.sel_block.sizey);
+		
+		// remap points
+		del_links := TList.Create;
+		
+		// remap input points
+		SetLength(remap_idx, Length(old_inpoints));
+		for I := 0 to Length(old_inpoints) - 1 do
+			remap_idx[I] := IndexOf(old_inpoints[I], editor.sel_block.desc.in_names);
+			
+		for I := 0 to editor.links.Count - 1 do
+		begin
+			link := TLink(editor.links[I]);	
+			if link.block_to = editor.sel_block then
+			begin
+				if remap_idx[link.point_to] < 0 then
+				begin
+					if del_links.IndexOf(link) < 0 then
+						del_links.Add(link)
+				end else
+					link.point_to := remap_idx[link.point_to]; 
+			end;
+		end;
+		
+		// remap output points
+		SetLength(remap_idx, Length(old_outpoints));
+		for I := 0 to Length(old_outpoints) - 1 do
+			remap_idx[I] := IndexOf(old_outpoints[I], editor.sel_block.desc.out_names);
+			
+		for I := 0 to editor.links.Count - 1 do
+		begin
+			link := TLink(editor.links[I]);	
+			if link.block_from = editor.sel_block then
+			begin
+				if remap_idx[link.point_from] < 0 then
+				begin
+					if del_links.IndexOf(link) < 0 then
+						del_links.Add(link)
+				end else
+					link.point_from := remap_idx[link.point_from]; 
+			end;
+		end;
+		
+		// delete links that lost their points
+		for I := 0 to del_links.Count - 1 do
+		begin
+			link := TLink(del_links[I]);	
+			editor.links.Remove(link);
+			link.Free;
+		end;
+		
+		del_links.Free;
+		// end of remap points
+		
 		editor.SelectBlock(editor.sel_block);
 	end;
 end;
@@ -723,7 +802,7 @@ begin
 	tree_props := IupGetDialogChild(dlg, 'TREE_PROPS');
 	fr_properties := IupGetDialogChild(dlg, 'FRAME_PROPERTIES');
 
-	sel_block :=	block;
+	sel_block := block;
 	if Assigned(sel_block) then
 	begin
 		IupSetAttribute(fr_properties, 'VISIBLE', 'YES');
