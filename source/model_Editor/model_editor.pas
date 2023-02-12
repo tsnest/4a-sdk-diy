@@ -1,5 +1,5 @@
 program model_Editor;
-uses common, Iup,
+uses common, Iup, 
      GL, GLU, GLExt, 
      sysutils, classes, chunkedFile, vmath, PhysX, fouramdl,
      Engine, Texture,
@@ -503,7 +503,7 @@ var
 	begin
 		if ChildCount(id) > 0 then
 		begin
-			iup.SetAttribute(tree, 'ADDBRANCH'+IntToStr(ref), PAnsiChar(skeleton.bones[id].name));
+			IupSetAttributeId(tree, 'ADDBRANCH', ref, PAnsiChar(skeleton.bones[id].name));
 			ref := IupGetInt(tree, 'LASTADDNODE');
 			
 			for K := 0 to Length(skeleton.bones) - 1 do
@@ -512,7 +512,7 @@ var
 					AddBone(K, ref);
 			end;
 		end else
-			iup.SetAttribute(tree, 'ADDLEAF'+IntToStr(ref), PAnsiChar(skeleton.bones[id].name))
+			IupSetAttributeId(tree, 'ADDLEAF', ref, PAnsiChar(skeleton.bones[id].name))
 	end;
 begin
 	tree := IupGetDialogChild(MainDialog, 'TREE_SKELETON');
@@ -1694,7 +1694,7 @@ var
 	
 	tab_model : Ihandle;
 	tab_skeleton : Ihandle;
-	tabs : Ihandle;
+	tabs, tabs_scroll : Ihandle;
 	toolbox : Ihandle;
 
 	lod_box, list_lod, btn_lod_load, btn_lod_save, btn_lod_clear : Ihandle;
@@ -1854,8 +1854,10 @@ begin
 	tabs := IupTabs(tab_model, tab_skeleton, nil);
 	IupSetAttribute(tabs, 'TABTITLE0', 'Model');
 	IupSetAttribute(tabs, 'TABTITLE1', 'Skeleton');
+	
+	tabs_scroll := IupScrollBox(tabs);
 
-	toolbox := IupVBox(tabs, nil);
+	toolbox := IupVBox(tabs_scroll, nil);
 	IupSetAttribute(toolbox, 'MARGIN', '10x10');
 	IupSetAttribute(toolbox, 'GAP', '5x5');
 
