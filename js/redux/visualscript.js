@@ -1686,7 +1686,7 @@ var block_readers = {
 	"triggers/gasmask": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadBool("twigger_on_wear")
+		e.ReadBool("trigger_on_wear")
 	},
 	"triggers/generic": ReadTriggerZone,
 	"triggers/generic-no-player": ReadTriggerZone,

@@ -1874,11 +1874,11 @@ var block_readers = {
 		s.ReadU8("claymore_slot")         // .. + renamed
 		s.ReadU8("hud_object_slot")       // NEW in Exodus !!!
 		//slots.ReadBool("heap")          // REMOVED in Exodus !!!
-		s.ReadU8("primary_slot2")         // Exodus: changed ReadBool to ReadU8
+		s.ReadU8("primary_slot_2")        // Exodus: changed ReadBool to ReadU8
 		s.ReadU8("arrow_slot")            // ..
 		s.ReadU8("c4_slot")               // .. + renamed
 		s.ReadU8("lighter_slot")          // .. + renamed
-		s.ReadU8("grenade_flamestrower_slot") // NEW in Exodus !!!
+		s.ReadU8("grenade_flamethrower_slot") // NEW in Exodus !!!
 		s.ReadU8("shield_slot")          // Exodus: changed ReadBool to ReadU8 + renamed
 		s.ReadU8("arrow_breakable_slot") // NEW in Exodus !!!
 		s.ReadU8("arm_device_slot")      // NEW in Exodus !!!
@@ -3074,7 +3074,7 @@ var block_readers = {
 	"triggers/gasmask": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadBool("twigger_on_wear")
+		e.ReadBool("trigger_on_wear")
 	},
 	"triggers/game_difficulty": function(e)
 	{
