@@ -150,8 +150,8 @@ end;
 procedure TTexturesBin.Load(K : TKonfig; ver_hint : TTBVersion = tbVerUnknown);
 var
 	r : TKonfigReader;
-	aliases, a : TKonfigReader;
-	prefs, p : TKonfigReader;
+	aliases, a : IKonfigReader;
+	prefs, p : IKonfigReader;
 	
 	src, dst : String;
 	I : Longint;
@@ -463,7 +463,7 @@ end;
 procedure TTextureAliases.Load(K : TKonfig);
 var
 	r : TKonfigReader;
-	aliases, a : TKonfigReader;
+	aliases, a : IKonfigReader;
 	src, dst : String;
 begin
 	r := TKonfigReader.Create(K, nil);

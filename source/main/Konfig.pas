@@ -170,6 +170,7 @@ type
 
 		procedure Compile(from : TTextKonfig; ll : Boolean = False);
 		procedure Decompile(tk : TTextKonfig; ll : Boolean = False);
+		procedure DecompileIntoSection(s : TSection; ll : Boolean = False);
 	private
 		function AddWord(const w : String) : Longint;
 		procedure CompileSection(sect : TSection; w : TMemoryWriter; ll : Boolean);
@@ -179,7 +180,7 @@ type
 	end;
 
 implementation
-uses uCrc, uHashTable;
+uses uCrc, uHashTable, Parser;
 
 var
 	common_types_table : XHashTable;
@@ -226,117 +227,6 @@ end;
 
 type
 	TStringArray = array of String;
-
-	TParser = class
-		source : String;
-		pos : Longint;
-
-		constructor Create(const src : String);
-
-		procedure Error(const msg : String; p : Longint = 0);
-		function NextToken(var token : String; allowEOF : Boolean = False) : Boolean;
-	end;
-
-constructor TParser.Create(const src: string);
-begin
-	inherited Create;
-	source := src;
-	pos := 1;
-end;
-
-procedure TParser.Error(const msg : String; p : Longint);
-var
-	I : Longint;
-	line, ch : Integer;
-begin
-	I := 1;
-	line := 1;
-	ch := 1;
-
-	if p = 0 then
-		p := pos;
-
-	while I < p do
-	begin
-		if source[I] = #10 then
-		begin
-			Inc(line);
-			ch := 1;
-		end else
-			Inc(ch);
-
-		Inc(I);
-	end;
-
-	raise Exception.Create(IntToStr(line) + ':' + IntToStr(ch) + ': ' + msg);
-end;
-
-function TParser.NextToken(var token : String; allowEOF : Boolean) : Boolean;
-	function IsDelim : Boolean;
-	begin
-		IsDelim := source[pos] in [',', ':', ';', '=', '[', ']'];
-	end;
-	function IsSpace : Boolean;
-	begin
-		IsSpace := source[pos] in [' ', #10, #13, #9];
-	end;
-var
-	start : Longint;
-begin
-	while (pos <= Length(source)) and IsSpace do
-		Inc(pos);
-
-	if (pos <= Length(source)) and (source[pos] = '{') then
-	begin
-		start := pos;
-		while (pos <= Length(source)) and (source[pos] <> '}') do
-			Inc(pos);
-
-		if pos > Length(source) then
-			Error('unclosed comment', start)
-		else
-			Inc(pos); // skip }
-	end;
-
-	while (pos <= Length(source)) and IsSpace do
-		Inc(pos);
-
-	if pos <= Length(source) then
-	begin
-		if IsDelim then
-		begin
-			token := source[pos];
-			Inc(pos);
-		end else
-		if (source[pos] = '''') or (source[pos] = '"') then
-		begin
-			start := pos;
-			Inc(pos);
-			while (source[pos] <> source[start]) and (pos <= Length(source)) do
-				Inc(pos);
-
-			if pos > Length(source) then
-				Error('unclosed string', start);
-
-			token := Copy(source, start+1, pos-(start+1));
-			Inc(pos); // skip '
-		end else
-		begin
-			start := pos;
-			while (not IsDelim) and (not IsSpace) and (pos <= Length(source)) do
-				Inc(pos);
-
-			token := Copy(source, start, pos-start);
-		end;
-
-		Result := True;
-	end else
-	begin
-		Result := False;
-		if not allowEOF then
-			Error('unexpected end of file');
-	end;
-end;
 
 // Exception implementation
 constructor EParamNotFound.Create(const p_name, p_type : String);
@@ -1151,13 +1041,18 @@ begin
 end;
 
 procedure TKonfig.Decompile(tk: TTextKonfig; ll : Boolean);
+begin
+	DecompileIntoSection(tk.root, ll);
+end;
+
+procedure TKonfig.DecompileIntoSection(s : TSection; ll : Boolean);
 var
 	r : TMemoryReader;
 begin
 	if (kind = 3) or (kind = 5) then
 	begin
 		r := TMemoryReader.Create(data[0], Length(data));
-		DecompileConfig(tk.root.items, kind, r, ll);
+		DecompileConfig(s.items, kind, r, ll);
 		r.Free;
 	end else
 		raise Exception.Create('Cannot decompile config with kind='+IntToStr(kind));
@@ -1345,7 +1240,7 @@ begin
 					for J := 0 to Length(intarr.data) - 1 do
 						w.WriteLongword(intarr.data[J]);
 				end else
-					raise Exception.Create('Unknown TIntegerArrayValue type!');
+					raise Exception.Create('Unknown TIntegerArrayValue type! (' + item.vtype + ')');
 			end else
 			if item is TFloatArrayValue then
 			begin
@@ -1469,7 +1364,7 @@ begin
 					vtype := r.ReadStringZ;
 				end;
 				
-				//WriteLn(vname, ' ', vtype);
+				WriteLn(vname, ' ', vtype);
 			end;
 
 			if _IsHint(vtype) then
@@ -1975,8 +1870,9 @@ procedure TTextKonfig.Load(const str: String);
 var
 	parser : TParser;
 begin
-	parser := TParser.Create(str);
+	parser := TParser.Create(str, [',', ':', ';', '=', '[', ']'], False);
 	try
+		parser.StripComments;
 		ParseConfig(0, root.items, parser);
 	finally
 		parser.Free;

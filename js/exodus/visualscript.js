@@ -5,7 +5,7 @@ this.ReadBlock = ReadBlock
 // implementation
 var already_printed = new Object // not implemented classes
 var vs_clsid = module("vs_clsid")
-var entity_ver;
+var entity_ver = 0;
 
 function ReadVssVer6(e, entity_version)
 {
@@ -13,9 +13,9 @@ function ReadVssVer6(e, entity_version)
 
 	var v = e.TryReadArray("vss_ver_6") || e.ReadArray("vss_ver_7")
 	
-	for(var i = 0; v.More(); i++)
+	while(v.MoreElements())
 	{
-		var rec = v.ReadSection(RecStr("rec_", i, 4), false)
+		var rec = v.NextElement()
 		ReadVS(rec)
 	}
 }
@@ -28,12 +28,11 @@ function ReadVS(e)
 	
 	blocks.ReadU16("version")
 	blocks.ReadU32("block_count")
-	blocks.ReadHint("array with no key", "array")
-	blocks.ReadU32("count")
 
-	for(var i = 0; blocks.More(); i++)
+	var arr = blocks.ReadArrayWithNoKey('block_%.5d');
+	while(arr.MoreElements())
 	{
-		var block = blocks.ReadSection(RecStr("block_", i, 4), false)
+		var block = arr.NextElement()
 		ReadBlock(block)
 	}
 	
@@ -96,12 +95,15 @@ function ReadVsRef(e, name)
 	
 	if(n.length > 0)
 	{
-		var i = 0, arr = e.ReadArray("exposed_blocks")
-		while(arr.More())
+		var arr = e.TryReadArray("exposed_blocks")
+		if(arr) // don't exist in version 52
 		{
-			var b = arr.ReadSection(RecStr("rec_", i++, 4), false);
-			b.ReadU16("blkid");
-			ReadBlock(b);
+			while(arr.MoreElements())
+			{
+				var b = arr.NextElement();
+				b.ReadU16("blkid");
+				ReadBlock(b);
+			}
 		}
 	}
 }
@@ -134,7 +136,7 @@ function ReadActionEngine3DText(e)
 	/* NEW in Exodus */ e.ReadString("dbg_skel")
 	e.ReadHintStr("bone", "choose")
 	e.ReadHintStr("font", "choose")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["geometry_check", "forward_render", "glow"])
 	e.ReadString("group_id")
 }
 
@@ -145,13 +147,17 @@ function ReadActionHit(e)
 	e.ReadHintStr("bone", "choose_array, str_shared") // Arktika.1: changed 'bone_str' to 'choose_array, str_shared'
 	e.ReadU8("hit_type")
 	//e.ReadBool("forbid_ai") // REMOVED in Arktika.1
-	e.ReadU8("flags", "bool8") // NEW in Arktika.1 !!!
+	
+	if(entity_ver < 53)
+		e.ReadBool8("flags", ["forbid_ai", "use_weapon"]) // NEW in Arktika.1 !!!
+	else
+		e.ReadBool8("flags", ["forbid_ai", "use_weapon", "forbid_sound"]) // NEW in Arktika.1 !!!
 }
 
 function ReadActionMove(e)
 {
-	e.ReadU8("flags", "bool8")
-	e.ReadU8("ex_flags", "bool8")
+	e.ReadBool8("flags", ["keep_move", "ignore_rot_x", "ignore_rot_y", "ignore_rot_z", "ignore_pos_x", "ignore_pos_y", "ignore_pos_z", "use_dest_coords"])
+	e.ReadBool8("ex_flags", ["offset_as_dest", "use_speed", "negate_vr_offset"])
 	e.ReadU8("smooth_type")
 	e.ReadVec3("offset")
 	e.ReadVec3("offset_angle", "ang3f")
@@ -169,8 +175,8 @@ function ReadActionPlayMotion(e)
 	e.ReadHintStr("bone_part", "part_str") // Arktika.1: changed 'part_id' to 'part_str'
 	e.ReadFP32("blend")
 	e.ReadFP32("speed")
-	e.ReadU8("force_looped")
-	e.ReadU8("flags", "bool8") // overlay, inverted, speed_replace
+	e.ReadU8("force_looped") // 0 = none, 1 = looped, 2 = not looped
+	e.ReadBool8("flags", ["overlay", "inverted", "speed_replace", "force_update"])
 }
 
 function ReadActionPlayMotionControl(e)
@@ -187,7 +193,7 @@ function ReadActionPlayMotionControl(e)
 	e.ReadFP32("spd_coef")
 	e.ReadFP32("spd_coef_acc")
 	e.ReadFP32("spd_coef_decc")
-	e.ReadU8("flags", "bool8")
+	e.ReadBool8("flags", ["force_looped", "fwd_inverted", "bwd_inverted"])
 	e.ReadU16("fwd_start_frame") // NEW in Arktika.1 !!!
 	e.ReadU16("fwd_end_frame")   // ..
 	e.ReadU16("bwd_start_frame") // ..
@@ -197,7 +203,7 @@ function ReadActionPlayMotionControl(e)
 function ReadActionPlayParticles(e)
 {
 	e.ReadHintStr("particles", "choose")
-	e.ReadU8("particles_flags", "bool8")
+	e.ReadBool8("particles_flags", ["start_as_free", "particles_constrained", "particles_ignore_parent_rotation", "deferred_stop", "mesh_source", "particles_ignore_parent_scale", "use_parent_color"])
 	e.ReadU32("particles_color", "color, u32")
 }
 
@@ -207,7 +213,7 @@ function ReadActionPlaySound(e)
 	e.ReadFP32("volume")
 	e.ReadU8("sound_filter")
 	e.ReadU8("sound_bus")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["instant", "looped", "enable_slowmo", "enable_fx", "check_gasmask", "pad_out"])
 	e.ReadU32("ai_sound_type")
 	e.ReadFP32("stop_interval")
 	e.ReadFP32("startus_intervalus")
@@ -246,7 +252,7 @@ function ReadActionSetInterest(e)
 	e.ReadFP32("look_probability")
 	e.ReadU32("ignore_angle_timeout")
 	//e.ReadBool("aim_interest"); // REMOVED in Exodus !!!
-	e.ReadU8("flags", "bool8")         // NEW in Exodus !!!
+	e.ReadBool8("flags", ["aim_interest", "force_keep_interest"])         // NEW in Exodus !!!
 	e.ReadHintStr("fx_anim", "choose") // ..
 	ReadTime(e, "fx_start_min")        // ..
 	ReadTime(e, "fx_start_max")        // ..
@@ -292,7 +298,7 @@ function ReadLogicDelay(e)
 {
 	ReadTime(e, "min")
 	ReadTime(e, "max")
-	e.ReadU8("dflags")
+	e.ReadBool8("dflags", ["one_at_a_time", "active"])
 }
 
 function ReadTrigger(e)
@@ -322,7 +328,7 @@ function ReadTriggerHit(e)
 	e.ReadHint("hit_types", "flags32") // NEW in Arktika.1 !!!
 	e.ReadU32("hit_types")
 	e.ReadBool("any_hit_type")
-	e.ReadU32("weapon_type")
+	e.ReadIdentifier("weapon_type")
 	e.ReadHintStr("bone", "attp_str")
 	e.ReadFP32("range_min")
 	e.ReadFP32("range_max")
@@ -346,7 +352,7 @@ function ReadTriggerZoneSpecial(e)
 	e.ReadHint("type_mask", "flags64")
 	e.ReadU64("type_mask")
 	e.ReadU8("max_refs")
-	e.ReadU8("flags8", "bool8") // nested_enter, nested_leave
+	e.ReadBool8("flags8", ["nested_enter", "nested_leave"])
 }
 
 var block_readers = {
@@ -377,7 +383,7 @@ var block_readers = {
 	"actions/activate-deactivate": function(e)
 	{
 		e.ReadBool("register")
-		e.ReadBool("force_dead") // NEW in Exodus !!!
+		if(entity_ver >= 53) e.ReadBool("force_dead") // NEW in Exodus !!!
 	},
 	"actions/actor movement": function(e)
 	{
@@ -430,7 +436,7 @@ var block_readers = {
 	"actions/ai/arahind jump": function(e)
 	{
 		e.ReadFP32("_max_height")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["_disable_when_busy", "_find_path_to_jump", "_keep_ceil_on_light"])
 		e.ReadFP32("_jump_search_radius")
 	},
 	"actions/ai/cover escape": function(e)
@@ -466,7 +472,7 @@ var block_readers = {
 		e.ReadU16("leader", "entity_link, uobject_link")
 		e.ReadU16("wait_point", "entity_link, uobject_link")
 		e.ReadHint("flags", "flags32")
-		e.ReadU32("flags")
+		e.ReadBool32("flags", ["ignore_combat", "should_face_leader", "hold_formation"], [0x1, 0x2, 0x4])
 		e.ReadFP32("far_distance_min")
 		e.ReadFP32("far_distance_max")
 		e.ReadFP32("follow_distance_min")
@@ -491,7 +497,7 @@ var block_readers = {
 	},
 	"actions/ai/monster face enemy": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["_face_enemy_move", "_face_enemy_stand"])
 		e.ReadFP32("_face_enemy_stand_speed")
 	},
 	"actions/ai/move": function(e)
@@ -500,7 +506,7 @@ var block_readers = {
 		e.ReadU32("shape_type")
 		e.ReadFP32("delta_height")
 		e.ReadU32("surface_type")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["rotate_toward_goal"])
 		e.ReadFP32("max_radius")
 	},
 	"actions/ai/state": function(e)
@@ -547,7 +553,7 @@ var block_readers = {
 		e.ReadFP32("free_vision_vis_threshold");
 		e.ReadFP32("free_vision_lum_min_distance");
 		e.ReadFP32("free_vision_force_danger_range")
-		e.ReadFP32("free_vision_surv_thread_threshold")
+		e.ReadFP32("free_vision_surv_threat_threshold")
 		e.ReadFP32("free_vision_surv_light_alert_threshold")
 		e.ReadFP32("free_vision_surv_vis_threshold")
 		e.ReadFP32("free_vision_surv_lum_min_distance")
@@ -571,7 +577,7 @@ var block_readers = {
 		e.ReadFP32("alert_vision_vis_threshold");
 		e.ReadFP32("alert_vision_lum_min_distance");
 		e.ReadFP32("alert_vision_force_danger_range")
-		e.ReadFP32("alert_vision_surv_thread_threshold")
+		e.ReadFP32("alert_vision_surv_threat_threshold")
 		e.ReadFP32("alert_vision_surv_light_alert_threshold")
 		e.ReadFP32("alert_vision_surv_vis_threshold")
 		e.ReadFP32("alert_vision_surv_lum_min_distance")
@@ -595,7 +601,7 @@ var block_readers = {
 		e.ReadFP32("danger_vision_vis_threshold");
 		e.ReadFP32("danger_vision_lum_min_distance");
 		e.ReadFP32("danger_vision_force_danger_range")
-		e.ReadFP32("danger_vision_surv_thread_threshold")
+		e.ReadFP32("danger_vision_surv_threat_threshold")
 		e.ReadFP32("danger_vision_surv_light_alert_threshold")
 		e.ReadFP32("danger_vision_surv_vis_threshold")
 		e.ReadFP32("danger_vision_surv_lum_min_distance")
@@ -613,14 +619,14 @@ var block_readers = {
 		//e.ReadU16("owner", "entity_link, uobject_link")
 		e.ReadHintStr("bone", "attp_str")
 		e.ReadMatrix43("offset", "pose, matrix_43T")
-		e.ReadU8("attach_type") // NEW in Exodus !!!
-		e.ReadU8("flags", "bool8")
+		e.ReadU8("attach_type") // NEW in Exodus !!! ( 0 = Auto Attach, 1 = Offset, 2 = Weapon Trade Offset )
+		e.ReadBool8("flags", ["auto_scale", "center_bounding_box"])
 	},
 	"actions/attach vs": function(e)
 	{
 		e.ReadString("name")
 		//e.ReadBool("disable_qsave") // REMOVED in Exodus !!!
-		e.ReadU8("save_flags", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("save_flags", ["disable_qsave", "save_on_nextlevel"]) // NEW in Exodus !!!
 		ReadVsRef(e, "vs") 
 	},
 	"actions/attack_hit_shell": null,
@@ -635,12 +641,12 @@ var block_readers = {
 		e.ReadHintStr("bone", "attp_str")
 		e.ReadMatrix43("offset", "pose, matrix_43T")
 		e.ReadU8("attach_type")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["auto_scale", "center_bounding_box"])
 		
 		e.ReadFP32("rotation_coef")
 		e.ReadFP32("accrue")
 		e.ReadFP32("falloff")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["use_rotation", "keep_dir", "precise_finish", "exclusive"])
 		e.ReadFP32("use_rotation_speed")
 	},
 	"actions/cap_health": function(e)
@@ -660,9 +666,9 @@ var block_readers = {
 		e.ReadHintStr("iconstamp_name", "choose")
 		e.ReadU8("def_idx")
 		var arr = e.ReadArray("icons")
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("rec_", i, 4), false)
+			var rec = arr.NextElement()
 			rec.ReadHintStr("icon", "choose")
 		}
 	},
@@ -692,9 +698,9 @@ var block_readers = {
 	"actions/cover_combat": function(e)
 	{
 		//e.ReadBool("make_cover_combat") // REMOVED in Exodus !!!
-		e.ReadU8("flags0", "bool8")   // NEW in Exodus !!!
+		e.ReadBool8("flags0", ["make_cover_combat", "_set_cover_dist", "_set_weight_delta"])   // NEW in Exodus !!!
 		e.ReadFP32("_cover_min_dist") // ..
-		e.ReadFP32("_cover_max_dist") // ..
+		e.ReadFP32("_common_max_dist") // ..
 		e.ReadFP32("_weight_delta")   // ..
 	},
 	"actions/cover_task_params": function(e)
@@ -732,7 +738,7 @@ var block_readers = {
 	"actions/disable_npc_collision": function(e)
 	{
 		e.ReadHint("flags", "flags8")
-		e.ReadU8("flags")
+		e.ReadBool8("flags", ["disable_rigid_bodies_collision", "disable_triggers_collision"], "u8") // really must be something like ReadBool16 (with masks), but this should work too
 	},
 	"actions/disable_sliding": null,
 	"actions/dynamite/throw_grenade": null,
@@ -746,9 +752,9 @@ var block_readers = {
 		e.ReadU32("cover_reuse_delay")
 		e.ReadU8("count")
 		e.ReadU8("team")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["spectator", "force_cover"])
 		e.ReadU32("sources_count")
-		e.ReadU8("ognore_mp_class_type")
+		e.ReadU8("ignore_mp_class_type")
 		e.ReadU32("states_count")
 		e.ReadU32("cur_state")
 		var count = e.ReadU8("states_count_pre")
@@ -808,7 +814,7 @@ var block_readers = {
 	{
 		e.ReadHintStr("particles", "choose") // Arktika.1: changed 'particles, str_shared' to 'choose'
 		e.ReadU16("hud_particles_type")
-		e.ReadU8("particles_flags", "bool8") // particles_constrained, allow_pp, allow_in_vr, allow_parent_velocity, persistent, ignore_fov, deferred_stop, particles_ignore_parent_rotation
+		e.ReadBool8("particles_flags", ["particles_constrained", "particles_ignore_parent_rotation", "deferred_stop", "ignore_fov", "persistent", "allow_parent_velocity", "allow_in_vr", "allow_pp"]) 
 		e.ReadU32("particles_color", "color, u32") // NEW in Exodus !!
 	},
 	"actions/engine/portal throughput": function(e)
@@ -844,7 +850,7 @@ var block_readers = {
 	"actions/engine/scale": function(e) // NEW in Redux!!
 	{
 		e.ReadVec3("scale")
-		e.ReadU8("flags1", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("flags1", ["absolute", "apply_to_children"]) // NEW in Exodus !!!
 	},
 	"actions/engine/scene_hud": function(e)
 	{
@@ -914,7 +920,7 @@ var block_readers = {
 		e.ReadFP32("current_value")
 		e.ReadFP32("distance")  // NEW in Exodus !!!
 		e.ReadBool("active")
-		e.ReadBool("registred")
+		e.ReadBool("registered")
 	},
 	"actions/engine/text_hud": function(e)
 	{
@@ -927,7 +933,7 @@ var block_readers = {
 		e.ReadU32("appearance_time")
 		e.ReadU32("ttl")
 		e.ReadU32("falloff_time")
-		e.ReadU8("time")
+		e.ReadU8("type")
 		e.ReadString("group_id_str")
 		e.ReadU32("icon_type")
 		e.ReadU8("h_alignment")
@@ -940,7 +946,7 @@ var block_readers = {
 		e.ReadU8("nick_position")
 		e.ReadU8("nick_space_count")
 		e.ReadVec2("icon_size")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["instant", "text_depend", "abs_coorsds", "icon_draw_first", "use_nickname", "swap_nick_text", "blink_mode"])
 	},
 	"actions/engine/texture prestream": function(e)
 	{
@@ -1027,7 +1033,7 @@ var block_readers = {
 	"actions/entity/set dao value": function(e)
 	{
 		e.ReadU32("dao_val")
-		e.ReadU8("flags", "bool8") // dao_auto, dao_imm
+		e.ReadBool8("flags", ["dao_auto", "dao_imm"])
 	},
 	"actions/entity/set health": function(e)
 	{
@@ -1043,7 +1049,7 @@ var block_readers = {
 	},
 	"actions/entity/useful for player": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["flag", "check_attached_loot", "can_dismantle"])
 	},
 	"actions/entity/wallmark": function(e)
 	{
@@ -1077,7 +1083,7 @@ var block_readers = {
 	"actions/extinguish": function(e)
 	{
 		e.ReadVec3("box_size")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["extinguish_target", "extinguish_box"])
 	},
 	"actions/find_cover": function(e)
 	{
@@ -1086,7 +1092,7 @@ var block_readers = {
 		e.ReadFP32("not_going_range")
 		e.ReadU8("goto_movement_type")
 		e.ReadU8("arrival_type")
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["do_not_unlock_cover", "need_turn", "exact_rotation", "int_light_damage", "int_heavy_damage"])
 		e.ReadFP32("distance_to_cover") // NEW in Exodus !!!
 		e.ReadFP32("approach_range")    // NEW in Exodus !!!
 		//
@@ -1162,7 +1168,7 @@ var block_readers = {
 		//for(var j = 0; j < 9; j++)
 		//	e.ReadFP32("param_"+j);
 		
-		e.ReadU8("flags0", "bool8");
+		e.ReadBool8("flags0", ["interact_rbodies","interact_cloths","interact_fluids","break_rbodies"]);
 		e.ReadBool("enable_rotation");
 		e.ReadVec3("rotation_power");
 		e.ReadU8("anim_type");
@@ -1201,9 +1207,13 @@ var block_readers = {
 		e.ReadFP32("not_going_range")
 		e.ReadU8("goto_movement_type")
 		e.ReadU8("arrival_type")
-		e.ReadU8("flags", "bool8") // movement_type, int_heavy_damage, int_light_damage, exact_rotation, need_turn, do_not_unlock_cover
+		e.ReadBool8("flags", ["do_not_unlock_cover", "need_turn", "exact_rotation", "int_light_damage", "int_heavy_damage"])
 		e.ReadFP32("distance_to_cover") // NEW in Arktika.1 !!!
 		e.ReadFP32("approach_range") // NEW in Arktika.1 !!!
+	},
+	"actions/hide mode": function(e)
+	{
+		e.ReadU8("hide_mode")
 	},
 	"actions/hint": function(e)
 	{
@@ -1216,8 +1226,8 @@ var block_readers = {
 		e.ReadBool("game_ui")
 		
 		e.ReadHintStr("hint", "choose")
-		e.ReadU8("flags", "bool8")
-		e.ReadHintStr("submit_action", "choose")
+		e.ReadBool8("flags", ["undisabled", "high_priority"])
+		e.ReadHintStr("submit_caption", "choose")
 		e.ReadHintStr("submit_text", "choose")
 	},
 	"actions/hit": ReadActionHit,
@@ -1225,8 +1235,8 @@ var block_readers = {
 	"actions/human/active_item": null,
 	"actions/human/aim_lag": function(e)
 	{
-		e.ReadU32("_anim_min_time_lo")
-		e.ReadU32("_anim_min_time_hi")
+		e.ReadU32("_aim_min_time_lo")
+		e.ReadU32("_aim_min_time_hi")
 	},
 	"actions/human/allow weapon change": function(e)
 	{
@@ -1267,20 +1277,26 @@ var block_readers = {
 		
 		// NEW in Exodus !!!
 		e.ReadHint("disabled_actions", "flags32") // scared_to_cover, ambush_cover, ambush, dodging, somersault, weapon_change, flanking
-		e.ReadU32("disabled_actions")
+		e.ReadBool32(
+			"disabled_actions",
+			["scared_to_cover", "ambush_cover", "ambush",    "dodging",   "somersault", "weapon_change", "flanking"],
+			[ 0x00000002,        0x00000004,     0x00000020,  0x00000008,  0x00000010,   0x000000C0,      0x00000100],
+			"u32"
+		)
 	},
 	"actions/human/enable danger delta": null,
 	"actions/human/enable panic": null,
 	"actions/human/enable sniper": null,
 	"actions/human/enable wounded combat": null,
 	"actions/human/enable_surrender": null,
+	"actions/human/fire_shooting_target": null,
 	"actions/human/fire_while_moving": null,
 	"actions/human/melee only": null,
 	"actions/human/neutral": function(e)
 	{
 		e.ReadU32("min_reaction_time")
 		e.ReadU32("max_reaction_time")
-		e.ReadU8("neutral_flags", "bool8")
+		e.ReadBool8("neutral_flags", ["check_visible", "check_real_visible"])
 	},
 	"actions/human/set_fire_target": function(e)
 	{
@@ -1292,7 +1308,7 @@ var block_readers = {
 	},
 	"actions/human/suppress cover": function(e)
 	{
-		e.ReadU8("flags0", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("flags0", ["_force_suppress_cover", "_blind_fire", "_enable_auto_aim"]) // NEW in Exodus !!!
 	},
 	"actions/human/surrender": function(e)
 	{
@@ -1364,14 +1380,14 @@ var block_readers = {
 	"actions/monster/arm_gunner": null,
 	"actions/monster/change_catfish_depth": function(e)
 	{
-		e.ReadFP32("destantion")
+		e.ReadFP32("destination")
 		e.ReadU32("duration")
 		e.ReadBool("hold_depth_state")
 	},
 	"actions/monster/dog": function(e)
 	{
 		e.ReadHint("flags", "flags32")
-		e.ReadU32("flags")
+		e.ReadBool32("flags", ["ignore_combat", "dog_vision_params"], [0x01, 0x04], "u32")
 		e.ReadFP32("min_distance")
 		e.ReadFP32("forward_max_distance")
 		e.ReadFP32("left_max_distance")
@@ -1514,7 +1530,7 @@ var block_readers = {
 	"actions/npc can play motion": null,
 	"actions/npc/action feelings": function(e)
 	{
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["vision", "sound"])
 	},
 	"actions/npc/anim_speed": function(e)
 	{
@@ -1530,11 +1546,11 @@ var block_readers = {
 	{
 		e.ReadFP32("dist")
 		e.ReadFP32("angle", "angle, fp32")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["check_npc", "only_obstacles"]) // not sure if it is correct lol
 	},
 	"actions/npc/choose_priority_target": function(e)
 	{
-		e.ReadU8("ch_flags0", "bool8")
+		e.ReadBool8("ch_flags0", ["los", "visible", "visible_strict"])
 		
 		e.ReadFP32("dist_factor")
 		e.ReadFP32("dist_min")
@@ -1665,7 +1681,7 @@ var block_readers = {
 	},
 	"actions/one shot": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["ai_sound", "skip_delta", "disable_effects"])
 	},
 	"actions/open fire": function(e)
 	{
@@ -1676,7 +1692,7 @@ var block_readers = {
 		e.ReadU32("max_queue_interval");	
 		//e.ReadBool("instant") // REMOVED in Arktika.1 !!!
 		// NEW in Arktika.1 !!!
-		e.ReadU8("flags0", "bool8"); // instant, ignore_ammo, ai_sound
+		e.ReadBool8("flags0", ["instant", "ignore_ammo", "ai_sound", "force_auto_aim"]);
 	},
 	"actions/p-force": function(e)
 	{
@@ -1685,7 +1701,8 @@ var block_readers = {
 		e.ReadFP32("max_influence_dst")
 		e.ReadString("bone")
 		e.ReadVec3("dir")
-		e.ReadU8("flags0", "bool8")
+		//if(version < 32) e.ReadBool8("flags0", ["instant", "in_local_coords", "single_force"])
+		e.ReadBool8("flags0", ["instant", "in_local_coords", "single_force", "as_torque"])
 	},
 	"actions/park_vehicle": null,
 	"actions/particles color blend": function(e)
@@ -1730,7 +1747,7 @@ var block_readers = {
 		e.ReadFP32("dec_speed")
 		e.ReadFP32("max_dist")
 		e.ReadFP32("min_fade")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["exponential", "directional", "check_visible", "single_instance", "restart_if_single", "stop_all_tracks"])
 		e.ReadU16("max_value_point", "entity_link, uobject_link")
 		ReadTime(e, "vis_fade_in") // NEW in Arktika.1 !!!
 		ReadTime(e, "vis_fade_out") // NEW in Arktika.1 !!!
@@ -1775,8 +1792,8 @@ var block_readers = {
 		
 		e.ReadHintStr("dbg_object_model", "choose") // Arktika.1: changed 'ref_model' to 'choose'
 		e.ReadHintStr("object_attp_id", "attp_str") // Arktika.1: changed 'locator_str' to 'attp_str'
-		e.ReadU8("flags0", "bool8")
-		e.ReadU8("flags1", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("flags0", ["move_to_mode", "precise_dest", "ignore_dest_rotation", "check_movement", "check_movement_move", "p2p_mode", "keep_x_pos", "keep_y_pos"])
+		e.ReadBool8("flags1", ["keep_z_pos"]) // NEW in Exodus !!!
 		e.ReadFP32("p2p_offset")
 		
 		e.ReadBool("stick_to_ai_map")	
@@ -1798,12 +1815,14 @@ var block_readers = {
 		e.ReadString("weapon_state");
 		e.ReadString("action");
 		e.ReadU16("target", "entity_link, uobject_link");
-		e.ReadHint("flags", "flags32");
-		e.ReadU32("flags");
+		e.ReadBool32("flags",
+			["precise_hit", "exact_rotation", "force_sprint", "disable_strafing"],
+			[ 0x01,          0x02,             0x04,           0x08]
+		)
 		e.ReadFP32("anim_state_approach_speed");
 		e.ReadFP32("approaching_accel");
 		
-		e.ReadU8("flags0", "bool8") // match_exact_goal, fire_while_move
+		e.ReadBool8("flags0", ["state_from_first", "match_exact_goal", "fire_while_move", "can_move_avoid"]) 
 	},
 	"actions/play sound": ReadActionPlaySound,
 	"actions/play sound ex": function(e)
@@ -1815,7 +1834,7 @@ var block_readers = {
 		// ? e.ReadU8("queueing")
 		e.ReadU8("flags")
 		e.ReadU32("delay")
-		e.ReadU8("new_flags", "bool8") // NEW in Arktika.1 !!!
+		e.ReadBool8("new_flags", ["third_person", "auto_interest", "check_alive"]) // NEW in Arktika.1 !!!
 		e.ReadU8("_subsequent") // NEW in Arktika.1 !!!
 		e.ReadU16Array16("weapon_tags") // NEW in Arktika.1 !!!
 	},
@@ -1841,13 +1860,13 @@ var block_readers = {
 	},
 	"actions/player/camera spring mode": function(e)
 	{
-		e.ReadU8("axis", "bool8")
+		e.ReadBool8("axis", ["axis_x", "axis_y", "axis_z"])
 		e.ReadVec3("inertion")
 		e.ReadVec3("target_proportion")
 	},
 	"actions/player/civil mode": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["instant_in", "instant_out", "high_priority", "keep_holster"])
 		var p = e.ReadSection("popups") // NEW in Exodus !!!
 		p.ReadU8("weapon_popup")        // ..
 		p.ReadU8("device_popup")        // ..
@@ -1914,9 +1933,9 @@ var block_readers = {
 	{
 		e.ReadBool("all")
 		var arr = e.ReadArray("ammo_types")
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("rec_", i, 4), false)
+			var rec = arr.NextElement()
 			rec.ReadBool("selected")
 			rec.ReadS32("count")
 		}
@@ -1924,7 +1943,11 @@ var block_readers = {
 	"actions/player/grenade_timeouts": function(e)
 	{
 		e.ReadU32("timeout_grenade_friend")
-		e.ReadU32("timeout_grename_enemy")
+		e.ReadU32("timeout_grenade_enemy")
+	},
+	"actions/player/head_delta": function(e)
+	{
+		e.ReadBool("body_rotation_enabled")
 	},
 	"actions/player/hide subj": function(e)
 	{
@@ -1965,7 +1988,7 @@ var block_readers = {
 		e.ReadFP32("softness")
 		e.ReadFP32("blend")
 		e.ReadU32("as_blend_time") // NEW in Exodus !!!
-		e.ReadU8("flags", "bool8") // rotate_to_target, rotate_precisely, skip_attach_on_deactivate, enable_soft_limits, xf_rot_forbid, use_bone_ang, return_noinput
+		e.ReadBool8("flags", ["rotate_to_target", "rotate_precisely", "skip_attach_on_deactivate", "enable_soft_limits", "xf_rot_forbid", "use_bone_ang", "return_noinput"])
 	},
 	"actions/player/luminocity correction": function(e)
 	{
@@ -1981,8 +2004,8 @@ var block_readers = {
 	"actions/player/power_off_control": null,
 	"actions/player/purge_ammo": function(e)
 	{
-		e.ReadU32Array("ammo_types", "identifier_array")
-		e.ReadU8("flags0", "bool8")
+		e.ReadIdentifierArray("ammo_types")
+		e.ReadBool8("flags0", ["all", "silent"])
 		e.ReadFP32("percentage")
 	},
 	"actions/player/restrictor_activate": null,
@@ -2000,6 +2023,13 @@ var block_readers = {
 	{
 		e.ReadBool("hands")
 		e.ReadBool("knife")
+	},
+	"actions/player/spend_ammo": function(e) // not used in original game
+	{
+		//if(version < 27) e.ReadU8("ammo_type")
+		e.ReadIdentifier("ammo_type")
+		e.ReadS32("ammo_count")
+		e.ReadBool("all")
 	},
 	"actions/player/torchlight_control": function(e)
 	{
@@ -2027,8 +2057,8 @@ var block_readers = {
 		e.ReadU16("fill_time")
 		e.ReadU8("count_for_fill")
 		e.ReadFP32("start_percent_fill")
-		e.ReadU8("multiply_plus")
-		e.ReadU8("multiply_minus")
+		e.ReadU8("mutiply_plus") // eww, not 'multiply' but 'mutiply', even in original engine...
+		e.ReadU8("mutiply_minus")
 		e.ReadHintStr("name_stamp", "choose")
 		e.ReadU8("idx_fill_def")
 	},
@@ -2135,7 +2165,7 @@ var block_readers = {
 	},
 	"actions/smell": function(e)
 	{
-		e.ReadU8("smell_flags", "bool8")
+		e.ReadBool8("smell_flags", ["smell_enabled", "smell_player_only"])
 		e.ReadFP32("smell_radius")
 		e.ReadU32("smell_interval")
 		e.ReadU8("smell_threat_type")
@@ -2145,13 +2175,13 @@ var block_readers = {
 		e.ReadU8("target_mental_state")
 		e.ReadFP32("disturb_threshold")
 		e.ReadFP32("light_alert_threshold")
-		e.ReadFP32("aleft_threshold")
+		e.ReadFP32("alert_threshold")
 		e.ReadFP32("danger_threshold")
 	},
 	"actions/species_behavior": function(e)
 	{
 		e.ReadBool("_use_defaults")
-		e.ReadU8("species_flags", "bool8")
+		e.ReadBool8("species_flags", ["species_behavior_enabled", "attack_peaceful_species", "skip_cover_in_enemy_dir", "skip_cover_in_enemy_dir_fear", "can_stand_in_fear", "can_stand_in_fear_cover"])
 		e.ReadU32("species_type")
 		e.ReadFP32("npc_threat_level")
 		e.ReadFP32("npc_courage_threshold")
@@ -2162,19 +2192,19 @@ var block_readers = {
 		e.ReadU32("species_fallback_cover")
 		e.ReadFP32("species_threat_can_stand_dist")
 		e.ReadU32("species_min_fallback_time")
-		e.ReadU32Array("species_enemy_blacklist")
-		e.ReadU32Array("species_attack_blacklist")
+		e.ReadIdentifierArray("species_enemy_blacklist")
+		e.ReadIdentifierArray("species_attack_blacklist")
 	},
 	"actions/static_combat": function(e)
 	{
 		// nearly same as in ReadBaseBrainUnit, except added model/dbg_skel
-		e.ReadU8("static_bombat_flags", "bool8");
+		e.ReadBool8("static_combat_flags", ["make_static_combat", "force_active_wo_enemy", "play_shot_delta", "aim_disabled", "aim_yaw", "aim_pitch", "not_use_cover", "shoot_while_moving"]);
 		e.ReadHintStr("model", "choose");
 		e.ReadString("dbg_skel");
 		e.ReadHintStr("static_idle", "animation_str");
 		e.ReadHintStr("static_attack", "animation_str");
 		e.ReadHintStr("static_reload_idle", "animation_str");
-		e.ReadHintStr("static_shoot", "animation_str");
+		e.ReadHintStr("static_shot", "animation_str"); // in level.bin it's static_shoot, here's static_shot :\
 		e.ReadHintStr("static_turn180l", "animation_str");  
 		e.ReadHintStr("static_turn90l", "animation_str"); 
 		e.ReadHintStr("static_turn0", "animation_str"); 
@@ -2214,7 +2244,7 @@ var block_readers = {
 	"actions/threat_params": function(e)
 	{
 		// same as in ReadBaseBrainUnit (levelbin.js)
-		e.ReadU32("la_free_interia_time")
+		e.ReadU32("la_free_inertia_time")
 		e.ReadU32("a_free_inertia_time")
 		e.ReadU32("ua_free_inertia_time")
 		e.ReadU32("d_la_sounds_all_time")
@@ -2250,7 +2280,7 @@ var block_readers = {
 	},
 	"actions/turn torchlight": function(e)
 	{
-		e.ReadU8('flags0', 'bool8')
+		e.ReadBool8("flags0", ["silent_mode"])
 	},
 	"actions/unlock_cover": function(e)
 	{
@@ -2298,9 +2328,9 @@ var block_readers = {
 	{
 		e.ReadHintStr("dbg_upgradable", "choose")
 		var arr = e.ReadArray("items")
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("rec_", i, 4), false)
+			var rec = arr.NextElement()
 			rec.ReadHintStr("item", "choose")
 		}
 		
@@ -2313,16 +2343,16 @@ var block_readers = {
 	},
 	"actions/wear binoculars": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["silent_mode"])
 	},
 	"actions/wear gasmask": function(e)
 	{
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["silent_mode"])
 	},
 	"actions/wear nightvision": function(e)
 	{
 		//e.ReadBool("instant") // REMOVED in Exodus
-		e.ReadU8("flags0", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("flags0", ["silent_mode"]) // NEW in Exodus !!!
 	},
 	"actions/wear_suit": function(e)
 	{
@@ -2350,10 +2380,10 @@ var block_readers = {
 		e.ReadString("dbg_skel")
 		
 		e.ReadU8("quant")
-		var o = e.ReadArray("outputs")
-		for(var i = 0; o.More(); i++)
+		var o = e.ReadArray("outputs", "output_%.2d")
+		while(o.MoreElements())
 		{
-			var rec = o.ReadSection(RecStr("output_", i, 2), false)
+			var rec = o.NextElement();
 			rec.ReadHintStr("anim", "choose")
 		}
 	},
@@ -2391,7 +2421,7 @@ var block_readers = {
 	"checker/entity/visible": null,
 	"checker/entity/visible4npc": function(e)
 	{
-		e.ReadU8("vis_flags0", "bool8")
+		e.ReadBool8("vis_flags0", ["los", "visible", "visible_strict"])
 	},
 	"checker/game_plus/started": null,
 	"checker/game_time/check_time": function(e)
@@ -2414,10 +2444,10 @@ var block_readers = {
 		//e.ReadString("dbg_skel")
 		
 		e.ReadU8("quant")
-		var o = e.ReadArray("outputs")
-		for(var i = 0; o.More(); i++)
+		var o = e.ReadArray("outputs", "output_%.2d")
+		while(o.MoreElements())
 		{
-			var rec = o.ReadSection(RecStr("output_", i, 2), false)
+			var rec = o.NextElement()
 			rec.ReadHintStr("model", "choose")
 		}
 	},
@@ -2429,14 +2459,14 @@ var block_readers = {
 	},
 	"checker/npc/enemy": function(e)
 	{
-		e.ReadU32Array("npc_clsid_vec", "identifier_array")
+		e.ReadIdentifierArray("npc_clsid_vec")
 		e.ReadBool("exclude_defenseless")
 		e.ReadBool("allow_inactive")
 	},
 	"checker/npc/has_enemy": function(e)
 	{
 		// same as checker/npc/pc_type
-		e.ReadU32Array("npc_clsid_vec", "identifier_array")
+		e.ReadIdentifierArray("npc_clsid_vec")
 		e.ReadBool("exclude_defenseless")
 	},
 	"checker/npc/is_group_leader": null,
@@ -2454,7 +2484,7 @@ var block_readers = {
 	"checker/npc/pc_type": function(e)
 	{
 		//e.ReadU32("npc_type")
-		e.ReadU32Array("npc_clsid_vec", "identifier_array")
+		e.ReadIdentifierArray("npc_clsid_vec")
 		e.ReadBool("exclude_defenseless")
 	},
 	"checker/npc/threat_dist": function(e)
@@ -2482,9 +2512,9 @@ var block_readers = {
 	{
 		e.ReadHintStr("dbg_upgradable", "choose")
 		var items = e.ReadArray("items")
-		for(var i = 0; items.More(); i++)
+		while(items.MoreElements())
 		{
-			var rec = items.ReadSection(RecStr("rec_", i, 4), false)
+			var rec = items.NextElement()
 			rec.ReadHintStr("item", "choose")
 		}
 	},
@@ -2564,13 +2594,13 @@ var block_readers = {
 	},
 	"entities/filters/weapon types filter": function(e)
 	{
-		e.ReadU32Array("weapon_types_filter", "identifier_array")
+		e.ReadIdentifierArray("weapon_types_filter")
 	},
 	"entities/monster_enemy": null,
 	"entities/npc_enemy": null,
 	"entities/npc_enemy_ex": function(e)
 	{
-		e.ReadU32Array("npc_type", "identifier_array")
+		e.ReadIdentifierArray("npc_type")
 		e.ReadBool("include_player")
 	},
 	"entities/pose weapon locator ref": function(e)
@@ -2698,17 +2728,17 @@ var block_readers = {
 	},
 	"logic/exposed_locker": function(e)
 	{
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["locked", "auto_lock", "next_frame", "two_frames"])
 		e.ReadString("exp_name")
 	},
 	"logic/hub": null,
 	"logic/locker" : function(e)
 	{
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["locked", "auto_lock", "next_frame", "two_frames"])
 	},
 	"logic/locker_base" : function(e)
 	{
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["locked", "auto_lock", "next_frame", "two_frames"])
 	},
 	"logic/or-2": function(e)
 	{
@@ -2810,21 +2840,21 @@ var block_readers = {
 		e.ReadU8("counter")
 		//e.ReadBool("unload_magazine") // REMOVED in Exodus !!
 		//e.ReadBool("attach_entity") // REMOVED in Exodus !!
-		e.ReadU8("flags", "bool8") // NEW in Exodus !!!
+		e.ReadBool8("flags", ["unload_magazine", "attach_entity", "active_weapon"]) // NEW in Exodus !!!
 	},
 	"trade/take item": function(e)
 	{
-		e.ReadU8('tradeflags8', 'bool8') // creating, force_activation, vs_use
+		e.ReadBool8("tradeflags8", ["vs_use", "creating"])
 	},
 	"trade/trade trigger": function(e)
 	{
 		e.ReadU8("trade_type") // < 7
 		e.ReadU32("current_object")
-		e.ReadU32("object_count_pre")
+		e.ReadU32("objects_count_pre")
 		e.ReadU32("trade_preset")
 		e.ReadU8("trade_mode")
-		e.ReadU8("flags1", "bool8") // флаги есть в движке
-		e.ReadU8("flags2", "bool8")
+		e.ReadBool8("flags1", ["can_sell_attaches", "need_attach", "_is_exchanging_enabled", "_is_deffered_crafting", "_destroy_item_on_sell", "_is_attaches_trade_enabled", "charity_attach_mode"])
+		e.ReadBool8("flags2", ["allow_items_sell", "trade_tiers", "tiers_for_tiers"])
 		e.ReadU32("objects_count")
 		e.ReadFP32("cam_track_accrue")
 		e.ReadFP32("cam_track_falloff")
@@ -2846,7 +2876,7 @@ var block_readers = {
 		ReadTrigger(e)
 		e.ReadBool("with_loaded")
 		e.ReadBool("as_percent")
-		e.ReadU32Array("ammo_types", "identifier_array")
+		e.ReadIdentifierArray("ammo_types")
 		var count = e.ReadU32("state_count")
 		for(var i = 0; i < count; i++)
 			e.ReadU32("state_" + (i+1) + "_ammo_count");
@@ -2884,7 +2914,7 @@ var block_readers = {
 	"trigger/pick up weapon": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadU32("weapon_type")
+		e.ReadIdentifier("weapon_type")
 		e.ReadBool("only_undiscovered")
 	},
 	"trigger/vision": function(e)
@@ -2896,7 +2926,7 @@ var block_readers = {
 	"triggers/active item": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadU32("weapon_type")
+		e.ReadIdentifier("weapon_type")
 	},
 	"triggers/active_state": ReadTrigger,
 	"triggers/aftercloned": function(e)
@@ -2907,7 +2937,7 @@ var block_readers = {
 	"triggers/am i enemy": function(e)
 	{
 		ReadTrigger_ee(e)
-		e.ReadU32Array("npc_type", "identifier_array")
+		e.ReadIdentifierArray("npc_type")
 		e.ReadFP32("safe_range")
 		e.ReadBool("exclude_defenseless")
 	},
@@ -2975,7 +3005,7 @@ var block_readers = {
 		//e.ReadBool("super_static") // REMOVED in Exodus !!
 		e.ReadU32("collisions_group")
 		//e.ReadBool("only_arrows") // REMOVED in Exodus !!!
-		e.ReadFP32("min_impusle") // NEW in Exodus !!!
+		e.ReadFP32("min_impulse") // NEW in Exodus !!!
 	},
 	"triggers/credits_finished": ReadTrigger,
 	"triggers/danger_activity": function(e)
@@ -3048,8 +3078,8 @@ var block_readers = {
 	{
 		ReadTrigger(e)
 		e.ReadU32("current_object")
-		var cnt = e.ReadU32("current_object_pre")
-		for(var i = 0; i < cnt; i++) {
+		var cnt = e.ReadU32("objects_count_pre")
+		for(var i = 1; i <= cnt; i++) {
 			e.ReadString("object_" + i + "_name")
 			e.ReadU16("object_" + i + "_link", "entity_link, uobject_link")
 			e.ReadString("entity_" + i + "_name")
@@ -3067,7 +3097,7 @@ var block_readers = {
 		e.ReadBool("any_aim_state")
 		var s = e.ReadSection("aim_states")
 		s.ReadHint("aim_state", "flags8")
-		s.ReadU8("aim_state")
+		s.ReadBool8("aim_state", ["aim_none", "aim_in", "aim_idle", "aim_out"], "u8")
 	},
 	"triggers/gamepad": ReadTrigger,
 	"triggers/gamepad_custom": ReadTrigger,
@@ -3101,8 +3131,8 @@ var block_readers = {
 		e.ReadFP32("aimap_threshold")
 		e.ReadU32("time_threshold")
 		e.ReadU8("_friend")
-		e.ReadU32Array("npc_type", "identifier_array")
-		e.ReadU8("flags8", "bool8")
+		e.ReadIdentifierArray("npc_type")
+		e.ReadBool8("flags8", ["ai_map_check", "busy_check", "use_frustum"])
 		e.ReadString("ex_prop")
 	},
 	"triggers/hit": ReadTriggerHit,
@@ -3115,13 +3145,13 @@ var block_readers = {
 	"triggers/illumination":function(e)
 	{
 		ReadTrigger(e)
-		e.ReadFP32("illuminated")
+		e.ReadFP32("illumination")
 	},
 	"triggers/input": function(e)
 	{
 		ReadTrigger(e)
 		e.ReadU32("action")
-		e.ReadU8("flags0", "bool8") // allow_input, network, check_on_activate, signal_on_activate
+		e.ReadBool8("flags0", ["allow_input", "network"])
 	},
 	"triggers/interest": function(e)
 	{
@@ -3159,10 +3189,14 @@ var block_readers = {
 			"abzaz_slot",
 			"aksu_slot",
 			"rpk_slot",
-			"ak sammy slot",
-			"kolya slot",
-			"vyhlop"
 		]
+		
+		if(entity_ver >= 53)
+			weapons.push(		
+				"ak sammy slot",
+				"kolya slot",
+				"vyhlop"
+			);
 			
 		ReadTrigger(e)
 		for(var i = 0; i < weapons.length; i++)
@@ -3177,7 +3211,7 @@ var block_readers = {
 		//e.ReadBool("enabled_shotgun")   // REMOVED in Arktika.1 !!!
 		
 		// NEW in Arktika.1 !!!
-		e.ReadU8("flags", "bool8") // dynamite, sticky_dynamite, flame_grenade, claymore, knife, launcher, shotgun, melee
+		e.ReadBool8("flags", ["dynamite", "sticky_dynamite", "flame_grenade", "claymore", "knife", "launcher", "shotgun", "melee"])
 	},
 	"triggers/is milestone": ReadTrigger,
 	"triggers/is player busy": ReadTrigger,
@@ -3194,7 +3228,7 @@ var block_readers = {
 	"triggers/loading_screen": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["enable_on_save_load"])
 	},
 	"triggers/medkit": ReadTrigger,
 	"triggers/menu activated": function(e)
@@ -3231,20 +3265,20 @@ var block_readers = {
 	"triggers/npc": function(e)
 	{
 		ReadTriggerZone(e)
-		e.ReadU32Array("npc_type", "identifier_array")
+		e.ReadIdentifierArray("npc_type")
 		e.ReadBool("_check_on_activate")
 	},
 	"triggers/npc enemy": function(e)
 	{
 		ReadTrigger_ee(e)
-		e.ReadU32Array("npc_type", "identifier_array")
+		e.ReadIdentifierArray("npc_type")
 	},
 	"triggers/npc enemy is close": function(e)
 	{
 		ReadTrigger_ee(e)
 		e.ReadFP32("distance")
 		e.ReadFP32("distance_far")
-		e.ReadU32("npc_type") // identifier probably
+		e.ReadIdentifier("npc_type") // identifier probably
 	},
 	"triggers/npc mental state": function(e)
 	{
@@ -3260,9 +3294,9 @@ var block_readers = {
 		e.ReadHint("hit_types", "flags32") // NEW in Exodus !!!
 		e.ReadU32("hit_types", "u32")      // NEW in Exodus !!!
 		e.ReadBool("any_hit_type")         // NEW in Exodus !!!
-		e.ReadU32("weapon_type")
+		e.ReadIdentifier("weapon_type")
 		e.ReadHintStr("bone", "attp_str")  // NEW in Exodus !!!
-		e.ReadU32("npc_type")
+		e.ReadIdentifier("npc_type")
 		e.ReadU8("friend")
 		e.ReadU8("mp_class_type")
 		e.ReadFP32("threshold_min")
@@ -3306,7 +3340,7 @@ var block_readers = {
 	{
 		ReadTrigger(e)
 		e.ReadBool("bullet_kill")
-		e.ReadU32("npc_type")
+		e.ReadIdentifier("npc_type")
 	},
 	"triggers/player in combat": ReadTrigger,
 	"triggers/player jumpon": function(e)
@@ -3330,12 +3364,12 @@ var block_readers = {
 	"triggers/player's state": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadU8("state", "bool8") // sprinting, running, walking, jumping, crouching, fwd_moving, falling
+		e.ReadBool8("state", ["sprinting", "running", "walking", "jumping", "crouching", "fwd_moving", "falling"]);
 	},
 	"triggers/player_special": function(e)
 	{
 		ReadTriggerZoneSpecial(e)
-		e.ReadU32("npc_type")
+		e.ReadIdentifier("npc_type")
 	},
 	"triggers/session countdown": function(e)
 	{
@@ -3349,7 +3383,7 @@ var block_readers = {
 	"triggers/startgame": function(e)
 	{
 		ReadTrigger(e)
-		e.ReadU8("flags", "bool8")
+		e.ReadBool8("flags", ["disable_when_ctrl_f5"])
 	},
 	"triggers/stopvideo": ReadTrigger,
 	"triggers/torch": ReadTrigger,
@@ -3360,7 +3394,7 @@ var block_readers = {
 		e.ReadHintStr("use_action", "choose")
 		//e.ReadVec2("use_offset") // REMOVED in Exodus !!!
 		e.ReadFP32("blink_distance")
-		e.ReadU8("flags8", "bool8") // blink, check_need_end, hold_user
+		e.ReadBool8("flags8", ["blink", "check_need_end", "ignore_busy"])
 		e.ReadU8("user_team")
 		e.ReadBool("in_reloading")
 		e.ReadU8Array("mp_classes")
@@ -3375,7 +3409,7 @@ var block_readers = {
 		//e.ReadHintStr("use_action", "choose")
 		//e.ReadVec2("use_offset") // REMOVED in Exodus !!!
 		e.ReadFP32("blink_distance")
-		e.ReadU8("flags8", "bool8") // blink, check_need_end, hold_user
+		e.ReadBool8("flags8", ["blink", "check_need_end", "ignore_busy"])
 		e.ReadU8("user_team")
 		e.ReadBool("in_reloading")
 		e.ReadU8Array("mp_classes")
@@ -3386,9 +3420,9 @@ var block_readers = {
 		e.ReadU8("active_image")
 		e.ReadU8("count_images")
 		var arr = e.ReadArray("images")
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("rec_", i, 4), false)
+			var rec = arr.NextElement()
 			rec.ReadHintStr("use_action", "choose")
 		}
 	},
@@ -3402,7 +3436,7 @@ var block_readers = {
 	{
 		ReadTrigger(e)
 		e.ReadU8("input_type")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["allow_input"])
 		e.ReadU32("direction")
 	},
 	"triggers/vehicles/hit": function(e)
@@ -3422,7 +3456,7 @@ var block_readers = {
 	{
 		ReadTrigger(e)
 		e.ReadFP32("speed_value")
-		e.ReadU8("flags0", "bool8")
+		e.ReadBool8("flags0", ["abs_values", "check_on_activate", "drifting"])
 	},
 	"triggers/vehicles/state": function(e)
 	{
@@ -3478,4 +3512,11 @@ var block_readers = {
 		e.ReadBool("keep_direction") // NEW in Exodus !!!
 		e.ReadBool("ai_sound")       // NEW in Exodus !!!
 	},
+	
+	// how to deal with this shit properly? game doesn't support there blocks, but they're used a lot in editor
+	"subscript/script" : null,
+	"subscript/script_block_input": null,
+	"subscript/script_block_output": null,
+	"subscript/script_block_reference": null,
+	"subscript/script_cover_reference": null,
 }

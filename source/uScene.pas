@@ -97,7 +97,7 @@ type
 		function GetVersion : TSceneVersion;
 		
 		procedure UpdateAttaches;
-		
+		procedure VerifyIDs;
 		
 		procedure LoadLevelCform(const dir : String);
 		procedure UnloadLevelCform;
@@ -321,11 +321,11 @@ begin
 			begin
 				E := TEntity.Create(ph_scene, ent);
 				entities.Add(E);
-				
+				{
 				if entities_by_ids[E.ID] <> nil then
 					ShowError('Entity ID conflict between ' + E.Name + ' and ' + entities_by_ids[E.ID].Name);
 					
-				entities_by_ids[E.ID] := E; 	
+				entities_by_ids[E.ID] := E; }	
 			end;
 			
 			if progress then
@@ -348,11 +348,11 @@ begin
 				begin
 					E := TEntity.Create(ph_scene, ent);
 					entities.Add(E);
-					
+					{
 					if entities_by_ids[E.ID] <> nil then
 						ShowError('Entity ID conflict between ' + E.Name + ' and ' + entities_by_ids[E.ID].Name);
 					
-					entities_by_ids[E.ID] := E; 	
+					entities_by_ids[E.ID] := E; 	}
 				end;
 				
 				if progress then	
@@ -365,6 +365,7 @@ begin
 		IupDestroy(dlg);
 	
 	//UpdateAttaches;  
+	VerifyIDS;
 end;
 
 procedure TScene.UnloadEntities;
@@ -1070,7 +1071,38 @@ begin
 			end;
 		end;
 	end;
+end;
 
+procedure TScene.VerifyIDs;
+var
+	I : Longint;
+	e : TEntity;
+	
+	idc : array of Longint;
+begin
+	SetLength(idc, 65536);
+	for I := 0 to 65535 do
+		idc[I] := 0;
+		
+	for I := 0 to entities.Count - 1 do
+	begin
+		e := TEntity(entities[I]);
+		Inc(idc[e.ID]);
+	end;
+	
+	for I := 0 to 65535 do
+		if idc[I] > 1 then
+			WriteLn('ID conflict found: ', I);
+			
+	for I := 0 to entities.Count - 1 do
+	begin
+		e := TEntity(entities[I]);
+		if (e.ParentID <> 65535) and (idc[e.ParentID] < 1) then
+			WriteLn('Invalid parent ID: ', e.ParentID);
+	end;
+	
+	WriteLn('verify ids done. objects ', entities.Count );
+	WriteLN('last : ', TEntity(entities[entities.Count-1]).Name);
 end;
 
 procedure TScene.LoadLevelCform(const dir : String);

@@ -186,21 +186,21 @@ var
 	I, J, bone_strs_size, count : Longint;
 	quat : TVec4; // TQuaterion
 	
-	skeleton : TKonfigReader;
-	_array : TKonfigReader;
-	bones_arr : TKonfigReader;
-	locators_arr : TKonfigReader;
-	aux_bones_arr : TKonfigReader;
-	procedural_bones_arr : TKonfigReader;
-	driven_bones_arr : TKonfigReader;
-	dynamic_bones_arr : TKonfigReader;
-	constrained_bones_arr : TKonfigReader;
-	partitions_arr : TKonfigReader;
-	rec : TKonfigReader;
-	position : TKonfigReader;
-	orientation : TKonfigReader;
+	skeleton : IKonfigReader;
+	_array : IKonfigReader;
+	bones_arr : IKonfigReader;
+	locators_arr : IKonfigReader;
+	aux_bones_arr : IKonfigReader;
+	procedural_bones_arr : IKonfigReader;
+	driven_bones_arr : IKonfigReader;
+	dynamic_bones_arr : IKonfigReader;
+	constrained_bones_arr : IKonfigReader;
+	partitions_arr : IKonfigReader;
+	rec : IKonfigReader;
+	position : IKonfigReader;
+	orientation : IKonfigReader;
 	
-	procedural : TKonfigReader;
+	procedural : IKonfigReader;
 begin
 	reader := TKonfigReader.Create(k, nil);
 	try

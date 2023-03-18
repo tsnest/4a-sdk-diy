@@ -6,6 +6,8 @@ this.ReadEntities = ReadEntities;
 var typed_strings = module("exodus\\typed_strings");
 var visualscript  = module("exodus\\visualscript");
 
+var entity_ver = 0;
+
 var entity_readers = {
 	// basic
 	"STATICPROP"                 : ReadUObject_Static,
@@ -124,12 +126,15 @@ function ReadVsRef(e, name)
 	
 	if(n.length > 0)
 	{
-		var i = 0, arr = e.ReadArray("exposed_blocks")
-		while(arr.More())
+		var arr = e.TryReadArray("exposed_blocks")
+		if(arr) // don't exist in version 52
 		{
-			var b = arr.ReadSection(RecStr("rec_", i++, 4), false);
-			b.ReadU16("blkid");
-			visualscript.ReadBlock(b);
+			while(arr.MoreElements())
+			{
+				var b = arr.NextElement();
+				b.ReadU16("blkid");
+				visualscript.ReadBlock(b);
+			}
 		}
 	}
 }
@@ -137,10 +142,9 @@ function ReadVsRef(e, name)
 function ReadVSs(e, name)
 {
 	var k = 0, arr = e.ReadArray(name)
-	while(arr.More())
+	while(arr.MoreElements())
 	{
-		var vs = arr.ReadSection(RecStr("rec_", k++, 4), false)
-
+		var vs = arr.NextElement()
 		vs.ReadString("vs_name")
 		vs.ReadBool("vs_debug")
 		vs.ReadBool("vs_active")
@@ -155,18 +159,18 @@ function ReadPhysicsShell(e)
 	var p = e.ReadSection("physics_shell")
 	
 	var elements = p.ReadArray("elements")
-	for(var i = 0; elements.More(); i++)
+	while(elements.MoreElements())
 	{
-		var l = elements.ReadSection(RecStr("rec_", i, 4), false)
+		var l = elements.NextElement()
 		l.ReadU16("root_bid")
 		l.ReadFP32("accumulated_impulse")
 		l.ReadMatrix43("xform", "pose, matrix_43T")
 		l.ReadVec3("velocity")
 		l.ReadBool("nx_awake")
 		var shapes = l.ReadArray("shapes")
-		for(var j = 0; shapes.More(); j++)
+		while(shapes.MoreElements())
 		{
-			var s = shapes.ReadSection(RecStr("rec_", j, 4), false)
+			var s = shapes.NextElement()
 			s.ReadU16("bid")
 		}
 	}
@@ -184,10 +188,10 @@ function ReadWavesEmitterData(e)
 
 function ReadVolumes(e, name)
 {
-	var i = 0, volumes = e.ReadArray(name);
-	while(volumes.More())
+	var i = 0, volumes = e.ReadArray(name, "volume_%.2d");
+	while(volumes.MoreElements())
 	{
-		var v = volumes.ReadSection(RecStr("volume_", i++, 2), false);
+		var v = volumes.NextElement();
 		var type = v.ReadU32("type");
 		
 		switch(type)
@@ -236,55 +240,55 @@ function ReadJoint(e)
 		params.ReadU32("motiontype_linearz")
 	
 		// linearlimit
-		params.ReadFP32("value")
-		params.ReadFP32("restitution")
-		params.ReadFP32("spring")
-		params.ReadFP32("damping")
+		params.ReadFP32("linearlimit_value")
+		params.ReadFP32("linearlimit_restitution")
+		params.ReadFP32("linearlimit_spring")
+		params.ReadFP32("linearlimit_damping")
 	
 		params.ReadU32("swing1motion")
 	
 		// swing1limit
-		params.ReadFP32("value")
-		params.ReadFP32("restitution")
-		params.ReadFP32("spring")
-		params.ReadFP32("damping")
+		params.ReadFP32("swing1limit_value")
+		params.ReadFP32("swing1limit_restitution")
+		params.ReadFP32("swing1limit_spring")
+		params.ReadFP32("swing1limit_damping")
 		
 		params.ReadU32("swing2motion")
 		
 		// swing2limit
-		params.ReadFP32("value")
-		params.ReadFP32("restitution")
-		params.ReadFP32("spring")
-		params.ReadFP32("damping")
+		params.ReadFP32("swing2limit_value")
+		params.ReadFP32("swing2limit_restitution")
+		params.ReadFP32("swing2limit_spring")
+		params.ReadFP32("swing2limit_damping")
 		
 		params.ReadU32("twist1Motion")
 		
 		// twistlimit_low
-		params.ReadFP32("value")
-		params.ReadFP32("restitution")
-		params.ReadFP32("spring")
-		params.ReadFP32("damping")
+		params.ReadFP32("twistlimit_low_value")
+		params.ReadFP32("twistlimit_low_restitution")
+		params.ReadFP32("twistlimit_low_spring")
+		params.ReadFP32("twistlimit_low_damping")
 		
 		// twistlimit_high
-		params.ReadFP32("value")
-		params.ReadFP32("restitution")
-		params.ReadFP32("spring")
-		params.ReadFP32("damping")
+		params.ReadFP32("twistlimit_high_value")
+		params.ReadFP32("twistlimit_high_restitution")
+		params.ReadFP32("twistlimit_high_spring")
+		params.ReadFP32("twistlimit_high_damping")
 	}
 }
 
 function ReadUObject(e)
 {
 	e.ReadName("name")
-	e.ReadU8("oflags", "bool8")
-	e.ReadU8("sflags", "bool8")
+	e.ReadBool8("oflags", ["reflectable","cast_ao","ghost","shadowgen","rws","disable_impostors","dao_auto"])
+	e.ReadBool8("sflags", ["net_synchronization","disable_qsave","neversleep","force_realtime","inactive","need_fp64_xform"])
 	e.ReadFP32("cull_distance")
 	e.ReadMatrix43("", "pose, matrix")
 	e.ReadHintStr("visual", "ref_model")
 	e.ReadU16("dao_val")
 	e.ReadVec4("render_aux_val", "color, vec4f")
 	
-	visualscript.ReadVssVer6(e)
+	visualscript.ReadVssVer6(e, entity_ver)
 	
 	e.ReadBool("vs_active")
 	e.ReadU16("spatial_sector")
@@ -294,8 +298,9 @@ function ReadUObject(e)
 function ReadUObject_Static(e)
 {
 	ReadUObject(e)
-		
-	e.ReadU8("flags", "bool8")
+	
+	// if(version <= 23) e.ReadBool8("flags", ["raycast", "force_render", "clg_from_model"])
+	e.ReadBool8("flags", ["raycast", "raycast_ai", "force_render", "clg_override", "jumpover_allowed", "ceiling_test_allowed", "force_sliding", "hud_collidable"])
 	e.ReadU8("collision_group")
 	
 	ReadInterest(e)
@@ -318,7 +323,8 @@ function ReadUObject_StaticBreakable(e)
 	ReadVSs(e, "commons_vs")
 	ReadVSs(e, "removed_vs")
 
-	e.ReadU8("flags", "bool8")
+	// if(version <= 23) e.ReadBool8("flags", ["raycast", "force_render", "clg_from_model"])
+	e.ReadBool8("flags", ["raycast", "raycast_ai", "force_render", "clg_override", "jumpover_allowed", "ceiling_test_allowed", "force_sliding", "hud_collidable"])
 	e.ReadU8("collision_group")
 	
 	ReadInterest(e)
@@ -328,7 +334,7 @@ function ReadUObject_StaticBreakable(e)
 	e.ReadHintStr("die_sound", "choose")
 	e.ReadU8("die_sound_type")
 	e.ReadHintStr("die_particles", "choose")
-	e.ReadU8("pflags", "bool8")
+	e.ReadBool8("pflags", ["die_particles_ignore_rotation", "die_particles_from_mesh_center", "phys_hit_allowed"])
 	//if(version < 43) e.ReadBool("block_ai_los")
 	e.ReadFP32("death_impulse")
 }
@@ -342,7 +348,7 @@ function ReadHelperText(e)
 	e.ReadFP32("size")
 	e.ReadVec4("color", "color, vec4f")
 	e.ReadHintStr("font", "choose")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["geometry_check", "glow", "text_visible", "post_forward"])
 	e.ReadFP32("width")
 	e.ReadFP32("height")
 	e.ReadU8("h_alignment")
@@ -360,12 +366,12 @@ function ReadUObject_Effect(e)
 	e.ReadHintStr("bone_part", "part_str")
 	e.ReadU16("start_frame")
 	e.ReadFP32("speed")
-	e.ReadU8("startup_animation_flags", "bool8")
+	e.ReadBool8("startup_animation_flags", ["speed_replace", "force_paused"])
 	e.ReadU8("force_looped")
 	e.ReadHintStr("sound", "sound")
 	e.ReadU8("sound_volume", "fp32_q8")
 	e.ReadU8("sound_filter")
-	e.ReadU8("particle_flags", "bool8")
+	e.ReadBool8("particle_flags", ["particles_active", "particles_constrained", "particles_ignore_parent_rotation", "particles_mesh_source"])
 	e.ReadHintStr("particles", "choose")
 	ReadInterest(e)
 	e.ReadStrArray32("labels")
@@ -386,9 +392,9 @@ function ReadCEntity(e)
 	
 	// unknown class
 	e.ReadU32("dying_mask")
-	e.ReadU8("physics_flags", "bool8")
-	e.ReadU8("physics_flags1", "bool8")
-	e.ReadU8("physics_flags2", "bool8")
+	e.ReadBool8("physics_flags", ["is_physics", "allow_on_detach", "kinematic", "force_kinematic", "stay_in_forced_kinematic", "block_breacking", "raycast", "block_ai_los"])
+	e.ReadBool8("physics_flags1", ["fast_rbody", "destroy_on_contact", "collision_exist", "skip_nx_update", "posrot_movement", "hud_collidable", "sub_scene_root", "semi_breakable"])
+	e.ReadBool8("physics_flags2", ["jumpover_allowed", "ceiling_test_allowed", "force_sliding"])
 	
 	ReadUObject_Effect(e);
 	
@@ -418,17 +424,9 @@ function ReadCEntity(e)
 	e.ReadFP32("footprint_power")
 }
 
-function ReadLamp(e)
+function ReadLightData(e, sect_name)
 {
-	e.ReadBool("initial_state")
-	e.ReadU8("die_sound_type")
-	e.ReadHintStr("die_sound", "choose")
-	e.ReadHintStr("die_particle", "choose")
-	e.ReadHintStr("light_main_bone", "attp_str")
-	e.ReadHintStr("dark_bone", "attp_str")
-	e.ReadHintStr("broken_bone", "attp_str")
-	
-	var l = e.ReadSection("main_light")
+	var l = e.ReadSection(sect_name)
 	l.ReadU8("type")
 	l.ReadVec4("color", "color, vec4f")
 	l.ReadFP32("brightness")
@@ -447,9 +445,22 @@ function ReadLamp(e)
 	l.ReadHintStr("color_ca", "choose")
 	l.ReadHintStr("texture", "choose")
 	l.ReadHint("faces", "flags8")
-	l.ReadU8("faces")
-	l.ReadU8("light_flags1", "bool8")
-	l.ReadU8("light_flags2", "bool8")
+	l.ReadBool8("faces", ["face0","face1","face2","face3","face4","face5"], "u8")
+	l.ReadBool8("light_flags1", ["affect_via", "playershadow", "sscale", "pure", "envlink", "omni_stealth", "skip_stealth", "mul_by_ao"])
+	l.ReadBool8("light_flags2", ["reverse_play", "linear_falloff", "fademode", "active", "projector_mode", "visual_luma_mode", "fake_gi"])
+}
+
+function ReadLamp(e)
+{
+	e.ReadBool("initial_state")
+	e.ReadU8("die_sound_type")
+	e.ReadHintStr("die_sound", "choose")
+	e.ReadHintStr("die_particle", "choose")
+	e.ReadHintStr("light_main_bone", "attp_str")
+	e.ReadHintStr("dark_bone", "attp_str")
+	e.ReadHintStr("broken_bone", "attp_str")
+	
+	ReadLightData(e, "main_light")
 	
 	e.ReadBool("color_to_aux")
 	e.ReadBool("sync_color_to_aux")
@@ -474,7 +485,8 @@ function ReadLamp(e)
 	f.ReadHintStr("name", "choose")
 	f.ReadHintStr("bone", "choose")
 	f.ReadU8("axis")
-	f.ReadVec4("cmul", "color, vec4f")
+	if(entity_ver > 49) // not sure
+		f.ReadVec4("cmul", "color, vec4f")
 }
 
 function ReadHangingLamp(e)
@@ -494,9 +506,8 @@ function ReadUObject_AIPoint(e)
 		l.ReadFP32("weight")
 	}
 	
-	e.ReadU8("ai_map", "bool8")
-	e.ReadHint("cover_group", "choose")
-	e.ReadString("cover_group")
+	e.ReadBool8("ai_map", ["on_ai_map", "not_on_ai_map", "e_valid"])
+	e.ReadHintStr("cover_group", "choose")
 }
 
 function ReadPatrolPoint(e)
@@ -514,7 +525,10 @@ function ReadPatrolPoint(e)
 	e.ReadString("action")
 	e.ReadU16("target", "entity_link, uobject_link")
 	e.ReadHint("flags", "flags32")
-	e.ReadU32("flags")
+	e.ReadBool32("flags",
+		["precise_hit", "exact_rotation", "force_sprint", "disable_strafing"],
+		[ 0x01,          0x02,             0x04,           0x08]
+	)
 	e.ReadFP32("anim_state_approach_speed")
 	e.ReadFP32("approaching_accel")
 }
@@ -525,10 +539,10 @@ function ReadUObject_Restrictor(e)
 	
 	e.ReadString("label")
 	
-	var k = 0, shapes = e.ReadArray("shapes")
-	while(shapes.More())
+	var k = 0, shapes = e.ReadArray("shapes", "shape_%.2d")
+	while(shapes.MoreElements())
 	{
-		var shape = shapes.ReadSection(RecStr("shape_", k++, 2), false)
+		var shape = shapes.NextElement()
 		var type = shape.ReadU32("type")
 		
 		switch(type)
@@ -552,11 +566,10 @@ function ReadUObject_Restrictor(e)
 	
 	e.ReadU8("collisions_group")
 	e.ReadU8("obstacle_collision_group")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["obstacle", "block_ai_vision_free", "jumpover_allowed", "force_sliding", "hud_collidable", "active"])
 	e.ReadU8("block_ai_vision")
 	e.ReadU8("scene_type")
-	e.ReadHint("step_gmtrl", "choose")
-	e.ReadString("step_gmtrl")
+	e.ReadHintStr("step_gmtrl", "choose")
 	e.ReadU8("dynamic_mode")
 }
 
@@ -609,9 +622,9 @@ function ReadUObject_Proxy(e)
 	// class uobject_proxy
 	e.ReadU16("slice_count")
 	var k = 0, entities = e.ReadArray("entities")
-	while(entities.More())
+	while(entities.MoreElements())
 	{
-		var e = entities.ReadSection(RecStr("rec_", k++, 4), false)
+		var e = entities.NextElement()
 		e.ReadU16("entity", "entity_link, uobject_link")
 	}
 }
@@ -619,7 +632,7 @@ function ReadUObject_Proxy(e)
 function ReadInventoryItemObject(e)
 {
 	// class inventory_item
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["useful_for_player", "ammo_for_player", "dao_blink_prevent", "ready_after_cloned", "ui_force_slot", "attached_loot", "processed", "spare"])
 	e.ReadU16("trade_weight")
 	e.ReadU8("ui_force_slot_id")
 
@@ -656,7 +669,7 @@ function ReadHUDObject(e)
 {
 	ReadInventoryItemObject(e)
 	
-  // class chud_item_container (probably)
+	// class chud_item_container (probably)
 	e.ReadBool("anim_simplification")
 	
 	// 
@@ -738,7 +751,7 @@ function ReadUObject_Explosion(e)
 	e.ReadFP32("blast_up_throw_factor");
 	e.ReadFP32("blast_hit_impulse_factor");
 	e.ReadU8("blast_hit_type");
-	e.ReadU8("blast_raycast_type");
+	e.ReadU8("blast_raycast_mode");
 	e.ReadU32("delay");
 	e.ReadU32("flame_time");
 	e.ReadU32("flame_interval");
@@ -781,10 +794,10 @@ function ReadUObject_Explosion(e)
 	s.ReadHintStr("impact_particles", "choose");
 	s.ReadHintStr("trail_particles", "choose");          // NEW in Exodus !!
 	s.ReadHintStr("trail_particles_hud", "choose");      // ..	
-	s.ReadFP32("trail_min_size");                        // ..
+	s.ReadFP32("trail_min_dist");                        // ..
 	s.ReadFP32("wm_size");
 	s.ReadString("ammo_material");
-	s.ReadU8("flags0", "bool8");
+	s.ReadBool8("flags0", ["noreload", "unlimited", "valuable", "burn"]);
 	s.ReadU8("explosive"); // NEW in Exodus !!
 	s.ReadFP32("blast_radius_min");
 	s.ReadFP32("blast_radius_max");
@@ -793,7 +806,7 @@ function ReadUObject_Explosion(e)
 	s.ReadFP32("blast_up_throw_factor");
 	s.ReadFP32("blast_hit_impulse_factor");
 	s.ReadU8("blast_hit_type");
-	s.ReadU8("blast_raycast_type");
+	s.ReadU8("blast_raycast_mode");
 	s.ReadU32("delay");
 	s.ReadU32("flame_time");
 	s.ReadU32("flame_interval");
@@ -802,28 +815,7 @@ function ReadUObject_Explosion(e)
 	s.ReadU32("light_time_max");
 	s.ReadU32("explode_duration_max");
 	s.ReadU32("sound_explode_ai_type");
-	var l = s.ReadSection("explosive_light");
-	l.ReadU8("type")
-	l.ReadVec4("color", "color, vec4f")
-	l.ReadFP32("brightness")
-	l.ReadFP32("range_far")
-	l.ReadFP32("lod_scale")
-	l.ReadVec3("data1")
-	l.ReadVec2("data2")
-	l.ReadFP32("ibl_gen_radius")
-	l.ReadFP32("range_near")
-	l.ReadFP32("source_size")
-	l.ReadFP32("cone", "angle, fp32")
-	l.ReadFP32("quality")
-	l.ReadVec3("position")
-	l.ReadVec3("direction")
-	l.ReadVec3("right")
-	l.ReadHintStr("color_ca", "choose")
-	l.ReadHintStr("texture", "choose")
-	l.ReadHint("faces", "flags8")
-	l.ReadU8("faces")
-	l.ReadU8("light_flags1", "bool8")
-	l.ReadU8("light_flags2", "bool8")
+	ReadLightData(s, "explosive_light");
 	s.ReadHintStr("coloranim", "choose")
 	s.ReadHintStr("water_coloranim", "choose")
 	s.ReadBool("hide_on_explosion")
@@ -846,9 +838,9 @@ function ReadUObject_Explosion(e)
 	s.ReadFP32("max_dist_exp_particles")
 	s.ReadU32("max_dist_exp_particles_delay")
 	var arr = s.ReadArray("explosion_dir_sets")
-	for(var i = 0; arr.More(); i++)
+	while(arr.MoreElements())
 	{
-		var rec = arr.ReadSection(RecStr("rec_", i, 4), false);
+		var rec = arr.NextElement()
 		rec.ReadHintStr("particles_ground", "choose");
 		rec.ReadHintStr("particles_ground_gm", "choose");
 		rec.ReadHintStr("particles_water", "choose");
@@ -960,17 +952,16 @@ function ReadForceField(e)
 	//for(var j = 0; j < 9; j++)
 	//	e.ReadFP32("param_"+j);
 	
-	e.ReadU8("flags0", "bool8");
+	e.ReadBool8("flags0", ["interact_rbodies","interact_cloths","interact_fluids","break_rbodies"]);
 	e.ReadBool("enable_rotation");
 	e.ReadVec3("rotation_power");
 	e.ReadU8("anim_type");
 	// end of force_field_data::load_dynamic
 	
 	var entities = e.ReadArray("entities");
-	var j = 0;
-	while(entities.More())
+	while(entities.MoreElements())
 	{
-		var z = entities.ReadSection(RecStr("rec_", j++, 4), false);
+		var z = entities.NextElement();
 		z.ReadU16("entity", "entity_link, uobject_link");
 	}
 	
@@ -987,7 +978,7 @@ function ReadModifier(e)
 {
 	ReadUObject(e)
 	e.ReadHintStr("modifier_name", "choose")
-	e.ReadU8("modifier_flags", "bool8")
+	e.ReadBool8("modifier_flags", ["modifier_active"])
 }
 
 function ReadEntityAuxEffect(e)
@@ -1002,8 +993,8 @@ function ReadRailEntity(e)
 	ReadCEntity(e)
 	
 	var arr = e.ReadArray("hidden_bones")
-	for(var i = 0; arr.More(); i++)
-		arr.ReadSection(RecStr("rec_", i, 4), false).ReadU16("id")
+	while(arr.MoreElements())
+		arr.NextElement().ReadU16("id")
 		
 	e.ReadBool("force_physics_callback")
 }
@@ -1026,9 +1017,9 @@ function ReadSoftEntity(e)
 	ReadVolumes(e, "collision_volumes");
 }
 
-/*--------------------------------*/
-/*						NPCs								*/
-/*--------------------------------*/
+/*----------------------------------------------------------*/
+/*                      NPCs                                */
+/*----------------------------------------------------------*/
 function ReadBaseBrainUnit(e, no_species_behavior_task)
 {
 	// base_brain_unit
@@ -1039,7 +1030,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadU8("body_state")
 	e.ReadFP32("step_acceleration")
 	e.ReadString("group")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["in_group", "memory_valid", "can_turn_body", "no_combat_mode", "can_be_group_leader", "invisible_grenades_reaction"])
 	
 	// base_visual_memory_manager
 	e.ReadBool("vision_enabled");
@@ -1058,7 +1049,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadFP32("free_vision_vis_threshold");
 	e.ReadFP32("free_vision_lum_min_distance");
 	e.ReadFP32("free_vision_force_danger_range")
-	e.ReadFP32("free_vision_surv_thread_threshold")
+	e.ReadFP32("free_vision_surv_threat_threshold")
 	e.ReadFP32("free_vision_surv_light_alert_threshold")
 	e.ReadFP32("free_vision_surv_vis_threshold")
 	e.ReadFP32("free_vision_surv_lum_min_distance")
@@ -1082,7 +1073,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadFP32("alert_vision_vis_threshold");
 	e.ReadFP32("alert_vision_lum_min_distance");
 	e.ReadFP32("alert_vision_force_danger_range")
-	e.ReadFP32("alert_vision_surv_thread_threshold")
+	e.ReadFP32("alert_vision_surv_threat_threshold")
 	e.ReadFP32("alert_vision_surv_light_alert_threshold")
 	e.ReadFP32("alert_vision_surv_vis_threshold")
 	e.ReadFP32("alert_vision_surv_lum_min_distance")
@@ -1106,7 +1097,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadFP32("danger_vision_vis_threshold");
 	e.ReadFP32("danger_vision_lum_min_distance");
 	e.ReadFP32("danger_vision_force_danger_range")
-	e.ReadFP32("danger_vision_surv_thread_threshold")
+	e.ReadFP32("danger_vision_surv_threat_threshold")
 	e.ReadFP32("danger_vision_surv_light_alert_threshold")
 	e.ReadFP32("danger_vision_surv_vis_threshold")
 	e.ReadFP32("danger_vision_surv_lum_min_distance")
@@ -1132,7 +1123,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadFP32("danger_danger_threshold")
 	
 	// base_threat_memory_manager
-	e.ReadU32("la_free_interia_time")
+	e.ReadU32("la_free_inertia_time")
 	e.ReadU32("a_free_inertia_time")
 	e.ReadU32("ua_free_inertia_time")
 	e.ReadU32("d_la_sounds_all_time")
@@ -1161,7 +1152,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadFP32("max_pitch", "angle, fp32")
 	
 	// ???
-	e.ReadU8("species_flags", "bool8")
+	e.ReadBool8("species_flags", ["species_behavior_enabled", "attack_peaceful_species", "skip_cover_in_enemy_dir", "skip_cover_in_enemy_dir_fear", "can_stand_in_fear", "can_stand_in_fear_cover"])
 	e.ReadU32("species_type")
 	e.ReadFP32("npc_threat_level")
 	e.ReadFP32("npc_courage_threshold")
@@ -1172,8 +1163,8 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	e.ReadU32("species_fallback_cover")
 	e.ReadFP32("species_threat_can_stand_dist")
 	e.ReadU32("species_min_fallback_time")
-	e.ReadU32Array("species_enemy_blacklist", "identifier_array")
-	e.ReadU32Array("species_attack_blacklist", "identifier_array")
+	e.ReadIdentifierArray("species_enemy_blacklist")
+	e.ReadIdentifierArray("species_attack_blacklist")
 	
 	if(!no_species_behavior_task)
 	{
@@ -1181,7 +1172,7 @@ function ReadBaseBrainUnit(e, no_species_behavior_task)
 	}
 	
 	// ?????
-	e.ReadU8("smell_flags", "bool8")
+	e.ReadBool8("smell_flags", ["smell_enabled", "smell_player_only"])
 	e.ReadFP32("smell_radius")
 	e.ReadU32("smell_interval")
 	e.ReadU8("smell_threat_type")
@@ -1205,7 +1196,7 @@ function ReadAIBrainUnit(e, attacks_list, no_species_behavior_task)
 		//	continue;
 		//}
 		var a = attacks.ReadSection(attacks_list[i]);
-		a.ReadU8("flags0", "bool8");
+		a.ReadBool8("flags0", ["enabled", "vs_reference_dyn_state_exist"]);
 		a.ReadHintStr("vs_reference", "choose");
 		a.ReadFP32("probability");
 	}
@@ -1245,7 +1236,7 @@ function ReadWatchmanBrainUnit(e, attacks_list)
 	ReadMonsterBrainUnit(e, attacks_list)
 	
 	e.ReadU8("watchman_type")
-	e.ReadHint("watchman_flags", "flags32")
+	e.ReadHint("watchman_flags", "flags32") // TODO flags
 	e.ReadU32("watchman_flags")
 }
 
@@ -1256,8 +1247,8 @@ function ReadNpcBase(e, i_aqua, brain_unit_read_func)
 	
 	ReadCEntity(e)
 	
-	e.ReadU8("base_npc_flags", "bool8")
-	e.ReadU8("base_npc_flags1", "bool8")
+	e.ReadBool8("base_npc_flags", ["level_mental", "scripted", "immortal", "invulnerable", "forbid_melee_kill", "survival_mode_params", "update_corpse_luminocity", "attached_move"])
+	e.ReadBool8("base_npc_flags1", ["force_ragdoll_death"])
 	e.ReadFP32("luminocity")
 	e.ReadU32("min_corpse_lum_update_interval")
 	e.ReadU32("max_corpse_lum_update_interval")
@@ -1270,8 +1261,8 @@ function ReadNpcBase(e, i_aqua, brain_unit_read_func)
 	e.ReadU32("offmesh_inter_reuse_delay")
 	e.ReadBool("stick_to_ground")
 	e.ReadFP32("stick_to_ground_max_step")
-	e.ReadFP32("stick_to_ground_ai_max_max_upward")
-	e.ReadFP32("stick_to_ground_ai_max_max_downward")
+	e.ReadFP32("stick_to_ground_ai_map_max_upward")
+	e.ReadFP32("stick_to_ground_ai_map_max_downward")
 	
 	// virtual function load_dynamic_dhps
 	e.ReadU32("damage_handle_preset")
@@ -1318,22 +1309,25 @@ function ReadHuman(e, brain_unit_read_func)
 	e.ReadU16("active_item") // from inventory::load_dynamic
 	
 	e.ReadHint("human_flags", "flags16")
-	e.ReadU16("human_flags")
+	e.ReadBool16("human_flags",
+		["scripted_fire", "freegun_mode", "panic_enabled", "danger_delta_enabled", "animated_gunmode", "auto_reload_disabled", "gasmask_voice", "default_close_ranged_weapon"],
+		[ 0x0001,          0x0002,         0x0400,          0x0008,                 0x0004,             0x0010,                 0x0080,          0x0200]
+	)
 	e.ReadU16("close_ranged_weapon", "entity_link, uobject_link")
 	e.ReadU16("ranged_weapon", "entity_link, uobject_link")
 	e.ReadFP32("close_ranged_weapon_distance")
 	e.ReadFP32("ranged_weapon_distance")
 	e.ReadU32("dispersion_decrease_time")
-	e.ReadU32("dispersion_increate_time")
+	e.ReadU32("dispersion_increase_time")
 	e.ReadFP32("min_shoot_dispersion_coef")
 	e.ReadFP32("max_shoot_dispersion_coef")
 	e.ReadHintStr("override_voice", "choose")
 	e.ReadHintStr("allowed_speech_groups", "choose_array, str_shared")
 
 	var property_data = e.ReadArray("property_data");
-	for(var i = 0; property_data.More(); i++)
+	while(property_data.MoreElements())
 	{
-		var r = property_data.ReadSection(RecStr("rec_", i, 4), false);
+		var r = property_data.NextElement();
 		r.ReadString("name");
 		r.ReadS32("value");
 	}
@@ -1355,9 +1349,9 @@ function ReadPlayer(e)
 	e.ReadBool("waiting_for_take");
 	e.ReadU16("take", "entity_link, uobject_link");
 	var v = e.ReadArray("drop_vec");
-	for(var i = 0; v.More(); i++)
+	while(v.MoreElements())
 	{
-		var rec = v.ReadSection(RecStr("rec_", i, 4), false);
+		var rec = v.NextElement();
 		rec.ReadMatrix43("offset");
 		rec.ReadU16("pos", "entity_link, uobject_link");
 		rec.ReadU16("item", "entity_link, uobject_link");
@@ -1373,18 +1367,21 @@ function ReadPlayer(e)
 	e.ReadU32("mp_class_type");
 	e.ReadFP32("def_restore_rate");
 	e.ReadStrArray32("private_data");
-	var achievement_data = e.ReadArray("achievement_data");
-	for(var i = 0; achievement_data.More(); i++)
+	var achievement_data = e.TryReadArray("achievement_data"); // don't exist in editor's lua files
+	if(achievement_data)
 	{
-		var r = achievement_data.ReadSection(RecStr("rec_", i, 4), false);
-		r.ReadString("name");
-		r.ReadS32("value");
-		r.ReadS32("border");
+		while(achievement_data.MoreElements())
+		{
+			var r = achievement_data.NextElement();
+			r.ReadString("name");
+			r.ReadS32("value");
+			r.ReadS32("border");
+		}
 	}
 	var points_data = e.ReadArray("points_data");
-	for(var i = 0; points_data.More(); i++)
+	while(points_data.MoreElements())
 	{
-		var r = points_data.ReadSection(RecStr("rec_", i, 4), false);
+		var r = points_data.NextElement();
 		r.ReadS32("points");
 		r.ReadString("comments");
 	}
@@ -1393,17 +1390,17 @@ function ReadPlayer(e)
 	e.ReadFP32("money_loot_cent");
 	e.ReadU32("min_loot_money");
 	var arr = e.ReadArray("seen_weapon_items");
-	for(var i = 0; arr.More(); i++)
+	while(arr.MoreElements())
 	{
-		var r = arr.ReadSection(RecStr("rec_", i, 4), false);
+		var r = arr.NextElement();
 		r.ReadString("sdata");
 	}
 	e.ReadU32("costume_active");
 	var s = e.ReadSection("spartain")
 	var u = s.ReadArray("upgrades")
-	for(var i = 0; u.More(); i++)
+	while(u.MoreElements())
 	{
-		var rec = u.ReadSection(RecStr("rec_", i, 4), false)
+		var rec = u.NextElement()
 		rec.ReadString("upgrade_id")
 	}
 	e.ReadU16("force_head_obj", "entity_link, uobject_link");
@@ -1479,7 +1476,7 @@ function ReadNpc(e, attacks_list, b_woman_combat)
 		ReadAIBrainUnit(e, attacks_list);
 		
 		// class human_brain_unit
-		e.ReadU8("flags", "bool8");
+		e.ReadBool8("flags", ["is_sniper", "suppress_fire", "static_combat_mode", "force_active_wo_enemy", "surrender_enabled", "skip_group_no_fire_time"]);
 		e.ReadFP32("suppress_fire_min_dist");
 		e.ReadFP32("suppress_fire_timeout");
 		e.ReadFP32("close_distance");
@@ -1502,7 +1499,7 @@ function ReadNpc(e, attacks_list, b_woman_combat)
 		static_combat.ReadVec3("point_dir");
 		
 		// virtual function static_combat_task::load_dynamic
-		e.ReadU8("static_bombat_flags", "bool8");
+		e.ReadBool8("static_combat_flags", ["play_shot_delta", "aim_disabled", "aim_yaw", "aim_pitch", "not_use_cover", "shoot_while_moving"]);
 		e.ReadHintStr("static_idle", "animation_str");
 		e.ReadHintStr("static_attack", "animation_str");
 		e.ReadHintStr("static_reload_idle", "animation_str");
@@ -1519,7 +1516,7 @@ function ReadNpc(e, attacks_list, b_woman_combat)
 		e.ReadHintStr("static_out", "animation_str");
 		
 		var cc = e.ReadSection("common_combat");
-		cc.ReadU8("flags", "bool8");
+		cc.ReadBool8("flags", ["cover_combat_allowed", "wounded_combat_allowed", "wo_enemy_allowed", "grenadier"]);
 		cc.ReadFP32("cover_min_dist");
 		cc.ReadFP32("common_max_dist");
 		cc.ReadFP32("min_cover_weight");
@@ -1541,10 +1538,10 @@ function ReadNpc(e, attacks_list, b_woman_combat)
 			in_cover.ReadU32("enemy_seen_timeout");
 			in_cover.ReadU32("lookout_min");
 			in_cover.ReadU32("lookout_max");
-			in_cover.ReadU32("aim_shile_lookout_timeout");
+			in_cover.ReadU32("aim_while_lookout_timeout");
 			in_cover.ReadU32("lookout_cooldown_min");
 			in_cover.ReadU32("lookout_cooldown_max");
-			in_cover.ReadU8("cover_task_flags", "bool8");  // NEW in Exodus !!!
+			in_cover.ReadBool8("cover_task_flags", ["suppress_cover_enabled", "blind_fire_enabled", "force_suppress_cover"]);  // NEW in Exodus !!!
 			//in_cover.ReadU32("lookout_cooldown_min_far");     // REMOVED in Exodus !!!
 			//in_cover.ReadU32("lookout_cooldown_max_far");     // ..
 			//in_cover.ReadFP32("lookout_cooldown_dist_near");  // ..
@@ -1811,7 +1808,7 @@ entity_readers["HARPY"] = function(e)
 		
 		ReadMonsterBrainUnit(e, attacks);
 		
-		e.ReadHint("demon_flags", "flags32")
+		e.ReadHint("demon_flags", "flags32") // TODO flags
 		e.ReadU32("demon_flags")
 	}
 	
@@ -1931,7 +1928,8 @@ entity_readers["SNAKE"] = function(e)
 		
 		ReadMonsterBrainUnit(e, attacks);
 		
-		e.ReadU8("motor_flags", "bool8")
+		// if(version < 52) e.ReadBool8("motor_flags", ["movable", "ignore_anim_in_speed"])
+		e.ReadBool8("motor_flags", ["movable", "ignore_anim_in_speed", "jaw_control"])
 		e.ReadFP32("water_vertical_offset")
 		e.ReadFP32("vertical_offset")
 		e.ReadFP32("water_amplitude")
@@ -1999,9 +1997,9 @@ entity_readers["WORM"] = function(e)
 	ReadNpcBase(e, false, ReadBrainUnit);
 }
 
-/*--------------------------------*/
-/*	Inventory Items & Devices			*/
-/*--------------------------------*/
+/*--------------------------------------*/
+/*     Inventory Items & Devices        */
+/*--------------------------------------*/
 
 function ReadAmmo(e)
 {
@@ -2021,9 +2019,9 @@ function ReadUpgradableItem(e)
 	
 	var a = e.ReadSection("upgradable_0")
 	var u = a.ReadArray("upgrades")
-	for(var i = 0; u.More(); i++)
+	while(u.MoreElements())
 	{
-		var rec = u.ReadSection(RecStr("rec_", i, 4), false)
+		var rec = u.NextElement()
 		rec.ReadString("upgrade_id")
 	}
 }
@@ -2089,18 +2087,18 @@ function ReadWeaponBase(e)
 
 function ReadWeapon(e)
 {
-	e.ReadString("physics_model")
+	e.ReadString("physics_model_name")
 	
 	ReadWeaponBase(e)
 	
 	e.ReadU32("ammo_loaded")
 	e.ReadU8("bullets_in_barrel")
-	e.ReadU8("flags0", "bool8")
+	e.ReadBool8("flags0", ["alt_ammo_installed", "need_breaking", "dismantlable"])
 	
 	var u = e.ReadArray("upgrades")
-	for(var i = 0; u.More(); i++)
+	while(u.MoreElements())
 	{
-		var rec = u.ReadSection(RecStr("rec_", i, 4), false)
+		var rec = u.NextElement()
 		rec.ReadString("upgrade_id")
 	}
 }
@@ -2142,9 +2140,9 @@ entity_readers["WEAPON_UBOYNICHEG"] = ReadWeapon
 entity_readers["WEAPON_VENTIL"] = ReadWeapon
 entity_readers["WEAPON_VYHLOP"] = ReadWeapon
 
-/*--------------------------------*/
-/*					Vehicles							*/
-/*--------------------------------*/
+/*------------------------------------------------------*/
+/*                  Vehicles                            */
+/*------------------------------------------------------*/
 function ReadDrezina(e)
 {
 	ReadCEntity(e)
@@ -2222,9 +2220,9 @@ entity_readers["BOAT"] = function(e)
 		s.ReadFP32("max_steer", "angle, fp32")
 		s.ReadU32("vel_vs_steer_size")
 		var arr = s.ReadArray("vel_vs_steer");
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("vel_vs_steer_", i, 4), false);
+			var rec = arr.NextElement();
 			rec.ReadVec2("vel_steer");
 		}
 	}
@@ -2324,9 +2322,9 @@ entity_readers["VEHICLE"] = function(e)
 		system.ReadFP32("max_steer", "angle, fp32")
 		system.ReadU32("vel_vs_steer_size")
 		var arr = system.ReadArray("vel_vs_steer")
-		for(var i = 0; arr.More(); i++)
+		while(arr.MoreElements())
 		{
-			var rec = arr.ReadSection(RecStr("vel_vs_steer_", i, 4), false)
+			var rec = arr.NextElement()
 			rec.ReadVec2("vel_steer")
 		}
 	}
@@ -2404,13 +2402,15 @@ function ReadStartup(s, entity_ver)
 	s.ReadU16("migration_rules")
 }
 
-function ReadEntities(entities)
+function ReadEntities(entities, entity_version)
 {
 	var not_implemented = new Array
 	
-	while(entities.More())
+	entity_ver = entity_version
+	
+	while(entities.MoreElements())
 	{
-		var e = entities.ReadSection()
+		var e = entities.NextElement()
 		
 		// common params
 		var _class = e.ReadStringCrc("class", typed_strings.get_class)

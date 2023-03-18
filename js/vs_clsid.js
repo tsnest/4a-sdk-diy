@@ -1854,7 +1854,12 @@ var clsids = [
 	"debug/actions/input generator",
 	"debug/actions/input_recording",
 	"debug/text splash",
-
+	
+	"subscript/script",
+	"subscript/script_block_output",
+	"subscript/script_block_input",
+	"subscript/script_block_reference",
+	"subscript/script_cover_reference"
 ];
 
 var hash_table = new Object;

@@ -840,7 +840,7 @@ var
     'static_data\301e54df_301e54df_4578e2f6', // static_data\stretchy_man__g.config.entity.stretchy_handleft
     'static_data\301e54df_301e54df_d3910576', // static_data\stretchy_man__g.config.entity.stretchy_hand
     
-    // skeleton sequence value 2033 (22)
+    // skeleton sequence value 2033 (23)
     'dynamic\hud\weapon\2012\2012_skeleton_sequence_value',
     'dynamic\hud\weapon\ak\ak_skeleton_sequence_value',
     'dynamic\hud\weapon\bomb\predohranitel\bomb_adhesive_skeleton_sequence_value',
@@ -863,6 +863,7 @@ var
     'dynamic\hud\weapon\ubludok\ubludok_gold_skeleton_sequence_value',
     'dynamic\hud\weapon\uboynicheg\uboynicheg_skeleton_sequence_value',
     'dynamic\hud\weapon\vsv\vsv_skeleton_sequence_value',
+    'dynamic\objects\drezina\drezina_skeleton_sequence_value',
     
     // configs Arktika.1
     'ecostume_type',

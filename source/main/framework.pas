@@ -1,7 +1,7 @@
 unit framework;
 
 interface
-uses Konfig, Variants, mujs;
+uses Konfig, Variants, mujs, Konfig_reader;
 
 type
 	TFrameworkBlockDesc = record
@@ -20,13 +20,14 @@ type
 		function GetBlockDesc(const clsid : String; data : TSection; var desc : TFrameworkBlockDesc) : Boolean;
 		function NeedUpdateBlockDesc(const clsid : String; const name,vtype : String; data : TSection) : Boolean;
 		
+		function ReadEntities(kr : IKonfigReader; version : Word; const script_name : String) : Boolean;
+		
 		function ExecuteScript(script_name : String) : Boolean;
 		procedure DefineGlobal(const name : String; v : Variant);
 	end;
 
 implementation
 uses uCrc, chunkedFile, sysutils { for FileExists },
-	Konfig_reader, // class TKonfigReader 
 	Konfig_script; // class TSection
 
 procedure Script_report(J : js_State; message : PAnsiChar); cdecl;
@@ -273,6 +274,19 @@ begin
 	end;
 	
 	js_pop(J, 1); // pop global
+end;
+
+function TFramework.ReadEntities(kr : IKonfigReader; version : Word; const script_name : String) : Boolean;
+begin
+	Konfig_reader.Script_Push(J, kr);
+	js_setglobal(J, 'reader');
+
+	DefineGlobal('g_entities_version', version);
+
+	Result := ExecuteScript(script_name);
+
+	js_pushundefined(J);
+	js_setglobal(J, 'reader');
 end;
 
 function TFramework.ExecuteScript(script_name : String) : Boolean;
