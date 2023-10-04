@@ -36,9 +36,9 @@ type
 		wmposEndIndividualization,
 		wmposMediaWaiting,
 		wmposOpeningUnknownURL
-    );
-    PWMPOpenState = ^WMPOpenState;
-    
+	);
+	PWMPOpenState = ^WMPOpenState;
+	
 	WMPPlayState = (
 		wmppsUndefined,
 		wmppsStopped,
@@ -69,16 +69,16 @@ type
 		wmplcMorph,
 		wmplcSort,
 		wmplcLast 
-    );
-    PWMPPlaylistChangeEventType = ^WMPPlaylistChangeEventType;
-    
+	);
+	PWMPPlaylistChangeEventType = ^WMPPlaylistChangeEventType;
+	
 	WMPSyncState = (
-    	wmpssUnknown,
+		wmpssUnknown,
 		wmpssSynchronizing,
 		wmpssStopped,
 		wmpssLast
-    );
-    PWMPSyncState = ^WMPSyncState;
+	);
+	PWMPSyncState = ^WMPSyncState;
 
 	WMPDeviceStatus = (
 		wmpdsUnknown,
@@ -88,24 +88,24 @@ type
 		wmpdsManualDevice,
 		wmpdsNewDevice,
 		wmpdsLast
-    );
-    PWMPDeviceStatus = ^WMPDeviceStatus;
-    
+	);
+	PWMPDeviceStatus = ^WMPDeviceStatus;
+	
 	WMPRipState = (
 		wmprsUnknown,
 		wmprsRipping,
 		wmprsStopped
-    );
-    PWMPRipState = ^WMPRipState;
+	);
+	PWMPRipState = ^WMPRipState;
 
 	WMPBurnFormat = (
 		wmpbfAudioCD,
 		wmpbfDataCD 
-    );
-    PWMPBurnFormat = ^WMPBurnFormat;
+	);
+	PWMPBurnFormat = ^WMPBurnFormat;
 
 	WMPBurnState = (
-    	wmpbsUnknown,
+		wmpbsUnknown,
 		wmpbsBusy,
 		wmpbsReady,
 		wmpbsWaitingForDisc,
@@ -115,20 +115,20 @@ type
 		wmpbsStopped,
 		wmpbsErasing,
 		wmpbsDownloading
-    );
-    PWMPBurnState = ^WMPBurnState;
+	);
+	PWMPBurnState = ^WMPBurnState;
 
 	WMPStringCollectionChangeEventType = (
-    	wmpsccetUnknown,
+		wmpsccetUnknown,
 		wmpsccetInsert,
 		wmpsccetChange,
 		wmpsccetDelete,
 		wmpsccetClear,
 		wmpsccetBeginUpdates,
 		wmpsccetEndUpdates
-    );
-    PWMPStringCollectionChangeEventType = ^WMPStringCollectionChangeEventType;
-    
+	);
+	PWMPStringCollectionChangeEventType = ^WMPStringCollectionChangeEventType;
+	
 	WMPLibraryType = (
 		wmpltUnknown,
 		wmpltAll,
@@ -136,16 +136,16 @@ type
 		wmpltRemote,
 		wmpltDisc,
 		wmpltPortableDevice
-    );
-    PWMPLibraryType = ^WMPLibraryType;
-    
+	);
+	PWMPLibraryType = ^WMPLibraryType;
+	
 	WMPFolderScanState = (
-    	wmpfssUnknown,
+		wmpfssUnknown,
 		wmpfssScanning,
 		wmpfssUpdating,
 		wmpfssStopped
-    );
-    PWMPFolderScanState = ^WMPFolderScanState;
+	);
+	PWMPFolderScanState = ^WMPFolderScanState;
 
 type
 	IWMPPlaylist = interface;
