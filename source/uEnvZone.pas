@@ -183,8 +183,7 @@ procedure TEnvZone.RemoveQuad(id : Longint);
 begin
 	if id < (Length(param_tris.data) div (3*6)) then
 	begin
-		Move(param_tris.data[(id+1)*3*6], param_tris.data[id*3*6], Sizeof(Single)*Length(param_tris.data)-((id+1)*3*6));
-		SetLength(param_tris.data, Length(param_tris.data) - 3*6);
+		Delete(param_tris.data, id*3*6, 3*6);
 		UpdatePhysics;
 	end;
 end;
