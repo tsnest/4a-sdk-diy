@@ -31,7 +31,7 @@ begin
 	Result := IUP_DEFAULT;
 end;
 
-procedure property_before_change_cb(prop : TSimpleValue) cdecl;
+procedure property_before_change_cb(tree : Ihandle; prop : TSimpleValue) cdecl;
 begin
 	UndoSaveEnv('Property changed: ''' + prop.name + ' : ' + prop.vtype + '''');
 end;

@@ -122,11 +122,14 @@ begin
 	Writeln(#9'binunp [-l] [-ll] [-build_15_10_2012] -d infile [outfile]');
 	Writeln(#9'binunp [-l] [-ll] [-k n] -c infile [outfile]');
 	Writeln(#9'binunp -s script infile [outfile]');
+	Writeln(#9'binunp -?');
+	Writeln(#9'binunp -help');
 	Writeln;
 	Writeln('-l option = compile/decompile level.bin');
 	Writeln('-ll option = compile/decompile bin from Last Light or later versions');
-	Writeln('-k option = config type, may be 3, 4, 5, 16 or 36, by default 5');
+	Writeln('-k option = config type (for compilation), may be 3, 4, 5, 16 or 36, by default 5');
 	Writeln('-build_15_10_2012 = decompile level.bin from Metro Last Light Build 2662 (Oct 15, 2012)');
+	WriteLn('-? or -help = this help');
 end;
 
 var
@@ -140,6 +143,12 @@ begin
 	level := False;
 	last_light := False;
 	build_15_10_2012 := False;
+
+	if (ParamCount = 0) or ((ParamCount = 1) and ((ParamStr(1) = '-?') or (LowerCase(ParamStr(1)) = '-help'))) then
+	begin
+		Usage;
+		Exit;
+	end;
 
 	I := 1;
 	while I <= ParamCount do

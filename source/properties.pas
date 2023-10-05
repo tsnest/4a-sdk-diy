@@ -490,7 +490,7 @@ begin
 	
 					if ChooseEntity(entity) then
 					begin
-						before_change_cb(tree, s);
+						before_change_cb(tree, i);
 						
 						if entity <> nil then
 							i.num := entity.ID
@@ -498,7 +498,7 @@ begin
 							i.num := 65535;
 						UpdateCaption(tree, id, v);
 							
-						after_change_cb(tree, s);
+						after_change_cb(tree, i);
 					end;
 				end else
 				if v.vtype = 'str_array16' then
