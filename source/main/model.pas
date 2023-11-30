@@ -686,6 +686,25 @@ begin
 	w.Free;
 end;
 
+procedure ChangeModelVersion(f_in, f_out : String; new_version : Byte);
+var
+	r : TMemoryReader;
+	m : T4AModel;
+begin
+	r := TMemoryReader.CreateFromFile(f_in);
+	try
+		m := Load4AModel(r);
+		try
+			SetModelVersion(m, new_version);
+			m.SaveToFile(f_out);
+		finally
+			m.Free;
+		end;
+	finally
+		r.Free;
+	end;
+end;
+
 procedure LoadList(fn : String; list : TFPGMap<String,String>);
 var
 	f : TextFile;
@@ -725,12 +744,14 @@ var
 	I : Integer;
 	flags : TLevelFlags;
 	target_ver : TTargetVersion;
+	model_version : Byte;
 	err : Word;
 begin
 	LoadLists;
 
 	flags := [];
 	target_ver := tv2033;
+	model_version := MODEL_VER_2033;
 
 	I := 1;
 	while I <= ParamCount do
@@ -761,6 +782,17 @@ begin
 			end else
 				WriteLn('Missing argument for parameter -ao_scale');
 		end else
+		if ParamStr(I) = '-version' then 
+		begin
+			if (ParamCount - I) > 0 then
+			begin
+				Val(ParamStr(I+1), model_version, err);
+				if err <> 0 then
+					WriteLn('Warning: ''', ParamStr(I+1), ''' is not a valid number');
+				Inc(I,1);
+			end else
+				WriteLn('Missing argument for parameter -version');
+		end else
 		if ParamStr(I) = '-xbox' then
 		begin
 			Include(flags, lfXBox);
@@ -769,33 +801,40 @@ begin
 		// target version switches
 		if ParamStr(I) = '-2033' then
 		begin
-			target_ver := tv2033
+			target_ver := tv2033;
+			model_version := MODEL_VER_2033
 		end else
 		if ParamStr(I) = '-build_15_10_2012' then
 		begin
-			target_ver := tvBuild15102012
+			target_ver := tvBuild15102012;
+			model_version := MODEL_VER_LL
 		end else
 		if ParamStr(I) = '-build_3_12_2012' then
 		begin
-			target_ver := tvBuild03122012
+			target_ver := tvBuild03122012;
+			model_version := MODEL_VER_LL
 		end else
 		if (ParamStr(I) = '-ll') or (ParamStr(I) = '-last_light') then
 		begin
 			Include(flags, lfLastLight);
-			target_ver := tvLastLight
+			target_ver := tvLastLight;
+			model_version := MODEL_VER_LL
 		end else 
 		if ParamStr(I) = '-redux' then 
 		begin
 			Include(flags, lfRedux);
-			target_ver := tvRedux
+			target_ver := tvRedux;
+			model_version := MODEL_VER_REDUX
 		end else
 		if ParamStr(I) = '-arktika1' then
 		begin
-			target_ver := tvArktika1
+			target_ver := tvArktika1;
+			model_version := MODEL_VER_ARKTIKA1
 		end else
 		if ParamStr(I) = '-exodus' then
 		begin
-			target_ver := tvExodus
+			target_ver := tvExodus;
+			model_version := MODEL_VER_EXODUS
 		end else
 		
 		// operations
@@ -853,6 +892,20 @@ begin
 			end else
 				WriteLn('Not enough parameters for -model2raw');
 		end else 
+		if ParamStr(I) = '-changever' then
+		begin
+			if (ParamCount - I) >= 2 then
+			begin
+				ChangeModelVersion(ParamStr(I+1), ParamStr(I+2), model_version);
+				Inc(I,2);
+			end else
+			if (ParamCount - I) >= 1 then
+			begin
+				ChangeModelVersion(ParamStr(I+1), ParamStr(I+1), model_version);
+				Inc(I,1);
+			end else
+				WriteLn('Not enough parameters for -changever');
+		end else 
 			Writeln('Unknown parameter ', ParamStr(I));
 		
 		Inc(I);
@@ -866,12 +919,19 @@ begin
 		WriteLn(#9'model -model2nxcform_pc infile outfile');
 		WriteLn(#9'model [-ll] [-redux] -model2level model1 model2 .. modelN leveldir');
 		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] [-ao_scale <n>] [-ll] [-redux] -level2level xrleveldir leveldir');
+		WriteLn(#9'model <target or -version> -changever infile [outfile]');
+		WriteLn(#9);
 		WriteLn('Options:');
-		WriteLn(#9'-nomu : skip Multiple Usage models');
-		WriteLn(#9'-lmap : convert lightmaps (CS/CoP version) to level.lmap_pc');
-		WriteLn(#9'-lmap_soc : convert lightmaps (SoC version) to level.lmap_pc');
+		WriteLn(#9'-nomu         : skip Multiple Usage models');
+		WriteLn(#9'-lmap         : convert lightmaps (CS/CoP version) to level.lmap_pc');
+		WriteLn(#9'-lmap_soc     : convert lightmaps (SoC version) to level.lmap_pc');
 		WriteLn(#9'-ao_scale <n> : multiply ambient occlusion values by real number <n>');
-		WriteLn(#9'-ll : target Metro Last Light (2013)');
-		WriteLn(#9'-redux : target Metro Redux');
+		WriteLn(#9'-version <n>  : explicitly set model version to <n> (for -changever)');
+		WriteLn(#9);
+		WriteLn(#9'-2033     : target Metro 2033 (2010)');
+		WriteLn(#9'-ll       : target Metro Last Light (2013)');
+		WriteLn(#9'-redux    : target Metro Redux');
+		WriteLn(#9'-arktika1 : target Arktika.1');
+		WriteLn(#9'-exodus   : target Metro Exodus');
 	end;
 end.

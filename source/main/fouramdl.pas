@@ -220,6 +220,7 @@ type
 	end;
 
 function Load4AModel(r : TMemoryReader; level : Boolean = False) : T4AModel;
+procedure SetModelVersion(m : T4AModel; ver : Byte);
 
 const
 	LEVEL_VER_2033        = 16;
@@ -1356,6 +1357,27 @@ begin
 			FreeAndNil(Result);
 			raise;
 		end;
+	end;
+end;
+
+procedure SetModelVersion(m : T4AModel; ver : Byte);
+var
+	I : Integer;
+	h : T4AModelHierrarhy;
+	s : T4AModelSkinned;
+begin
+	m.version := ver;
+	if m is T4AModelHierrarhy then
+	begin
+		h := T4AModelHierrarhy(m);
+		for I := 0 to Length(h.meshes) - 1 do
+			h.meshes[I].version := ver;
+	end;
+	if m is T4AModelSkinned then
+	begin
+		s := T4AModelSkinned(m);
+		for I := 0 to Length(s.meshes) - 1 do
+			s.meshes[I].version := ver;
 	end;
 end;
 
