@@ -7,7 +7,9 @@ type
 	TTargetVersion = (tv2033, tvBuild15102012, tvBuild03122012, tvLastLight, tvRedux, tvArktika1, tvExodus);
 
 var
-	shaderbytexture, materialbytexture : TFPGMap<String,String>;
+	shaderbytexture, 
+	materialbytexture,
+	collisionbyname : TFPGMap<String,String>;
 
 procedure FromOGFTo4A(srcfile, destfile : String);
 var
@@ -123,26 +125,34 @@ begin
 	mdl.Free;
 end;
 
-procedure From4AToNxCform(src, dst : String);
+procedure From4AToNxCform(src, dst : String; redux : Boolean);
 var
 	m : T4AModelHierrarhy;
 	cf : TNxCform;
-	I : Integer;
+	I, mat, nam : Integer;
 
-	r : TMemoryReader;
 	w : TMemoryWriter;
 begin
 	m := T4AModelHierrarhy.Create;
-	r := TMemoryReader.CreateFromFile(src);
-	m.Load(r);
-	r.Free;
+	m.LoadFromFile(src);
 
 	cf := TNxCform.Create(False);
 	for I := 0 to Length(m.meshes) - 1 do
-		cf.Add4AModel(m.meshes[I]);
-
+	begin
+		mat := materialbytexture.IndexOf(m.meshes[I].texture);
+		if (mat = -1) or (materialbytexture.Data[mat] <> '<none>') then
+		begin
+			nam := collisionbyname.IndexOf(m.meshes[I].name);
+			if (nam = -1) or (collisionbyname.Data[nam] <> '<none>') then
+				cf.Add4AModel(m.meshes[I]);
+		end
+	end;
+	
 	w := TMemoryWriter.Create;
-	cf.Save(w);
+	if redux then
+		cf.SaveRedux(w)
+	else
+		cf.Save(w);
 	w.SaveTo(dst);
 	w.Free;
 
@@ -731,13 +741,21 @@ begin
 end;
 
 procedure LoadLists;
-
 begin
 	shaderbytexture := TFPGMap<String,String>.Create;
 	materialbytexture := TFPGMap<String,String>.Create;
+	collisionbyName := TFPGMap<String,String>.Create;
 
 	LoadList('shadersbytextures.txt', shaderbytexture);
 	LoadList('materialsbytextures.txt', materialbytexture);
+	LoadList('collisionbyName.txt', collisionbyName);
+end;
+
+procedure UnloadLists;
+begin
+	FreeAndNil(shaderbytexture);
+	FreeAndNil(materialbytexture);
+	FreeAndNil(collisionbyName);
 end;
 
 var
@@ -860,10 +878,19 @@ begin
 		begin
 			if (ParamCount - I) >= 2 then
 			begin
-				From4AToNxCform(ParamStr(I+1), ParamStr(I+2));
+				From4AToNxCform(ParamStr(I+1), ParamStr(I+2), False);
 				Inc(I,2);
 			end else
 				WriteLn('Not enough parameters for -model2nxcform_pc');
+		end else
+		if ParamStr(I) = '-model2nxcform33x' then 
+		begin
+			if (ParamCount - I) >= 2 then
+			begin
+				From4AToNxCform(ParamStr(I+1), ParamStr(I+2), True);
+				Inc(I,2);
+			end else
+				WriteLn('Not enough parameters for -model2nxcform33x');
 		end else
 		if ParamStr(I) = '-model2level' then
 		begin
@@ -911,12 +938,15 @@ begin
 		Inc(I);
 	end;
 	
+	UnloadLists;
+	
 	if ParamCount = 0 then
 	begin
 		WriteLn('Usage:');
 		WriteLn(#9'model -ogf2model infile outfile');
 		WriteLn(#9'model -model2ogf infile outfile');
 		WriteLn(#9'model -model2nxcform_pc infile outfile');
+		WriteLn(#9'model -model2nxcform33x infile outfile');
 		WriteLn(#9'model [-ll] [-redux] -model2level model1 model2 .. modelN leveldir');
 		WriteLn(#9'model [-nomu] [-lmap] [-lmap_soc] [-ao_scale <n>] [-ll] [-redux] -level2level xrleveldir leveldir');
 		WriteLn(#9'model <target or -version> -changever infile [outfile]');
