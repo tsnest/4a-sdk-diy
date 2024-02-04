@@ -84,7 +84,7 @@ while (params.More()) {
                 var langs = e.ReadArray("langs")
                 while (langs.More()) {
                     var l = langs.ReadSection() // TODO section name
-                    l.ReadLang("lang")
+                    l.ReadString("lang")
                     l.ReadU16("rms_peak")
                     l.ReadU16("rms_begin")
                     l.ReadU8("num_channels")
