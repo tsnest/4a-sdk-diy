@@ -137,7 +137,7 @@ var masks = reader.ReadSection("sound_masks")
 var mask_count = masks.ReadU32("mask_count")
 for (var i = 0; i < mask_count; i++) {
     masks.ReadU32("mask")
-    masks.ReadU32Array16("items")
+    masks.ReadU32Array16("items", "u32_array")
 }
 
 var schemes = reader.ReadArray("sound_schemes")
