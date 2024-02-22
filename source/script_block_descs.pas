@@ -76,8 +76,15 @@ begin
 			
 			desc.clsid := s.GetStr('clsid');
 			
-			desc.in_names := SplitString(s.GetStr('in_names'), ',');
-			desc.out_names := SplitString(s.GetStr('out_names'), ',');
+			try
+				desc.in_names := SplitString(s.GetStr('in_names'), ',');
+				desc.out_names := SplitString(s.GetStr('out_names'), ',');
+			except 
+				on E: Exception do begin
+					WriteLn('Last clsid: ', desc.clsid);
+					raise;
+				end;
+			end;
 			
 			props := s.GetSect('properties', False);
 			if Assigned(props) then

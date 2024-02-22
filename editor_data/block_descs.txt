@@ -982,7 +982,7 @@
 		'dispersion' = begin
 			clsid : stringz = 'actions/npc/dispersion';         
 			
-			is_names : strings = 'activate,deactivate';
+			in_names : stringz = 'activate,deactivate';
 			out_names : stringz = 'entity,finished'; { 'target,finish' } 
 			
 			properties = begin
@@ -993,7 +993,7 @@
 		'group' = begin
 			clsid : stringz = 'actions/npc/group';         
 			
-			is_names : strings = 'activate';
+			in_names : stringz = 'activate';
 			out_names : stringz = 'entity,finished'; { 'target,finish' } 
 			
 			properties = begin
@@ -1004,7 +1004,7 @@
 		'obstacle' = begin
 			clsid : stringz = 'actions/npc/obstacle';         
 			
-			is_names : strings = 'activate,deactivate';
+			in_names : stringz = 'activate,deactivate';
 			out_names : stringz = 'entity,finished'; { 'target,finish' } 
 			
 			properties = begin
@@ -1018,7 +1018,7 @@
 	'one shot' = begin
 		clsid : stringz = 'actions/one shot';
 		
-		is_names : strings = 'activate';
+		in_names : stringz = 'activate';
 		out_names : stringz = 'entity,finished'; { 'target,finish' } 
 		
 		properties = begin
@@ -1543,6 +1543,22 @@ end;
 			active : bool = True;
 			entity : 'entity_link, uobject_link' = 65535;
 			velocity : fp32 = 2.0;
+		end;
+	end;
+
+end;
+
+'trade' = begin
+
+	'get player gold' = begin
+		clsid : stringz = 'trade/get player gold';
+		
+		in_names : stringz = 'activate';
+		out_names : stringz = 'failed,success';
+		
+		properties = begin
+			cost : u32 = 100;
+			get_all_gold : bool = False;
 		end;
 	end;
 
