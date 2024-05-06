@@ -469,7 +469,7 @@ begin
 		Inc(r.pos, 16); // skip funky stuff
 		SetLength(offsets, num_bones*3);
 		
-		// read curve offsets ( Is it really necessary? I think curves go in fixed order in any way )
+		// read curve offsets ( Is it really necessary? I think curves go in fixed order anyway )
 		for I := 0 to num_bones - 1 do
 		begin
 			if AffectsBone(I) then
