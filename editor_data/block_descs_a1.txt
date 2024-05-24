@@ -100,6 +100,44 @@ actions = begin
 		end;
 	end;
 	
+	engine = begin
+		'clone' = begin
+			clsid : stringz = 'actions/engine/clone';
+			
+			in_names : stringz = 'activate,ref Last,ref All,ref Last Zone';
+			out_names : stringz = 'src,pos,parent,ok,fail,cloned';
+			
+			properties = begin
+				cover_reuse_delay : u32 = 10000;
+				count : u8 = 1;
+				tag : stringz = '';
+				source : 'entity_link, uobject_link' = 65535;
+				position : 'entity_link, uobject_link' = 65535;
+				max_saved_cloned : u8 = 1;
+			end;
+		end;
+	end;
+	
+	net = begin
+		'respawn' = begin
+			clsid : stringz = 'actions/net/respawn';
+			
+			in_names : stringz = 'activate,ref Last,ref All';
+			out_names : stringz = 'src,pos,ok,fail,instead_of,parent,cloned';
+			
+			properties = begin
+				cover_reuse_delay : u32 = 0;
+				count : u8 = 1;
+				tag : stringz = '';
+				source : 'entity_link, uobject_link' = 65535;
+				position : 'entity_link, uobject_link' = 65535;
+				max_saved_cloned : u8 = 1;
+				team : u8 = 1;
+				flags0 : bool8 = 0;
+			end;
+		end;
+	end;
+	
 	'open fire' = begin
 		clsid : stringz = 'actions/open fire';
 		

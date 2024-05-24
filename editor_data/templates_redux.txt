@@ -12189,6 +12189,59 @@ player_0000 = begin
 	end;
 end;
 system = begin
+	patrol_point = begin
+		class : stringz = 'PATROL_POINT';
+		static_data_key : stringz = '_G.config.entity.patrol_point';
+		att_bone_id : locator_str;
+		att_bone_id : stringz = '';
+		id : u16 = 335;
+		parent_id : u16 = 65535;
+		att_offset : 'pose, matrix_43T' = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+		name : name;
+		name : stringz = 'patrol_point';
+		oflags : bool8 = 128;
+		sflags : bool8 = 0;
+		'' : 'pose, matrix' = [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0];
+		visual : ref_model;
+		visual : stringz = '';
+		dao_val : u16 = 47;
+		render_aux_val : 'color, vec4f' = [0.0009765634313, 0.0009765634313, 0.0009765634313, 0];
+		vss_ver_6 : array;
+		vss_ver_6 = begin
+			count : u32 = 0;
+		end;
+		vs_active : bool = True;
+		spatial_sector : u16 = 65535;
+		link_0 = begin
+			object : 'entity_link, uobject_link' = 65535;
+			weight : fp32 = 0;
+		end;
+		link_1 = begin
+			object : 'entity_link, uobject_link' = 65535;
+			weight : fp32 = 0;
+		end;
+		link_2 = begin
+			object : 'entity_link, uobject_link' = 65535;
+			weight : fp32 = 0;
+		end;
+		link_3 = begin
+			object : 'entity_link, uobject_link' = 65535;
+			weight : fp32 = 0;
+		end;
+		ai_map : bool8 = 0;
+		min_wait_time : u32 = 0;
+		max_wait_time : u32 = 0;
+		body_state : stringz = '';
+		anim_state : stringz = '';
+		movement_type : stringz = '';
+		weapon_state : stringz = '';
+		action : stringz = '';
+		target : 'entity_link, uobject_link' = 65535;
+		flags : flags32;
+		flags : u32 = 0;
+		anim_state_approach_speed : fp32 = 2;
+		approaching_accel : fp32 = -1;
+	end;
 	visualscript = begin
 		class : stringz = 'VISUALSCRIPT';
 		static_data_key : stringz = '_G.config.entity.vs';

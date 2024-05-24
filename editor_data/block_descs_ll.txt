@@ -26,7 +26,7 @@
 			clsid : stringz = 'actions/net/respawn';
 			
 			in_names : stringz = 'activate';
-			out_names : stringz = 'pos,instead_of,cloned';
+			out_names : stringz = 'src,pos,ok,fail,instead_of,parent,cloned';
 			
 			properties = begin
 				cover_reuse_delay : u32 = 0;
@@ -91,6 +91,20 @@
 				font : choose;
 				font : stringz = 'main_menu_lcd';
 				flags0 : bool8 = 6; { geometry_check, forward_render, forward_post_render, opaque_render, selflit_render, velocity_render, glow, dynamic }
+			end;
+		end;
+		
+		'clone' = begin
+			clsid : stringz = 'actions/engine/clone';
+			
+			in_names : stringz = 'activate';
+			out_names : stringz = 'src,pos,parent,ok,fail,cloned';
+			
+			properties = begin
+				cover_reuse_delay : u32 = 10000;
+				count : u8 = 1;
+				source : 'entity_link, uobject_link' = 65535;
+				position : 'entity_link, uobject_link' = 65535;
 			end;
 		end;
 		
